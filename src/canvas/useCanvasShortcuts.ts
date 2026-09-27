@@ -12,14 +12,19 @@ import {
 import { prefersReducedMotion } from '@/lib/motion';
 import { zoomRange } from '@/design/tokens';
 import { useFocusStore } from '@/state/focusStore';
+import { useTriageStore } from '@/state/triageStore';
+import { createSetItemFieldCommand } from '@/commands/itemCommands';
+import { triggerRediscover } from '@/features/rediscover/triggerRediscover';
+import { openInboxTriage } from '@/features/triage/openInboxTriage';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 }
 
-/** Selection/stacking/trash/nudge shortcuts that need the engine and the library store — §2.2,
- * §2.15. Kept separate from `useGlobalShortcuts` (which only touches UI state).
+/** Selection/stacking/trash/nudge/Rediscover/Favorite/Inbox-triage shortcuts that need the
+ * engine and the library store — §2.2, §2.15. Kept separate from `useGlobalShortcuts` (which
+ * only touches UI state).
  *
  * Deviation from §2.2: `]`/`[` and `Ctrl+]`/`Ctrl+[` both bring the selection all the way to the
  * front/back rather than one step at a time — a relative one-step reorder needs a full z-order
@@ -58,6 +63,33 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
         e.preventDefault();
         engine!.zoomTo100(reduceMotion);
         return;
+      }
+
+      // R / I / S (§2.15) don't make sense while Triage already owns the keyboard — Triage has
+      // its own Favorite toggle, and reopening it mid-session would reset its progress snapshot.
+      if (!useTriageStore.getState().isOpen) {
+        if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          triggerRediscover(engine);
+          return;
+        }
+        if (e.key.toLowerCase() === 'i' && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          openInboxTriage();
+          return;
+        }
+        if (e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey && selection.length > 0) {
+          e.preventDefault();
+          const anyUnfavorited = selection.some(
+            (id) => !useLibraryStore.getState().items.get(id)?.favorite,
+          );
+          for (const id of selection) {
+            void useHistoryStore
+              .getState()
+              .execute(createSetItemFieldCommand(platform, id, 'favorite', anyUnfavorited));
+          }
+          return;
+        }
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {

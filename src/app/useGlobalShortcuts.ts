@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useUiStore } from '@/state/uiStore';
 import { useSearchStore } from '@/state/searchStore';
+import { useShortcutsStore } from '@/state/shortcutsStore';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -44,6 +45,10 @@ export function useGlobalShortcuts() {
         case '/':
           e.preventDefault();
           useSearchStore.getState().open();
+          break;
+        case '?':
+          e.preventDefault();
+          useShortcutsStore.getState().toggle();
           break;
       }
     }

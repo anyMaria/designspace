@@ -82,6 +82,8 @@ export class Engine {
   private searchMode: 'dim' | 'hide' = 'dim';
   // List panel group hover (§2.9) — takes priority over search alpha while set.
   private hoverHighlight: Set<string> | null = null;
+  // Rediscover's pulse (§2.15) — cancels the running ticker callback, if any.
+  private pulseStop: (() => void) | null = null;
 
   private selection = new Set<string>();
   private hoveredId: string | null = null;
@@ -259,6 +261,37 @@ export class Engine {
 
   private refreshAlpha(): void {
     for (const [id, sprite] of this.sprites) sprite.alpha = this.alphaFor(id);
+  }
+
+  /** Rediscover's "make it pulse" (§2.15) — a brief alpha oscillation, not a selection outline
+   * (which already exists and would look identical to any other selection). Only one pulse runs
+   * at a time; a second call cancels the first rather than layering two tickers on one sprite. */
+  pulseItem(id: string, durationMs = 1400): void {
+    this.pulseStop?.();
+    this.pulseStop = null;
+    const sprite = this.sprites.get(id);
+    if (!sprite || !this.app) return;
+
+    const start = performance.now();
+    const baseAlpha = this.alphaFor(id);
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      if (elapsed >= durationMs) {
+        sprite.alpha = this.alphaFor(id);
+        this.app?.ticker.remove(tick);
+        if (this.pulseStop === stop) this.pulseStop = null;
+        return;
+      }
+      const phase = (elapsed / 220) * Math.PI;
+      const wave = (Math.sin(phase) + 1) / 2; // 0..1
+      sprite.alpha = baseAlpha * (0.4 + 0.6 * wave);
+    };
+    const stop = () => {
+      this.app?.ticker.remove(tick);
+      sprite.alpha = this.alphaFor(id);
+    };
+    this.pulseStop = stop;
+    this.app.ticker.add(tick);
   }
 
   private alphaFor(id: string): number {
@@ -738,6 +771,7 @@ export class Engine {
   }
 
   destroy(): void {
+    this.pulseStop?.();
     this.detachInput?.();
     this.detachSelectionInput?.();
     this.unsubscribeCamera?.();

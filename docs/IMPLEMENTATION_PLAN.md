@@ -1196,8 +1196,8 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
   - [x] Dim/Hide, counts, Frame results;
   - [ ] saved filters ("Create board from results" is switched on in M4).
 - [ ] The List panel: grouping, sorting, sizes, collapsing, hover highlight, click to fly, gallery mode, virtualization, saved filters.
-- [ ] Rediscover (R): fly to a random item not viewed for 30+ days (favoring older ones) and make it pulse.
-- [ ] The shortcut list (?).
+- [x] Rediscover (R): fly to a random item not viewed for 30+ days (favoring older ones) and make it pulse.
+- [x] The shortcut list (?).
 - [ ] Tag `v0.1.0`.
 
 **Acceptance:**

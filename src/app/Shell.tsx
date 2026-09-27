@@ -11,6 +11,7 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { useUiStore } from '@/state/uiStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
+import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
 import type { Engine } from '@/canvas/Engine';
 import { useEngineBindings } from '@/canvas/useEngineBindings';
@@ -30,7 +31,9 @@ import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
 import { BulkDetailsPanel } from '@/features/details/BulkDetailsPanel';
 import { TriageView } from '@/features/triage/TriageView';
-import { useTriageStore } from '@/state/triageStore';
+import { openInboxTriage } from '@/features/triage/openInboxTriage';
+import { triggerRediscover } from '@/features/rediscover/triggerRediscover';
+import { ShortcutListOverlay } from '@/features/shortcuts/ShortcutListOverlay';
 import { SearchBar } from '@/features/search/SearchBar';
 import { useSearchBinding } from '@/canvas/useSearchBinding';
 import { useSearchStore, isFilterActive } from '@/state/searchStore';
@@ -57,6 +60,7 @@ export interface ShellProps {
 
 export function Shell({ platform, library, libraryBoardId, benchCount }: ShellProps) {
   useGlobalShortcuts();
+  useUndoRedoShortcuts();
   const tool = useUiStore((s) => s.tool);
   const setTool = useUiStore((s) => s.setTool);
   const wheelMode = useUiStore((s) => s.wheelMode);
@@ -80,13 +84,6 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
     () => [...items.values()].filter((i) => !i.deletedAt && !i.sortedAt).length,
     [items],
   );
-
-  function openTriage(): void {
-    const inboxItems = [...items.values()]
-      .filter((i) => !i.deletedAt && !i.sortedAt)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    useTriageStore.getState().open(inboxItems.map((i) => i.id));
-  }
 
   useEffect(() => {
     useLibraryStore.getState().setLibraryBoardId(libraryBoardId);
@@ -175,12 +172,16 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
               font: 'inherit',
               color: 'inherit',
             }}
-            onClick={openTriage}
+            onClick={openInboxTriage}
           >
             {en.inbox.chip(inboxCount)}
           </button>
         )}
-        <IconButton icon={<Share2 size={20} strokeWidth={1.75} />} label={en.rediscover} />
+        <IconButton
+          icon={<Share2 size={20} strokeWidth={1.75} />}
+          label={en.rediscover}
+          onClick={() => triggerRediscover(engine)}
+        />
       </div>
 
       {/* Top-right: Settings, Panel toggle — §2.1 */}
@@ -364,6 +365,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       <FocusView platform={platform} />
       <TriageView platform={platform} />
       <SearchBar engine={engine} />
+      <ShortcutListOverlay />
     </div>
   );
 }

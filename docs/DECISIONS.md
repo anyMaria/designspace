@@ -728,4 +728,62 @@ zero console errors, and the expanded-gallery screenshot confirms thumbnails and
 
 ---
 
+### Rediscover + the shortcut list overlay (M2-9)
+`src/lib/rediscover.ts`'s `pickRediscoverItem` is a pure, unit-tested weighted random pick: items
+not viewed (falling back to `createdAt` for one that's never been opened) for 30+ days are
+eligible, and "favoring older ones" is implemented as sampling weighted by staleness duration
+(days-since-seen) rather than a uniform draw among eligible items — an item untouched for a year
+is far more likely to come up than one 31 days stale. `Engine.pulseItem(id)` makes the pick
+visible: a ~1.4s alpha oscillation via the Pixi ticker (not the existing selection outline, which
+would look identical to any other selection and defeat the point of "make it pulse"), sharing the
+same `alphaFor(id)` the search Dim/Hide and hover-highlight alpha already goes through so a pulse
+correctly resumes whatever alpha state applied before it started. `triggerRediscover()` wires
+picking → select → fly → pulse together and shows a toast when nothing qualifies, rather than the
+button silently doing nothing.
+
+**Two real, previously-undetected bugs found and fixed while wiring this task's keyboard
+shortcuts:**
+
+1. **`useUndoRedoShortcuts` (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y) was written in M1-2 and never called
+   from anywhere** — the hook existed, fully correct, but no component ever invoked it. Undo/redo
+   by keyboard has never worked in this app until this milestone; only the toast "Undo" buttons
+   and the vocabulary manager's own affordances ever exercised the history stack. Fixed by calling
+   it from `Shell.tsx` alongside the other shortcut hooks. Nothing caught this earlier because no
+   test exercised the keyboard path specifically — only `history.ts` itself had unit coverage.
+2. **`<Dialog>`'s Escape-to-close has never worked via a real keypress, for any dialog in the
+   app, including Settings** — only clicking the backdrop closed it. Building this task's
+   shortcut-list overlay on top of the shared `Dialog` component surfaced it: a Playwright check
+   driving a genuine `page.keyboard.press('Escape')` failed to close the dialog, while a
+   synthetic `window.dispatchEvent(new KeyboardEvent(...))` closed it fine — the giveaway that
+   something in the DOM calls `stopPropagation()` on Escape's real bubble phase before it reaches
+   `window`, silently swallowing every bubble-phase `window` listener downstream (nothing in this
+   codebase does that explicitly; it wasn't worth chasing further once the fix below was verified
+   working for both `Dialog` call sites). Fixed by listening in the **capture** phase instead
+   (`addEventListener('keydown', onKeyDown, true)`), which runs before whatever swallows the
+   bubble phase. Confirmed fixed for both the new shortcut overlay and — previously completely
+   untested — Settings.
+
+**Shortcut list scope**: shows only the shortcuts actually wired up (Search, Undo/Redo, tools,
+Select all, Trash, Focus view, Esc, zoom, panel/minimap toggles, Favorite, Rediscover, Inbox
+triage, stacking, nudge, Settings, itself) — Boards, Connections, notes, links and the Frame tool
+don't exist before M3–M5, so their table rows (Ctrl+O/Ctrl+L/N, C/Shift+C, F, Shift+Delete) are
+left out entirely rather than documented as dead keys, the same call `ContextMenu.tsx` already
+makes for its own deferred actions.
+
+**R / I / S are skipped while Triage is open** (checked via `useTriageStore.getState().isOpen`):
+Triage already owns `S` for its own Favorite toggle on the item being triaged, and re-running
+`openInboxTriage()` mid-session would silently reset its progress snapshot out from under the
+owner. The Inbox chip's click and the `I` shortcut now share one `openInboxTriage()` helper so
+both build the snapshot identically.
+
+Verified with unit tests for `pickRediscoverItem` (30-day cutoff, `viewedAt`/`createdAt` fallback,
+soft-delete exclusion, staleness-weighted favoring, determinism for a given `random()`) and a new
+Playwright check (`smoke-m2-rediscover.spec.ts`): Rediscover's "nothing yet" toast against the
+freshly-seeded demo library (every item is far newer than 30 days, so this is the correct, honest
+result — the weighted-pick math itself is what the unit tests exercise), the shortcut list opening
+via `?` and closing via Escape (the fixed bug), and Ctrl+Z/Ctrl+Shift+Z actually undoing/redoing a
+Favorite toggle (the other fixed bug) — zero console errors.
+
+---
+
 *(Later milestones append below this line.)*
