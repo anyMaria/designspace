@@ -32,13 +32,17 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
       const files = e.dataTransfer?.files;
       if (!files || files.length === 0) return;
       e.preventDefault();
-      const point = engine?.screenToWorld(e.clientX, e.clientY) ?? engine?.viewportCenter() ?? { x: 0, y: 0 };
+      const point = engine?.screenToWorld(e.clientX, e.clientY) ??
+        engine?.viewportCenter() ?? { x: 0, y: 0 };
       void importFiles(platform, Array.from(files), point, (rect) => engine?.flyTo(rect));
     }
 
     async function onPaste(e: ClipboardEvent) {
       const target = e.target;
-      if (target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      ) {
         return;
       }
       const point = engine?.viewportCenter() ?? { x: 0, y: 0 };

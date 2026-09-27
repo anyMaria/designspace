@@ -152,7 +152,10 @@ describe('IngestQueue', () => {
 
     expect(platform.cache.put).toHaveBeenCalledWith('t128/item1', expect.any(Uint8Array));
     expect(platform.cache.put).toHaveBeenCalledWith('t512/item1', expect.any(Uint8Array));
-    expect(platform.db.execute).toHaveBeenCalledWith(expect.stringContaining("status = 'ok'"), expect.any(Array));
+    expect(platform.db.execute).toHaveBeenCalledWith(
+      expect.stringContaining("status = 'ok'"),
+      expect.any(Array),
+    );
   });
 
   it('persist() marks a failed ingest as status=error without touching the cache', async () => {

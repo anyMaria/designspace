@@ -37,7 +37,10 @@ export async function deleteForever(platform: Platform, ids: string[]): Promise<
   }
 
   await platform.db.batch([
-    { sql: `DELETE FROM placements WHERE item_id IN (${ids.map(() => '?').join(',')})`, params: ids },
+    {
+      sql: `DELETE FROM placements WHERE item_id IN (${ids.map(() => '?').join(',')})`,
+      params: ids,
+    },
     { sql: `DELETE FROM items WHERE id IN (${ids.map(() => '?').join(',')})`, params: ids },
   ]);
 }

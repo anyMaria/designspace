@@ -28,17 +28,17 @@ export function Minimap({ engine }: { engine: Engine | null }) {
         h: viewport.h / camera.zoom,
       }
     : null;
-  const worldBounds = unionRects([...(bounds ? [bounds] : []), ...(viewportRect ? [viewportRect] : [])]) ?? {
+  const worldBounds = unionRects([
+    ...(bounds ? [bounds] : []),
+    ...(viewportRect ? [viewportRect] : []),
+  ]) ?? {
     x: -500,
     y: -500,
     w: 1000,
     h: 1000,
   };
 
-  const scale = Math.min(
-    MAP_W / (worldBounds.w + PAD * 2),
-    MAP_H / (worldBounds.h + PAD * 2),
-  );
+  const scale = Math.min(MAP_W / (worldBounds.w + PAD * 2), MAP_H / (worldBounds.h + PAD * 2));
   const originX = worldBounds.x - PAD;
   const originY = worldBounds.y - PAD;
 

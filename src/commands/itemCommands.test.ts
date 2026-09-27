@@ -78,7 +78,10 @@ describe('createMoveItemsCommand', () => {
     const calls = vi.mocked(platform.db.batch).mock.calls;
     expect(calls).toHaveLength(1);
     expect(calls[0][0]).toEqual([
-      { sql: expect.stringContaining('UPDATE placements') as string, params: [100, 50, 'lib', 'item1'] },
+      {
+        sql: expect.stringContaining('UPDATE placements') as string,
+        params: [100, 50, 'lib', 'item1'],
+      },
     ]);
   });
 
@@ -97,7 +100,13 @@ describe('createResizeItemCommand', () => {
   it('do()/undo() round-trip the exact prior size and position', async () => {
     useLibraryStore.getState().upsertPlacement(makePlacement({ x: 0, y: 0, w: 320, h: 240 }));
     const platform = makePlatform();
-    const command = createResizeItemCommand(platform, { id: 'item1', x: -10, y: -5, w: 400, h: 300 });
+    const command = createResizeItemCommand(platform, {
+      id: 'item1',
+      x: -10,
+      y: -5,
+      w: 400,
+      h: 300,
+    });
 
     await command.do();
     expect(useLibraryStore.getState().placements.get('item1')).toMatchObject({ w: 400, h: 300 });

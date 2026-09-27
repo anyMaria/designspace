@@ -4,7 +4,11 @@ import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useHistoryStore } from '@/commands/history';
 import { useToastStore } from '@/state/toastStore';
-import { createMoveItemsCommand, createStackOrderCommand, createTrashCommand } from '@/commands/itemCommands';
+import {
+  createMoveItemsCommand,
+  createStackOrderCommand,
+  createTrashCommand,
+} from '@/commands/itemCommands';
 import { prefersReducedMotion } from '@/lib/motion';
 import { zoomRange } from '@/design/tokens';
 import { useFocusStore } from '@/state/focusStore';
@@ -80,10 +84,14 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
           .getState()
           .execute(createTrashCommand(platform, selection))
           .then(() => {
-            useToastStore.getState().show(
-              selection.length > 1 ? `Moved ${selection.length} items to Trash` : 'Moved to Trash',
-              { onAction: () => void useHistoryStore.getState().undo() },
-            );
+            useToastStore
+              .getState()
+              .show(
+                selection.length > 1
+                  ? `Moved ${selection.length} items to Trash`
+                  : 'Moved to Trash',
+                { onAction: () => void useHistoryStore.getState().undo() },
+              );
           });
         return;
       }

@@ -51,7 +51,10 @@ export class TauriPlatform implements Platform {
     importPaths: (paths: string[]) => invoke<ImportResult[]>('media_import_paths', { paths }),
     importFile: async (file: File, onProgress?: (p: number) => void): Promise<ImportResult> => {
       const CHUNK_SIZE = 8 * 1024 * 1024; // 8 MB, per §4.4
-      const token = await invoke<string>('media_import_begin', { name: file.name, size: file.size });
+      const token = await invoke<string>('media_import_begin', {
+        name: file.name,
+        size: file.size,
+      });
       let sent = 0;
       for (let offset = 0; offset < file.size; offset += CHUNK_SIZE) {
         const slice = file.slice(offset, offset + CHUNK_SIZE);
@@ -132,7 +135,9 @@ export class TauriPlatform implements Platform {
         const ctx = canvas.getContext('2d');
         if (!ctx) return null;
         ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, 'image/png'),
+        );
         return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
       } catch {
         return null;

@@ -52,14 +52,10 @@ async function applyResize(platform: Platform, update: ResizeUpdate): Promise<vo
   const placement = useLibraryStore.getState().placements.get(update.id);
   if (!placement) return;
   useLibraryStore.getState().upsertPlacement({ ...placement, ...update });
-  await platform.db.execute('UPDATE placements SET x = ?, y = ?, w = ?, h = ? WHERE board_id = ? AND item_id = ?', [
-    update.x,
-    update.y,
-    update.w,
-    update.h,
-    placement.boardId,
-    update.id,
-  ]);
+  await platform.db.execute(
+    'UPDATE placements SET x = ?, y = ?, w = ?, h = ? WHERE board_id = ? AND item_id = ?',
+    [update.x, update.y, update.w, update.h, placement.boardId, update.id],
+  );
 }
 
 export function createResizeItemCommand(platform: Platform, update: ResizeUpdate): Command {
@@ -94,7 +90,11 @@ async function applyZ(platform: Platform, updates: ZUpdate[]): Promise<void> {
 }
 
 /** `]`/`[`/Ctrl+]/Ctrl+[ — §2.2. `updates` is the engine's already-computed new z per item. */
-export function createStackOrderCommand(platform: Platform, label: string, updates: ZUpdate[]): Command {
+export function createStackOrderCommand(
+  platform: Platform,
+  label: string,
+  updates: ZUpdate[],
+): Command {
   const previous: ZUpdate[] = updates.map((u) => {
     const p = useLibraryStore.getState().placements.get(u.id);
     return { id: u.id, z: p?.z ?? u.z };
@@ -116,7 +116,10 @@ export function createTrashCommand(platform: Platform, ids: string[]): Command {
       const item = useLibraryStore.getState().items.get(id);
       if (!item) continue;
       useLibraryStore.getState().upsertItem({ ...item, deletedAt });
-      statements.push({ sql: 'UPDATE items SET deleted_at = ? WHERE id = ?', params: [deletedAt, id] });
+      statements.push({
+        sql: 'UPDATE items SET deleted_at = ? WHERE id = ?',
+        params: [deletedAt, id],
+      });
     }
     await platform.db.batch(statements);
   }

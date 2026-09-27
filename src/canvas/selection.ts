@@ -11,10 +11,17 @@ export interface HitTestable {
 }
 
 /** Topmost item (highest z, ties broken by later in the array) containing `point`, or null. */
-export function hitTest<T extends HitTestable>(items: T[], point: { x: number; y: number }): T | null {
+export function hitTest<T extends HitTestable>(
+  items: T[],
+  point: { x: number; y: number },
+): T | null {
   let best: T | null = null;
   for (const item of items) {
-    const inside = point.x >= item.x && point.x <= item.x + item.w && point.y >= item.y && point.y <= item.y + item.h;
+    const inside =
+      point.x >= item.x &&
+      point.x <= item.x + item.w &&
+      point.y >= item.y &&
+      point.y <= item.y + item.h;
     if (!inside) continue;
     if (!best || item.z >= best.z) best = item;
   }
@@ -35,7 +42,11 @@ export function normalizeRect(a: { x: number; y: number }, b: { x: number; y: nu
 export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
 
 /** Which corner handle (if any) of `bounds` contains `point`, within `handleSize` world units. */
-export function resizeHandleAt(bounds: Rect, point: { x: number; y: number }, handleSize: number): ResizeHandle | null {
+export function resizeHandleAt(
+  bounds: Rect,
+  point: { x: number; y: number },
+  handleSize: number,
+): ResizeHandle | null {
   const half = handleSize / 2;
   const corners: [ResizeHandle, number, number][] = [
     ['nw', bounds.x, bounds.y],
@@ -51,7 +62,12 @@ export function resizeHandleAt(bounds: Rect, point: { x: number; y: number }, ha
 
 /** Resizes `bounds` by dragging `handle` to `point`, preserving aspect ratio (media kinds keep
  * their aspect ratio — §2.2). Returns the new rect, with a minimum size floor. */
-export function resizeWithAspect(bounds: Rect, handle: ResizeHandle, point: { x: number; y: number }, minSize = 24): Rect {
+export function resizeWithAspect(
+  bounds: Rect,
+  handle: ResizeHandle,
+  point: { x: number; y: number },
+  minSize = 24,
+): Rect {
   const aspect = bounds.w / bounds.h;
   const anchor =
     handle === 'nw'

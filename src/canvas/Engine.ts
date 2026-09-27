@@ -103,7 +103,8 @@ export class Engine {
   }
 
   private emit<K extends keyof EngineEvents>(event: K, ...args: Parameters<EngineEvents[K]>): void {
-    for (const handler of this.listeners[event]) (handler as (...a: Parameters<EngineEvents[K]>) => void)(...args);
+    for (const handler of this.listeners[event])
+      (handler as (...a: Parameters<EngineEvents[K]>) => void)(...args);
   }
 
   async mount(container: HTMLElement, opts: EngineOptions): Promise<void> {
@@ -326,10 +327,12 @@ export class Engine {
           this.emit('select', this.getSelection());
         }
         mode = 'move';
-        moveOrigin = new Map([...this.selection].map((id) => {
-          const c = this.cards.get(id);
-          return [id, { x: c?.x ?? 0, y: c?.y ?? 0 }];
-        }));
+        moveOrigin = new Map(
+          [...this.selection].map((id) => {
+            const c = this.cards.get(id);
+            return [id, { x: c?.x ?? 0, y: c?.y ?? 0 }];
+          }),
+        );
       } else {
         if (!e.shiftKey) {
           this.setSelection([]);
@@ -512,7 +515,9 @@ export class Engine {
     for (const h of this.handles) h.destroy();
     this.handles = [];
 
-    const selected = [...this.selection].map((id) => this.cards.get(id)).filter((c): c is ItemCard => !!c);
+    const selected = [...this.selection]
+      .map((id) => this.cards.get(id))
+      .filter((c): c is ItemCard => !!c);
     if (selected.length === 0) return;
 
     for (const card of selected) {
@@ -520,7 +525,9 @@ export class Engine {
       this.applyOverlayTransform(outline, card.x, card.y);
       const w = card.w * this.camera.zoom;
       const h = card.h * this.camera.zoom;
-      outline.rect(0, 0, w, h).stroke({ color: 0xefe6d6, width: canvasGeometry.selectionOutlinePx });
+      outline
+        .rect(0, 0, w, h)
+        .stroke({ color: 0xefe6d6, width: canvasGeometry.selectionOutlinePx });
       this.overlayLayer.addChild(outline);
       this.handles.push(outline);
     }
@@ -554,7 +561,9 @@ export class Engine {
 
   /** The zoom menu's "Zoom to fit"/"Zoom to selection" (§2.1). */
   zoomToFit(reduceMotion = false): void {
-    const bounds = unionRects([...this.cards.values()].map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h })));
+    const bounds = unionRects(
+      [...this.cards.values()].map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h })),
+    );
     if (bounds) this.flyTo(bounds, reduceMotion);
   }
 

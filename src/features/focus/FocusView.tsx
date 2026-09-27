@@ -66,12 +66,21 @@ export function FocusView({ platform }: { platform: Platform }) {
         style={{ position: 'absolute', top: 'var(--space-4)', right: 'var(--space-4)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <IconButton icon={<X size={20} strokeWidth={1.75} />} label={en.focusView.close} onClick={close} />
+        <IconButton
+          icon={<X size={20} strokeWidth={1.75} />}
+          label={en.focusView.close}
+          onClick={close}
+        />
       </div>
 
       {hasPrev && (
         <div
-          style={{ position: 'absolute', left: 'var(--space-4)', top: '50%', transform: 'translateY(-50%)' }}
+          style={{
+            position: 'absolute',
+            left: 'var(--space-4)',
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <IconButton
@@ -83,7 +92,12 @@ export function FocusView({ platform }: { platform: Platform }) {
       )}
       {hasNext && (
         <div
-          style={{ position: 'absolute', right: 'var(--space-4)', top: '50%', transform: 'translateY(-50%)' }}
+          style={{
+            position: 'absolute',
+            right: 'var(--space-4)',
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <IconButton
@@ -98,11 +112,18 @@ export function FocusView({ platform }: { platform: Platform }) {
         <img
           src={platform.media.originalUrl(item.filePath)}
           alt={item.title}
-          style={{ maxWidth: '85vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }}
+          style={{
+            maxWidth: '85vw',
+            maxHeight: '80vh',
+            objectFit: 'contain',
+            borderRadius: 'var(--radius-sm)',
+          }}
           onClick={(e) => e.stopPropagation()}
         />
       )}
-      <div style={{ marginTop: 'var(--space-4)', color: 'var(--text-2)' }}>{item.title || item.fileName}</div>
+      <div style={{ marginTop: 'var(--space-4)', color: 'var(--text-2)' }}>
+        {item.title || item.fileName}
+      </div>
     </div>
   );
 }

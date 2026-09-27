@@ -16,7 +16,10 @@ function makeFile(name: string, content = 'x'): File {
   return new File([content], name, { type: 'image/png' });
 }
 
-function selectReturningDuplicate(row: { id: string; deleted_at: string | null }): Platform['db']['select'] {
+function selectReturningDuplicate(row: {
+  id: string;
+  deleted_at: string | null;
+}): Platform['db']['select'] {
   return <T extends DbRow = DbRow>(sql: string) =>
     Promise.resolve(sql.includes('file_hash') ? [row as unknown as T] : []);
 }
@@ -30,9 +33,12 @@ function makePlatform(overrides: Partial<Platform> = {}): Platform {
     },
     media: {
       importPaths: vi.fn(),
-      importFile: vi
-        .fn()
-        .mockResolvedValue({ relPath: 'media/2026/01/x-a.png', hash: 'hash-a', size: 3, mime: 'image/png' }),
+      importFile: vi.fn().mockResolvedValue({
+        relPath: 'media/2026/01/x-a.png',
+        hash: 'hash-a',
+        size: 3,
+        mime: 'image/png',
+      }),
       importBytes: vi.fn(),
       importUrl: vi.fn(),
       originalUrl: vi.fn(),
@@ -62,7 +68,9 @@ describe('importFiles', () => {
     await importFiles(platform, [makeFile('notes.txt')], { x: 0, y: 0 });
 
     expect(platform.media.importFile).not.toHaveBeenCalled();
-    expect(useToastStore.getState().toasts[0]?.message).toBe("Designspace can't add .txt files yet.");
+    expect(useToastStore.getState().toasts[0]?.message).toBe(
+      "Designspace can't add .txt files yet.",
+    );
   });
 
   it('creates an item and placement, selects it, and enqueues one undo step', async () => {
@@ -103,7 +111,10 @@ describe('importFiles', () => {
     const platform = makePlatform({
       db: {
         ...makePlatform().db,
-        select: selectReturningDuplicate({ id: 'trashed-1', deleted_at: '2026-01-01T00:00:00.000Z' }),
+        select: selectReturningDuplicate({
+          id: 'trashed-1',
+          deleted_at: '2026-01-01T00:00:00.000Z',
+        }),
       },
     });
 
@@ -115,11 +126,10 @@ describe('importFiles', () => {
 
   it('places several files as a grid without any pair overlapping', async () => {
     const platform = makePlatform();
-    await importFiles(
-      platform,
-      [makeFile('a.png'), makeFile('b.png'), makeFile('c.png')],
-      { x: 0, y: 0 },
-    );
+    await importFiles(platform, [makeFile('a.png'), makeFile('b.png'), makeFile('c.png')], {
+      x: 0,
+      y: 0,
+    });
 
     const rects = [...useLibraryStore.getState().placements.values()];
     expect(rects).toHaveLength(3);
@@ -141,7 +151,13 @@ describe('importPaths', () => {
         ...makePlatform().media,
         importPaths: vi.fn().mockResolvedValue([
           { relPath: 'media/2026/01/x-a.jpg', hash: 'hash-a', size: 10, mime: 'image/jpeg' },
-          { relPath: 'media/2026/01/x-b.jpg', hash: 'hash-b', size: 10, mime: 'image/jpeg', duplicateOf: 'existing-2' },
+          {
+            relPath: 'media/2026/01/x-b.jpg',
+            hash: 'hash-b',
+            size: 10,
+            mime: 'image/jpeg',
+            duplicateOf: 'existing-2',
+          },
         ]),
       },
     });

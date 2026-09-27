@@ -116,10 +116,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
       />
       {open && (
         <>
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 2 }}
-            onClick={() => setOpen(false)}
-          />
+          <div style={{ position: 'fixed', inset: 0, zIndex: 2 }} onClick={() => setOpen(false)} />
           <div
             style={{
               position: 'absolute',

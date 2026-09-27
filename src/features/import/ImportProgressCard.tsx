@@ -26,7 +26,10 @@ export function ImportProgressCard() {
       }}
     >
       <span>{en.importProgress.adding(done, total)}</span>
-      <ProgressBar value={total > 0 ? done / total : undefined} label={en.importProgress.adding(done, total)} />
+      <ProgressBar
+        value={total > 0 ? done / total : undefined}
+        label={en.importProgress.adding(done, total)}
+      />
       <Button variant="ghost" onClick={cancel}>
         {en.importProgress.cancel}
       </Button>

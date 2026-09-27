@@ -55,7 +55,15 @@ export function TrashSection({ platform }: { platform: Platform }) {
       {items.length === 0 ? (
         <p style={{ color: 'var(--text-2)' }}>{en.trash.empty}</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', maxHeight: 280, overflowY: 'auto' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-2)',
+            maxHeight: 280,
+            overflowY: 'auto',
+          }}
+        >
           {items.map((item) => (
             <div
               key={item.id}
@@ -72,7 +80,12 @@ export function TrashSection({ platform }: { platform: Platform }) {
                 <img
                   src={platform.cache.url(`t128/${item.id}`)}
                   alt=""
-                  style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 'var(--radius-sm)' }}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    objectFit: 'cover',
+                    borderRadius: 'var(--radius-sm)',
+                  }}
                 />
               ) : (
                 <div
@@ -89,7 +102,9 @@ export function TrashSection({ platform }: { platform: Platform }) {
                   {item.title || item.fileName}
                 </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                  {item.deletedAt ? en.trash.deletedOn(new Date(item.deletedAt).toLocaleDateString()) : ''}
+                  {item.deletedAt
+                    ? en.trash.deletedOn(new Date(item.deletedAt).toLocaleDateString())
+                    : ''}
                 </div>
               </div>
               <Button variant="ghost" onClick={() => void restore(item.id)}>

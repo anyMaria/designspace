@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-test('dragging a file over the canvas shows the drop overlay, and dropping it imports', async ({ page }) => {
+test('dragging a file over the canvas shows the drop overlay, and dropping it imports', async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (msg) => {
@@ -11,7 +13,8 @@ test('dragging a file over the canvas shows the drop overlay, and dropping it im
   await page.waitForTimeout(1000);
 
   const buffer = await page.evaluate(() => {
-    const b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const b64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     const binary = atob(b64);
     return Array.from(binary, (c) => c.charCodeAt(0));
   });
@@ -22,7 +25,9 @@ test('dragging a file over the canvas shows the drop overlay, and dropping it im
     dt.items.add(file);
     const target = document.body;
     target.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true }));
-    target.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    target.dispatchEvent(
+      new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }),
+    );
   }, buffer);
 
   await page.waitForTimeout(300);
@@ -34,7 +39,13 @@ test('dragging a file over the canvas shows the drop overlay, and dropping it im
     const dt = new DataTransfer();
     dt.items.add(file);
     document.body.dispatchEvent(
-      new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true, clientX: 400, clientY: 300 }),
+      new DragEvent('drop', {
+        dataTransfer: dt,
+        bubbles: true,
+        cancelable: true,
+        clientX: 400,
+        clientY: 300,
+      }),
     );
   }, buffer);
 

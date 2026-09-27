@@ -329,8 +329,43 @@ Verified with a new Playwright check (`smoke-m1-settings-empty.spec.ts`): the em
 a fresh library and its + Add opens the menu, every Canvas control actually flips (screenshotted
 mid-change), and Library shows the browser note plus a working Trash — zero console errors.
 
-M1's checklist is now fully ticked. `M1-10` (final full verification pass across
-lint/typecheck/vitest/cargo test+clippy+fmt/e2e, plus this write-up) is next.
+### Automatic backups with rotation (closing the last M1 checklist gap)
+Settings → Library's "Back up now" button (this milestone, above) called the Rust `backup_now`
+command, which already rotates on every call (`rotate_backups`, M0) — but nothing ever triggered a
+backup *automatically*. §5.4 specifies "at startup if the last one is older than 24 h, and at quit
+if anything changed." Added the startup half (`features/backups/autoBackup.ts`,
+`maybeBackupAtStartup`): lists existing backups, and if the newest is missing or older than 24h,
+calls `backups.now()` — best-effort, a failure just logs rather than blocking startup. Wired into
+`App.tsx`'s Tauri boot path (a no-op on the browser build, which has no real backups).
+
+The quit-time half ("at quit if anything changed") is deferred: it needs a window-close hook
+(`tauri::WindowEvent::CloseRequested`, or the `beforeunload`-equivalent) and dirty-tracking that
+doesn't exist yet (nothing currently records "has anything changed since the last backup"). Logged
+here rather than guessed at; cheap to add once a real need for it shows up (e.g. an owner losing
+work between a startup backup and a crash later the same day).
+
+Verified with 5 new unit tests (`autoBackup.test.ts`): the browser no-op, backing up when there's
+no prior backup, backing up when the newest is stale, skipping when it's fresh, and not throwing
+if the backup itself fails.
+
+### M1-10: final verification
+Full pass, all clean: `pnpm lint`, `pnpm typecheck`, `pnpm test` (111 tests across 18 files),
+`cargo test --workspace` (32 tests), `cargo clippy --all-targets`, `cargo fmt --check`, and the
+complete Playwright suite (12 tests: the 6 M0 `app-shell.spec.ts` checks plus this milestone's 6
+`smoke-m1*.spec.ts` files) run together against a single build with zero console errors and no
+interference between tests. M1's checklist is now fully ticked.
+
+**What this sandbox cannot verify** (no Windows, no GPU, no real OS drag-and-drop source) — these
+are the M1 **Owner checks** the plan calls for, still outstanding on the owner's PC:
+- Drag an image from a real browser tab and from File Explorer onto the canvas, and paste a
+  screenshot with Ctrl+V — S2's spike confirmed the plumbing (`dragDropEnabled: false`) but not a
+  real OS-level drag source, which only Windows has.
+- Import a real folder of images (the "500 mixed images" acceptance line, and real photos'
+  actual color/perceptual-hash behavior rather than synthetic PNGs).
+- Close and reopen the app, and check the backups folder for the automatic backup that should now
+  be sitting there.
+- `?bench=10000`'s real p95 frame time — this container has no GPU, so the culling/LOD skeleton
+  (S1) is only exercised structurally, never actually timed.
 
 ---
 

@@ -67,30 +67,48 @@ export function ContextMenu({
       .getState()
       .execute(createTrashCommand(platform, ids))
       .then(() => {
-        useToastStore.getState().show(
-          ids.length > 1 ? `Moved ${ids.length} items to Trash` : 'Moved to Trash',
-          { actionLabel: en.toasts.undo, onAction: () => void useHistoryStore.getState().undo() },
-        );
+        useToastStore
+          .getState()
+          .show(ids.length > 1 ? `Moved ${ids.length} items to Trash` : 'Moved to Trash', {
+            actionLabel: en.toasts.undo,
+            onAction: () => void useHistoryStore.getState().undo(),
+          });
       });
   }
 
   return (
     <>
-      <div style={{ position: 'fixed', inset: 0, zIndex: 4 }} onClick={onClose} onContextMenu={(e) => e.preventDefault()} />
+      <div
+        style={{ position: 'fixed', inset: 0, zIndex: 4 }}
+        onClick={onClose}
+        onContextMenu={(e) => e.preventDefault()}
+      />
       <div style={{ position: 'fixed', left: state.x, top: state.y, zIndex: 5 }}>
         <Popover>
           <Menu
             aria-label="Item"
             items={[
-              { id: 'copy-image', label: en.contextMenu.copyImage, onSelect: () => void copyImage() },
+              {
+                id: 'copy-image',
+                label: en.contextMenu.copyImage,
+                onSelect: () => void copyImage(),
+              },
               {
                 id: 'show-in-explorer',
                 label: en.contextMenu.showInExplorer,
                 disabled: platform.kind !== 'tauri',
                 onSelect: () => void showInExplorer(),
               },
-              { id: 'bring-to-front', label: en.contextMenu.bringToFront, onSelect: () => stack(true) },
-              { id: 'send-to-back', label: en.contextMenu.sendToBack, onSelect: () => stack(false) },
+              {
+                id: 'bring-to-front',
+                label: en.contextMenu.bringToFront,
+                onSelect: () => stack(true),
+              },
+              {
+                id: 'send-to-back',
+                label: en.contextMenu.sendToBack,
+                onSelect: () => stack(false),
+              },
               { id: 'move-to-trash', label: en.contextMenu.moveToTrash, onSelect: moveToTrash },
             ]}
           />

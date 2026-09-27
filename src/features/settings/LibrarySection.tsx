@@ -10,7 +10,13 @@ import { logger } from '@/lib/logger';
  * Trash. Switching or restoring a library reloads the app — everything in memory (stores, the
  * engine, the undo history) is scoped to the one currently open, so a clean reboot through
  * `App.tsx`'s normal boot path is simpler and safer than trying to tear it all down live. */
-export function LibrarySection({ platform, library }: { platform: Platform; library: LibraryInfo }) {
+export function LibrarySection({
+  platform,
+  library,
+}: {
+  platform: Platform;
+  library: LibraryInfo;
+}) {
   const [recent, setRecent] = useState<LibraryInfo[]>([]);
   const [backups, setBackups] = useState<BackupInfo[] | null>(null);
   const isTauri = platform.kind === 'tauri';
@@ -90,7 +96,9 @@ export function LibrarySection({ platform, library }: { platform: Platform; libr
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: 'var(--text-md)' }}>{en.settings.library.backups}</h3>
+              <h3 style={{ margin: 0, fontSize: 'var(--text-md)' }}>
+                {en.settings.library.backups}
+              </h3>
               <Button variant="ghost" onClick={() => void backupNow()}>
                 {en.settings.library.backupNow}
               </Button>
@@ -103,7 +111,11 @@ export function LibrarySection({ platform, library }: { platform: Platform; libr
                 {backups.map((b) => (
                   <div
                     key={b.id}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
                   >
                     <span style={{ color: 'var(--text-2)' }}>
                       {new Date(b.createdAt).toLocaleString()}

@@ -1166,14 +1166,14 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] The import progress card with Cancel, messages for unsupported types, confirmation for folder imports.
 - [ ] Duplicates: exact (hash) with "Show"/"Restore", and near (pHash) with the badge and the comparison.
 - [x] Ingest workers for images (thumbnails, palette, color families, pHash), resumable.
-- [ ] Canvas:
+- [x] Canvas:
   - [x] item sprites with LOD and the texture manager;
   - [x] selecting (click, Shift, marquee, Ctrl+A), moving, resizing, stacking, hover;
   - [x] the context menu, minimap, zoom menu and fly-to.
 - [ ] Placement: drop point, cursor, free-space search, justified rows for several items; Tidy up.
 - [x] Commands and undo/redo for all of the above; the Trash (soft delete, Trash view, restore, purge to the Recycle Bin, automatic purge after 30 days).
 - [x] Focus view for images.
-- [ ] Automatic backups with rotation.
+- [x] Automatic backups with rotation.
 - [x] The empty state; toasts with Undo; the Library and Canvas sections of Settings.
 
 **Acceptance:**

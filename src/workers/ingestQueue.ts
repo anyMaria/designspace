@@ -36,7 +36,11 @@ export class IngestQueue {
   private nextReqId = 0;
   private paused = false;
 
-  constructor(platform: Platform, workerFactory: () => WorkerLike = defaultWorkerFactory, poolSize = POOL_SIZE) {
+  constructor(
+    platform: Platform,
+    workerFactory: () => WorkerLike = defaultWorkerFactory,
+    poolSize = POOL_SIZE,
+  ) {
     this.platform = platform;
     this.workers = Array.from({ length: poolSize }, () => {
       const worker = workerFactory();
@@ -106,10 +110,10 @@ export class IngestQueue {
     const now = new Date().toISOString();
 
     if (!result.ok) {
-      await this.platform.db.execute("UPDATE items SET status = 'error', updated_at = ? WHERE id = ?", [
-        now,
-        result.itemId,
-      ]);
+      await this.platform.db.execute(
+        "UPDATE items SET status = 'error', updated_at = ? WHERE id = ?",
+        [now, result.itemId],
+      );
       logger.warn(`Ingest failed for ${result.itemId}: ${result.error}`);
       return;
     }
@@ -175,5 +179,7 @@ export async function resumePendingIngest(platform: Platform): Promise<void> {
     [CURRENT_DERIVED_V],
   );
   if (rows.length === 0) return;
-  getIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path, mime: r.mime })));
+  getIngestQueue(platform).enqueue(
+    rows.map((r) => ({ itemId: r.id, relPath: r.file_path, mime: r.mime })),
+  );
 }

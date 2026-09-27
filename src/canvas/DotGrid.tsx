@@ -27,7 +27,8 @@ export function DotGrid({ engine }: { engine: Engine }) {
       const { zoom } = engine.camera.state;
 
       let worldSpacing =
-        canvasGeometry.dotGridWorldSpacing * DENSITY_MULTIPLIER[useUiStore.getState().dotGridDensity];
+        canvasGeometry.dotGridWorldSpacing *
+        DENSITY_MULTIPLIER[useUiStore.getState().dotGridDensity];
       let screenSpacing = worldSpacing * zoom;
       if (screenSpacing < canvasGeometry.dotDenseThresholdPx) {
         worldSpacing *= 4;

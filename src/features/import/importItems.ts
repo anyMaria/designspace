@@ -74,11 +74,17 @@ async function findByHash(
   return { id: row.id as string, deletedAt: row.deleted_at as string | null };
 }
 
-function announceDuplicate(platform: Platform, id: string, deletedAt: string | null, flyTo?: FlyTo): void {
+function announceDuplicate(
+  platform: Platform,
+  id: string,
+  deletedAt: string | null,
+  flyTo?: FlyTo,
+): void {
   if (deletedAt) {
     useToastStore.getState().show(en.toasts.alreadyInLibrary, {
       actionLabel: en.toasts.restore,
-      onAction: () => void useHistoryStore.getState().execute(createRestoreItemCommand(platform, id)),
+      onAction: () =>
+        void useHistoryStore.getState().execute(createRestoreItemCommand(platform, id)),
     });
     return;
   }
@@ -95,10 +101,9 @@ function announceDuplicate(platform: Platform, id: string, deletedAt: string | n
 async function findLibraryBoardId(platform: Platform): Promise<string> {
   const existing = useLibraryStore.getState().libraryBoardId;
   if (existing) return existing;
-  const [row] = await platform.db.select<DbRow>(
-    "SELECT id FROM boards WHERE kind = ? LIMIT 1",
-    [LIBRARY_BOARD_KIND],
-  );
+  const [row] = await platform.db.select<DbRow>('SELECT id FROM boards WHERE kind = ? LIMIT 1', [
+    LIBRARY_BOARD_KIND,
+  ]);
   return row.id as string;
 }
 
@@ -182,9 +187,9 @@ async function finishBatch(platform: Platform, addedIds: string[]): Promise<void
   if (addedIds.length === 0) return;
   useLibraryStore.getState().setSelection(addedIds);
   await useHistoryStore.getState().execute(createAddItemsCommand(platform, addedIds));
-  useToastStore.getState().show(
-    addedIds.length > 1 ? en.toasts.addedMany(addedIds.length) : en.toasts.addedOne,
-  );
+  useToastStore
+    .getState()
+    .show(addedIds.length > 1 ? en.toasts.addedMany(addedIds.length) : en.toasts.addedOne);
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
@@ -233,7 +238,13 @@ export async function importFiles(
         const id = await createRow(
           platform,
           boardId,
-          { relPath: result.relPath, fileName: file.name, hash: result.hash, size: result.size, mime: result.mime },
+          {
+            relPath: result.relPath,
+            fileName: file.name,
+            hash: result.hash,
+            size: result.size,
+            mime: result.mime,
+          },
           rects[i],
           z++,
         );
@@ -278,7 +289,13 @@ export async function importPaths(
         const id = await createRow(
           platform,
           boardId,
-          { relPath: result.relPath, fileName, hash: result.hash, size: result.size, mime: result.mime },
+          {
+            relPath: result.relPath,
+            fileName,
+            hash: result.hash,
+            size: result.size,
+            mime: result.mime,
+          },
           rects[i],
           z++,
         );

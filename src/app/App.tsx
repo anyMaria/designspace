@@ -6,6 +6,7 @@ import { seedDemoLibrary } from '@/platform/seed/demo';
 import { loadLibraryItems } from '@/state/loadLibrary';
 import { resumePendingIngest } from '@/workers/ingestQueue';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
+import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
 import { logger } from '@/lib/logger';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
@@ -56,6 +57,7 @@ export function App() {
         await loadLibraryItems(platform, libraryBoardId);
         void resumePendingIngest(platform);
         void purgeExpiredTrash(platform);
+        void maybeBackupAtStartup(platform);
         if (!cancelled)
           setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: null });
       } catch (err) {

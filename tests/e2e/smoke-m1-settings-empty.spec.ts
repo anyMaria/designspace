@@ -13,7 +13,9 @@ test('empty-state + Add opens the add menu, and Settings Canvas/Library sections
   await page.goto('/', { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000);
 
-  await expect(page.getByText('Drop images anywhere, paste with Ctrl+V, or press + Add.')).toBeVisible();
+  await expect(
+    page.getByText('Drop images anywhere, paste with Ctrl+V, or press + Add.'),
+  ).toBeVisible();
   await page.screenshot({ path: 'test-results/empty-state.png' });
 
   await page.getByRole('button', { name: '+ Add' }).click();
@@ -33,7 +35,7 @@ test('empty-state + Add opens the add menu, and Settings Canvas/Library sections
   // Settings -> Library: the browser build shows the "not available" note, and Trash still works.
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.waitForTimeout(200);
-  await expect(page.getByText("Not available in the browser dev build")).toBeVisible();
+  await expect(page.getByText('Not available in the browser dev build')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Trash' })).toBeVisible();
   await page.screenshot({ path: 'test-results/settings-library.png' });
 

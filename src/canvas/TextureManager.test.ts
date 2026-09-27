@@ -13,7 +13,9 @@ function deferred<T>() {
 
 describe('TextureManager', () => {
   it('decodes and caches, returning the same instance on a second request', async () => {
-    const decode = vi.fn<(url: string) => Promise<{ id: string }>>().mockResolvedValue({ id: 'tex' });
+    const decode = vi
+      .fn<(url: string) => Promise<{ id: string }>>()
+      .mockResolvedValue({ id: 'tex' });
     const manager = new TextureManager({ decode, destroyItem: vi.fn() });
 
     const a = await manager.request('key1', 'url1');
@@ -85,7 +87,10 @@ describe('TextureManager', () => {
   it('destroy() clears the cache and calls destroyItem for everything', async () => {
     const destroyed: string[] = [];
     const decode = vi.fn().mockImplementation((url: string) => Promise.resolve({ id: url }));
-    const manager = new TextureManager<{ id: string }>({ decode, destroyItem: (i) => destroyed.push(i.id) });
+    const manager = new TextureManager<{ id: string }>({
+      decode,
+      destroyItem: (i) => destroyed.push(i.id),
+    });
     await manager.request('a', 'a');
     await manager.request('b', 'b');
     manager.destroy();

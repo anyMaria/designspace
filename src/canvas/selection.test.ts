@@ -32,7 +32,12 @@ describe('rectSelect', () => {
 
 describe('normalizeRect', () => {
   it('normalizes a drag from bottom-right to top-left', () => {
-    expect(normalizeRect({ x: 100, y: 100 }, { x: 20, y: 30 })).toEqual({ x: 20, y: 30, w: 80, h: 70 });
+    expect(normalizeRect({ x: 100, y: 100 }, { x: 20, y: 30 })).toEqual({
+      x: 20,
+      y: 30,
+      w: 80,
+      h: 70,
+    });
   });
 });
 
