@@ -80,6 +80,8 @@ export class Engine {
   // Search Dim/Hide (§2.8) — a null set means "no active filter, everything matches".
   private searchMatches: Set<string> | null = null;
   private searchMode: 'dim' | 'hide' = 'dim';
+  // List panel group hover (§2.9) — takes priority over search alpha while set.
+  private hoverHighlight: Set<string> | null = null;
 
   private selection = new Set<string>();
   private hoveredId: string | null = null;
@@ -231,7 +233,7 @@ export class Engine {
     this.itemsLayer.sortableChildren = true;
     this.cards = next;
     this.itemIndex.load(cards);
-    this.applySearchAlpha();
+    this.refreshAlpha();
     this.scheduleFrame();
   }
 
@@ -242,15 +244,27 @@ export class Engine {
   setSearchFilter(matches: Set<string> | null, mode: 'dim' | 'hide' = 'dim'): void {
     this.searchMatches = matches;
     this.searchMode = mode;
-    this.applySearchAlpha();
+    this.refreshAlpha();
     this.scheduleFrame();
   }
 
-  private applySearchAlpha(): void {
-    for (const [id, sprite] of this.sprites) {
-      const isMatch = !this.searchMatches || this.searchMatches.has(id);
-      sprite.alpha = isMatch || this.searchMode === 'hide' ? 1 : 0.12;
-    }
+  /** List panel group hover (§2.9 "makes its items glow... while the rest dims") — takes
+   * priority over the search Dim/Hide alpha while active, so hovering a group previews it even
+   * with a search filter on; clearing it (`null`) falls back to whatever the search filter says. */
+  setHoverHighlight(ids: Set<string> | null): void {
+    this.hoverHighlight = ids;
+    this.refreshAlpha();
+    this.scheduleFrame();
+  }
+
+  private refreshAlpha(): void {
+    for (const [id, sprite] of this.sprites) sprite.alpha = this.alphaFor(id);
+  }
+
+  private alphaFor(id: string): number {
+    if (this.hoverHighlight) return this.hoverHighlight.has(id) ? 1 : 0.12;
+    const isMatch = !this.searchMatches || this.searchMatches.has(id);
+    return isMatch || this.searchMode === 'hide' ? 1 : 0.12;
   }
 
   private interactableCards(): ItemCard[] {

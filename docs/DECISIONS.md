@@ -672,4 +672,60 @@ looking at the screenshot, not by the check's assertions; fixed with `maxHeight`
 
 ---
 
+### List panel (M2-8)
+`src/features/list/listGrouping.ts` is the pure part (`groupItems`/`sortItems`, unit-testable
+without React): an item with several values for the grouping criterion appears in each of its
+groups (e.g. two Vibes → two groups), items with none land in one "No <criterion>" group sorted
+last, and empty groups just never get created in the first place — no filtering pass needed
+afterwards. Color grouping reuses `item.colorFamilies`, already the ≥15%-weight list computed at
+ingest (M1-4); it doesn't recompute anything.
+
+`<ListPanel>` virtualizes with `@tanstack/react-virtual`: groups are flattened into a row list
+(one header row per group, then its tiles chunked into row-width-many tiles per row) and only the
+rows near the viewport render, so the DOM stays small at 10,000 items regardless of tile size.
+Column count comes from measuring the panel's own container width with a `ResizeObserver` rather
+than a fixed constant, so the exact same component works both docked (320px) and in the "Expand"
+full-window gallery — the two render modes differ only in what container Shell puts around it.
+
+**Real bug, caught by the Playwright check**: a tile's single click selects+flies and switches the
+panel to Details (§2.9) — which unmounts the List panel's tiles. That's fine for a plain click, but
+it broke double-click entirely: the browser's native dblclick needs the *second* click to land on
+the same element, and by the time it fires, the first click's side effect had already navigated
+away and removed the tile from the DOM, so the second click hit nothing. Fixed with the standard
+click/dblclick disambiguation pattern — the single-click action is delayed ~220ms behind a timer
+that double-click cancels before doing its own thing (open Focus view) — rather than the spec'd
+behavior only working when the owner clicks unnaturally slowly.
+
+**A second bug, same check**: "Expand" was rendering *two* `<ListPanel>` instances at once — the
+docked one (still mounted regardless of `expanded`) and the full-window overlay — so hovering a
+group in one fired `engine.setHoverHighlight` from both, and Playwright's `getByLabel('Collapse')`
+found two buttons. Fixed by rendering a placeholder in the docked slot instead of the real panel
+while expanded, so exactly one `<ListPanel>` is ever mounted.
+
+**Hover highlight** (§2.9 "glow... while the rest dims") reuses the same per-sprite alpha the
+search Dim/Hide binding (M2-7) already owns on `Engine`, refactored into one `alphaFor(id)` that
+hover-highlight takes priority over — so hovering a group previews correctly even with a search
+filter active, and clearing the hover falls back to whatever the filter says rather than the two
+mechanisms fighting over `sprite.alpha`. "Glow" itself (a bloom/outline effect) is simplified to
+plain full-opacity-vs-dimmed, which reads the same at a glance and doesn't need a Pixi filter
+pipeline this milestone doesn't otherwise use.
+
+**"The List panel shows only the matches" (§2.8)** was missed on the first pass — the panel read
+`useLibraryStore` directly with no awareness of an active search filter. Wired in afterwards via
+the same `useSearchResults()` hook the search bar and canvas Dim/Hide already share, so all three
+surfaces agree on the current match set.
+
+**Deferred, same reasons as M2-7**: the `[This board | Library]` switch and drag-to-board (Boards
+don't exist before M3), and saved filters at the top of the panel (M2-7 already deferred the ★ save
+half of this for the same reason — nothing to show at the top of a List panel that didn't exist
+yet). The plan's combined checklist line stays unchecked until saved filters land.
+
+Verified with unit tests for `listGrouping` (multi-value membership, "No X" grouping, empty-group
+suppression, color/kind/month grouping, all three sort orders) and a new Playwright check
+(`smoke-m2-list.spec.ts`): grouping by Kind, collapsing a group, clicking a tile (selects + switches
+to Details), double-clicking a tile (opens Focus view — the fixed bug above), and Expand/Collapse —
+zero console errors, and the expanded-gallery screenshot confirms thumbnails and grid layout.
+
+---
+
 *(Later milestones append below this line.)*

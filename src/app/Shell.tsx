@@ -34,6 +34,8 @@ import { useTriageStore } from '@/state/triageStore';
 import { SearchBar } from '@/features/search/SearchBar';
 import { useSearchBinding } from '@/canvas/useSearchBinding';
 import { useSearchStore, isFilterActive } from '@/state/searchStore';
+import { ListPanel } from '@/features/list/ListPanel';
+import { useListStore } from '@/state/listStore';
 import {
   Dock,
   DockDivider,
@@ -104,6 +106,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   useFocusViewBinding(engine);
   useSearchBinding(engine);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
+  const listExpanded = useListStore((s) => s.expanded);
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
@@ -297,20 +300,46 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             value={panelTab}
             onChange={setPanelTab}
           />
-          {panelTab === 'details' && selectedItems.length > 1 ? (
+          {panelTab === 'list' ? (
+            listExpanded ? (
+              <div
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <p style={{ color: 'var(--text-3)', textAlign: 'center' }}>{en.list.expand}…</p>
+              </div>
+            ) : (
+              <ListPanel platform={platform} engine={engine} />
+            )
+          ) : selectedItems.length > 1 ? (
             <BulkDetailsPanel platform={platform} items={selectedItems} />
-          ) : panelTab === 'details' && selectedItem ? (
+          ) : selectedItem ? (
             <DetailsPanel platform={platform} item={selectedItem} />
           ) : (
             <div
               style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <p style={{ color: 'var(--text-3)', textAlign: 'center' }}>
-                {panelTab === 'details' ? en.details.empty : en.panel.listComingSoon}
-              </p>
+              <p style={{ color: 'var(--text-3)', textAlign: 'center' }}>{en.details.empty}</p>
             </div>
           )}
         </Panel>
+      )}
+
+      {/* "Expand" — a full-window gallery, independent of the docked panel's own open state
+          (§2.9) — uses the same <ListPanel>, which only ever measures its own container. */}
+      {listExpanded && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 15,
+            background: 'var(--canvas)',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: 'var(--space-6)',
+          }}
+        >
+          <ListPanel platform={platform} engine={engine} />
+        </div>
       )}
 
       {settingsOpen && (
