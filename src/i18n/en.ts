@@ -148,6 +148,10 @@ export const en = {
     infoLocation: 'File location',
     showInExplorer: 'Show in Explorer',
     colors: 'Colors',
+    itemsSelected: (n: number) => `${n} items`,
+    mixed: 'Mixed',
+    artistMixedPlaceholder: 'Mixed',
+    moveToTrash: 'Move to Trash',
   },
   vocabulary: {
     facets: {
@@ -192,6 +196,7 @@ export const en = {
     bringToFront: 'Bring to front',
     sendToBack: 'Send to back',
     moveToTrash: 'Move to Trash',
+    backToInbox: 'Back to Inbox',
     copyImageFailed: "Couldn't copy the image",
     copyImageSucceeded: 'Copied',
   },

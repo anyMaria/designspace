@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
   Share2,
@@ -28,6 +28,7 @@ import { ImportProgressCard } from '@/features/import/ImportProgressCard';
 import { ToastHost } from '@/features/toasts/ToastHost';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
+import { BulkDetailsPanel } from '@/features/details/BulkDetailsPanel';
 import {
   Dock,
   DockDivider,
@@ -59,12 +60,19 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const minimapOpen = useUiStore((s) => s.minimapOpen);
   const settingsOpen = useUiStore((s) => s.settingsOpen);
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
-  const [inboxCount] = useState(0);
   const [engine, setEngine] = useState<Engine | null>(null);
   const itemCount = useLibraryStore((s) => s.items.size);
   const selection = useLibraryStore((s) => s.selection);
   const items = useLibraryStore((s) => s.items);
   const selectedItem = selection.size === 1 ? (items.get([...selection][0]) ?? null) : null;
+  const selectedItems = useMemo(
+    () => (selection.size > 1 ? [...selection].map((id) => items.get(id)).filter((i) => !!i) : []),
+    [selection, items],
+  );
+  const inboxCount = useMemo(
+    () => [...items.values()].filter((i) => !i.deletedAt && !i.sortedAt).length,
+    [items],
+  );
 
   useEffect(() => {
     useLibraryStore.getState().setLibraryBoardId(libraryBoardId);
@@ -74,7 +82,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   // the panel switches to Details"), extended here to canvas selection generally since the List
   // panel's own click-to-select doesn't exist until it does (M2-8).
   useEffect(() => {
-    if (selection.size === 1) setPanelTab('details');
+    if (selection.size >= 1) setPanelTab('details');
   }, [selection, setPanelTab]);
 
   useEngineBindings(engine, platform);
@@ -243,7 +251,9 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             value={panelTab}
             onChange={setPanelTab}
           />
-          {panelTab === 'details' && selectedItem ? (
+          {panelTab === 'details' && selectedItems.length > 1 ? (
+            <BulkDetailsPanel platform={platform} items={selectedItems} />
+          ) : panelTab === 'details' && selectedItem ? (
             <DetailsPanel platform={platform} item={selectedItem} />
           ) : (
             <div

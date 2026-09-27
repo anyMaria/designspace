@@ -486,4 +486,49 @@ screenshots confirm the layout.
 
 ---
 
+### Details panel — bulk edit + Inbox rule (M2-4)
+`<BulkDetailsPanel>` (`src/features/details/`) is the "several items selected" half of §2.6, kept
+as its own component rather than folding every branch into `DetailsPanel.tsx` — "mixed" state and
+union-with-counts don't apply to a single item, and a single component covering both would mostly
+be `if (items.length > 1)` scattered through every field. `Shell.tsx` picks between them by
+selection size and renders the mini-collage + "N items" header, Type set-for-all (highlighting only
+when every selected item shares the same Type, "Mixed" otherwise), Vibe/Movement/Tags as a union
+with per-value counts ("Dreamy 5/8" — clicking the chip applies it to every item that doesn't
+already have it, × removes it from every item that does), Artist/Favorite set-for-all, and Move to
+Trash.
+
+New commands in `itemTermCommands.ts` (`createBulkSetTypeCommand`, `createBulkAddTermCommand`,
+`createBulkRemoveTermCommand`) and `itemCommands.ts` (`createBulkSetItemFieldCommand`) apply to a
+whole item-id list as one undo step. The trickiest part is exactly what §2.6 asks for and what the
+single-item commands already do per-item: **only** touch what actually changes. `createBulkAddTermCommand`
+snapshots which items already had the term before linking, so undo un-links only the ones the
+command itself added — an item that already carried "Dreamy" keeps it, both after the bulk add and
+after undoing it. `createBulkRemoveTermCommand` mirrors this by only touching items that actually
+had the term. `createBulkSetTypeCommand` snapshots each item's previous Type term(s) and prior
+`sorted_at` individually, so undo restores each item to its own prior state, not a shared one
+(covered by a test with one already-sorted item mixed into the batch).
+
+**Inbox rule, made real**: `Shell.tsx`'s Inbox chip count was a hardcoded `useState(0)` since M1 —
+now computed from `items` (`!deletedAt && !sortedAt`), live off the same store the commands already
+update. Added `createBackToInboxCommand(platform, itemIds)` (clears `sorted_at`, snapshotting each
+item's previous value for undo) and wired it into the canvas context menu's "Back to Inbox" entry,
+which was listed as deferred in the M1 `ContextMenu.tsx` comment — no longer true, since the Details
+panel it depended on now exists.
+
+Verified with unit tests for all four new bulk/Inbox commands (including the "one item already had
+it" / "one item was already sorted" edge cases) and a new Playwright check
+(`smoke-m2-bulk-details.spec.ts`): selects every seeded item with Ctrl+A, confirms the "N items"
+header and mini-collage render, sets a bulk Type and confirms the Inbox chip disappears (every item
+now sorted), then uses the context menu's Back to Inbox and confirms the chip's count returns to
+its starting value — zero console errors. (The canvas hit-testing in this headless environment
+doesn't render item textures — a `t128`/`t512` blob-cache miss on every load, harmless and already
+logged as a console *warning* the earlier smoke tests already tolerate — so the test drives
+selection through Ctrl+A/shift-click rather than guessing screen coordinates for a second item.)
+
+**Deferred, same reasons as M2-3**: "Add to board" / "New board from selection" need Boards (M3),
+and "Tidy up" isn't implemented anywhere yet (referenced only in a `packing.ts` doc comment as a
+future consumer) — both stay off the bulk actions list rather than being wired to nothing.
+
+---
+
 *(Later milestones append below this line.)*

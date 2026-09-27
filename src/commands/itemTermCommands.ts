@@ -164,3 +164,140 @@ export function createRemoveItemTermCommand(
     undo: () => linkItemTerm(platform, itemId, termId),
   };
 }
+
+/** Bulk Details panel (§2.6 "Several items selected"): the same Type/Vibe/Movement/Tags
+ * mutations as above, applied to every selected item as one undo step. */
+
+export function createBulkSetTypeCommand(
+  platform: Platform,
+  itemIds: string[],
+  term: { id: string } | { name: string },
+): Command {
+  const perItem = itemIds.map((itemId) => ({
+    itemId,
+    previousTermIds: useTermStore.getState().itemTermIdsForFacet(itemId, 'type'),
+    wasUnsorted: !useLibraryStore.getState().items.get(itemId)?.sortedAt,
+  }));
+  let resolvedId: string | null = null;
+  let createdNew = false;
+
+  async function doIt(): Promise<void> {
+    const resolved =
+      'id' in term
+        ? { id: term.id, created: false }
+        : await findOrCreateTerm(platform, 'type', term.name);
+    resolvedId = resolved.id;
+    createdNew = resolved.created;
+    for (const { itemId, previousTermIds } of perItem) {
+      for (const id of previousTermIds) await unlinkItemTerm(platform, itemId, id);
+      await linkItemTerm(platform, itemId, resolved.id);
+      await markSortedIfNeeded(platform, itemId);
+    }
+  }
+
+  async function undoIt(): Promise<void> {
+    for (const { itemId, previousTermIds, wasUnsorted } of perItem) {
+      if (resolvedId) await unlinkItemTerm(platform, itemId, resolvedId);
+      for (const id of previousTermIds) await linkItemTerm(platform, itemId, id);
+      if (wasUnsorted) await unmarkSorted(platform, itemId);
+    }
+    if (resolvedId && createdNew) await removeTermIfOrphaned(platform, resolvedId);
+  }
+
+  return { label: `Set Type (${itemIds.length})`, do: doIt, undo: undoIt };
+}
+
+/** "Clicking a partial chip applies it to all" (§2.6) — only links items that don't already have
+ * it, and undo only unlinks exactly those, so an item that already carried the value keeps it. */
+export function createBulkAddTermCommand(
+  platform: Platform,
+  itemIds: string[],
+  facet: Facet,
+  term: { id: string } | { name: string },
+): Command {
+  const wasUnsortedByItem = new Map(
+    itemIds.map((id) => [id, !useLibraryStore.getState().items.get(id)?.sortedAt]),
+  );
+  const alreadyHadByItem = new Map<string, boolean>();
+  let resolvedId: string | null = null;
+  let createdNew = false;
+
+  async function doIt(): Promise<void> {
+    const resolved =
+      'id' in term
+        ? { id: term.id, created: false }
+        : await findOrCreateTerm(platform, facet, term.name);
+    resolvedId = resolved.id;
+    createdNew = resolved.created;
+    for (const itemId of itemIds) {
+      const had = useTermStore.getState().itemTerms.get(itemId)?.has(resolved.id) ?? false;
+      alreadyHadByItem.set(itemId, had);
+      if (!had) {
+        await linkItemTerm(platform, itemId, resolved.id);
+        if (facet === 'vibe') await markSortedIfNeeded(platform, itemId);
+      }
+    }
+  }
+
+  async function undoIt(): Promise<void> {
+    if (!resolvedId) return;
+    for (const itemId of itemIds) {
+      if (!alreadyHadByItem.get(itemId)) {
+        await unlinkItemTerm(platform, itemId, resolvedId);
+        if (facet === 'vibe' && wasUnsortedByItem.get(itemId)) await unmarkSorted(platform, itemId);
+      }
+    }
+    if (createdNew) await removeTermIfOrphaned(platform, resolvedId);
+  }
+
+  return { label: `Add ${facet} (${itemIds.length})`, do: doIt, undo: undoIt };
+}
+
+/** "× removes it from all" (§2.6) — only the items that actually had the term are touched. */
+export function createBulkRemoveTermCommand(
+  platform: Platform,
+  itemIds: string[],
+  termId: string,
+): Command {
+  let hadIds: string[] = [];
+
+  async function doIt(): Promise<void> {
+    hadIds = itemIds.filter((id) => useTermStore.getState().itemTerms.get(id)?.has(termId));
+    for (const id of hadIds) await unlinkItemTerm(platform, id, termId);
+  }
+
+  async function undoIt(): Promise<void> {
+    for (const id of hadIds) await linkItemTerm(platform, id, termId);
+  }
+
+  return { label: `Remove tag (${itemIds.length})`, do: doIt, undo: undoIt };
+}
+
+/** "Back to Inbox" (§2.5 Inbox rule, context menu) — clears `sorted_at` so the item(s) reappear
+ * in the Inbox; undo restores whatever `sorted_at` they had before. */
+export function createBackToInboxCommand(platform: Platform, itemIds: string[]): Command {
+  const previous = itemIds.map((id) => ({
+    id,
+    sortedAt: useLibraryStore.getState().items.get(id)?.sortedAt ?? null,
+  }));
+
+  async function apply(values: { id: string; sortedAt: string | null }[]): Promise<void> {
+    const statements = [];
+    for (const v of values) {
+      const item = useLibraryStore.getState().items.get(v.id);
+      if (!item) continue;
+      useLibraryStore.getState().upsertItem({ ...item, sortedAt: v.sortedAt });
+      statements.push({
+        sql: 'UPDATE items SET sorted_at = ? WHERE id = ?',
+        params: [v.sortedAt, v.id],
+      });
+    }
+    await platform.db.batch(statements);
+  }
+
+  return {
+    label: itemIds.length > 1 ? `Back to Inbox (${itemIds.length})` : 'Back to Inbox',
+    do: () => apply(itemIds.map((id) => ({ id, sortedAt: null }))),
+    undo: () => apply(previous),
+  };
+}

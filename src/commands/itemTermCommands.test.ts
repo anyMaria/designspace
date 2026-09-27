@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createAddItemTermCommand,
+  createBackToInboxCommand,
+  createBulkAddTermCommand,
+  createBulkRemoveTermCommand,
+  createBulkSetTypeCommand,
   createRemoveItemTermCommand,
   createSetItemTypeCommand,
 } from './itemTermCommands';
@@ -161,5 +165,93 @@ describe('createRemoveItemTermCommand', () => {
 
     await command.undo();
     expect(useTermStore.getState().itemTerms.get('i1')?.has('t1')).toBe(true);
+  });
+});
+
+describe('createBulkSetTypeCommand', () => {
+  it('sets the same Type on every item and marks each sorted, restoring per-item state on undo', async () => {
+    useLibraryStore
+      .getState()
+      .upsertItems([
+        makeItem({ id: 'i1' }),
+        makeItem({ id: 'i2', sortedAt: '2025-01-01T00:00:00.000Z' }),
+      ]);
+    useTermStore
+      .getState()
+      .upsertTerms([
+        makeTerm({ id: 'old', name: 'Illustration' }),
+        makeTerm({ id: 'new', name: 'Poster' }),
+      ]);
+    useTermStore.getState().addItemTerm('i1', 'old');
+    const platform = makePlatform();
+
+    const command = createBulkSetTypeCommand(platform, ['i1', 'i2'], { id: 'new' });
+    await command.do();
+    expect(useTermStore.getState().itemTerms.get('i1')).toEqual(new Set(['new']));
+    expect(useTermStore.getState().itemTerms.get('i2')).toEqual(new Set(['new']));
+    expect(useLibraryStore.getState().items.get('i1')?.sortedAt).not.toBeNull();
+
+    await command.undo();
+    expect(useTermStore.getState().itemTerms.get('i1')).toEqual(new Set(['old']));
+    expect(useTermStore.getState().itemTerms.get('i2')).toEqual(new Set());
+    expect(useLibraryStore.getState().items.get('i1')?.sortedAt).toBeNull();
+    expect(useLibraryStore.getState().items.get('i2')?.sortedAt).toBe('2025-01-01T00:00:00.000Z');
+  });
+});
+
+describe('createBulkAddTermCommand', () => {
+  it('only links items that lacked the term, and undo only unlinks those', async () => {
+    useLibraryStore.getState().upsertItems([makeItem({ id: 'i1' }), makeItem({ id: 'i2' })]);
+    useTermStore.getState().upsertTerm(makeTerm({ id: 'v1', facet: 'vibe', name: 'Dreamy' }));
+    useTermStore.getState().addItemTerm('i2', 'v1'); // i2 already has it
+    const platform = makePlatform();
+
+    const command = createBulkAddTermCommand(platform, ['i1', 'i2'], 'vibe', { id: 'v1' });
+    await command.do();
+    expect(useTermStore.getState().itemTerms.get('i1')?.has('v1')).toBe(true);
+    expect(useTermStore.getState().itemTerms.get('i2')?.has('v1')).toBe(true);
+    expect(useLibraryStore.getState().items.get('i1')?.sortedAt).not.toBeNull();
+
+    await command.undo();
+    expect(useTermStore.getState().itemTerms.get('i1')?.has('v1')).toBe(false);
+    expect(useTermStore.getState().itemTerms.get('i2')?.has('v1')).toBe(true); // still there — was pre-existing
+    expect(useLibraryStore.getState().items.get('i1')?.sortedAt).toBeNull();
+  });
+});
+
+describe('createBulkRemoveTermCommand', () => {
+  it('unlinks only items that had the term, and undo relinks exactly those', async () => {
+    useTermStore.getState().upsertTerm(makeTerm({ id: 't1' }));
+    useTermStore.getState().addItemTerm('i1', 't1');
+    const platform = makePlatform();
+
+    const command = createBulkRemoveTermCommand(platform, ['i1', 'i2'], 't1');
+    await command.do();
+    expect(useTermStore.getState().itemTerms.get('i1')?.has('t1')).toBe(false);
+
+    await command.undo();
+    expect(useTermStore.getState().itemTerms.get('i1')?.has('t1')).toBe(true);
+    expect(useTermStore.getState().itemTerms.get('i2')?.has('t1')).toBeFalsy();
+  });
+});
+
+describe('createBackToInboxCommand', () => {
+  it('clears sorted_at and undo restores the previous value', async () => {
+    useLibraryStore
+      .getState()
+      .upsertItems([
+        makeItem({ id: 'i1', sortedAt: '2025-01-01T00:00:00.000Z' }),
+        makeItem({ id: 'i2' }),
+      ]);
+    const platform = makePlatform();
+
+    const command = createBackToInboxCommand(platform, ['i1', 'i2']);
+    await command.do();
+    expect(useLibraryStore.getState().items.get('i1')?.sortedAt).toBeNull();
+    expect(useLibraryStore.getState().items.get('i2')?.sortedAt).toBeNull();
+
+    await command.undo();
+    expect(useLibraryStore.getState().items.get('i1')?.sortedAt).toBe('2025-01-01T00:00:00.000Z');
+    expect(useLibraryStore.getState().items.get('i2')?.sortedAt).toBeNull();
   });
 });

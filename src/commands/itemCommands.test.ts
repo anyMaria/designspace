@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  createBulkSetItemFieldCommand,
   createMoveItemsCommand,
   createResizeItemCommand,
   createSetItemFieldCommand,
@@ -195,5 +196,23 @@ describe('createSetItemFieldCommand', () => {
     await command.undo();
     expect(useLibraryStore.getState().items.get('item1')?.favorite).toBe(false);
     expect(vi.mocked(platform.db.execute).mock.calls[1][1]).toEqual([0, 'item1']);
+  });
+});
+
+describe('createBulkSetItemFieldCommand', () => {
+  it('sets the same value on every item and undo restores each item its own previous value', async () => {
+    useLibraryStore
+      .getState()
+      .upsertItems([makeItem({ id: 'a', artist: 'Alice' }), makeItem({ id: 'b', artist: 'Bob' })]);
+    const platform = makePlatform();
+    const command = createBulkSetItemFieldCommand(platform, ['a', 'b'], 'artist', 'Everyone');
+
+    await command.do();
+    expect(useLibraryStore.getState().items.get('a')?.artist).toBe('Everyone');
+    expect(useLibraryStore.getState().items.get('b')?.artist).toBe('Everyone');
+
+    await command.undo();
+    expect(useLibraryStore.getState().items.get('a')?.artist).toBe('Alice');
+    expect(useLibraryStore.getState().items.get('b')?.artist).toBe('Bob');
   });
 });

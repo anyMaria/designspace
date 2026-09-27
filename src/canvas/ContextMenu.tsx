@@ -5,14 +5,15 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { useHistoryStore } from '@/commands/history';
 import { useToastStore } from '@/state/toastStore';
 import { createStackOrderCommand, createTrashCommand } from '@/commands/itemCommands';
+import { createBackToInboxCommand } from '@/commands/itemTermCommands';
 import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
 import type { ContextMenuState } from './useContextMenu';
 
-/** Right-click menu for a canvas item — §2.4. Only the actions M1 can actually back: the rest
- * (Open, Add to board, Connect to…, Find similar, Copy palette, Set cover, Back to Inbox) need
- * Focus view, Boards, Connections, the Details panel or video/PDF support that land in later
- * milestones — deferred and logged in docs/DECISIONS.md rather than shown as dead buttons. */
+/** Right-click menu for a canvas item — §2.4. Only the actions M1/M2 can actually back: the rest
+ * (Open, Add to board, Connect to…, Find similar, Copy palette, Set cover) need Boards,
+ * Connections or video/PDF support that land in later milestones — deferred and logged in
+ * docs/DECISIONS.md rather than shown as dead buttons. */
 export function ContextMenu({
   state,
   engine,
@@ -59,6 +60,11 @@ export function ContextMenu({
     const updates = engine.bringForward(ids, toFront);
     const label = toFront ? en.contextMenu.bringToFront : en.contextMenu.sendToBack;
     void useHistoryStore.getState().execute(createStackOrderCommand(platform, label, updates));
+  }
+
+  function backToInbox(): void {
+    onClose();
+    void useHistoryStore.getState().execute(createBackToInboxCommand(platform, ids));
   }
 
   function moveToTrash(): void {
@@ -108,6 +114,11 @@ export function ContextMenu({
                 id: 'send-to-back',
                 label: en.contextMenu.sendToBack,
                 onSelect: () => stack(false),
+              },
+              {
+                id: 'back-to-inbox',
+                label: en.contextMenu.backToInbox,
+                onSelect: backToInbox,
               },
               { id: 'move-to-trash', label: en.contextMenu.moveToTrash, onSelect: moveToTrash },
             ]}

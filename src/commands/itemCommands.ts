@@ -200,6 +200,41 @@ export function createSetItemFieldCommand<K extends ItemFieldKey>(
   };
 }
 
+/** The bulk Details panel's "set for all" fields (§2.6: Artist and Favorite) — one undo step for
+ * every selected item, each restoring its own previous value on undo. */
+export function createBulkSetItemFieldCommand<K extends ItemFieldKey>(
+  platform: Platform,
+  itemIds: string[],
+  field: K,
+  value: ItemFieldValue<K>,
+): Command {
+  const previous = itemIds.map((id) => {
+    const item = useLibraryStore.getState().items.get(id);
+    return { id, value: item ? (item[field as keyof Item] as ItemFieldValue<K>) : value };
+  });
+
+  async function apply(values: { id: string; value: ItemFieldValue<K> }[]): Promise<void> {
+    const statements = [];
+    for (const v of values) {
+      const current = useLibraryStore.getState().items.get(v.id);
+      if (!current) continue;
+      useLibraryStore.getState().upsertItem({ ...current, [field]: v.value });
+      const dbValue = field === 'favorite' ? (v.value ? 1 : 0) : v.value;
+      statements.push({
+        sql: `UPDATE items SET ${FIELD_COLUMNS[field]} = ? WHERE id = ?`,
+        params: [dbValue, v.id],
+      });
+    }
+    await platform.db.batch(statements);
+  }
+
+  return {
+    label: `Set ${field} (${itemIds.length})`,
+    do: () => apply(itemIds.map((id) => ({ id, value }))),
+    undo: () => apply(previous),
+  };
+}
+
 /** One undo step for a whole import batch (§2.3, §4.11). The rows already exist by the time this
  * is pushed onto the history stack (import writes them as it goes, for the progress card); `do`
  * just confirms they're not deleted (a no-op the first time, a restore on redo) and `undo` trashes
