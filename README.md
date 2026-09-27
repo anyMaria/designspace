@@ -4,7 +4,7 @@ A private, local-first desktop app for visual inspiration.
 
 Drop in images, videos, PDFs, fonts, links and notes, and see everything on one infinite map. Classify each item by type, vibe, movement and tags, explore how items connect, and turn filtered selections into project moodboards. Everything stays on your computer, and the AI suggestions run offline.
 
-**Status:** planned and ready to build. Milestone 0 comes next; see [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+**Status:** Milestone 0 (foundations) is built — the installer opens a pannable dot-grid map and creates a library. Milestone 1 (adding and arranging images) comes next; see [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Install (Windows)
 The installer is available from Milestone 0 onwards:

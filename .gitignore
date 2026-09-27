@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+target/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/resources/models/
+public/ort/
+*.local
+
+# AI models & library data (never commit)
+*.db
+*.db-wal
+*.db-shm
+/library/
+/media/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
