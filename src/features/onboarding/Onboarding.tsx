@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Platform, LibraryInfo } from '@/platform';
 import { ensureLibraryReady } from '@/platform/bootstrap';
+import { seedVocabulary } from '@/state/vocabularySeed';
+import { loadVocabulary } from '@/state/loadVocabulary';
 import { en } from '@/i18n/en';
 import { Button } from '@/design/components';
 import { logger } from '@/lib/logger';
@@ -28,6 +30,8 @@ export function Onboarding({ platform, onReady }: OnboardingProps) {
     try {
       const library = await platform.library.create(path ?? undefined);
       const libraryBoardId = await ensureLibraryReady(platform);
+      await seedVocabulary(platform);
+      await loadVocabulary(platform);
       onReady(library, libraryBoardId);
     } catch (err) {
       logger.error('Failed to create the library', err);

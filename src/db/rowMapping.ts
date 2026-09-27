@@ -1,5 +1,15 @@
 import type { DbRow } from '@/platform/types';
-import type { Item, ItemKind, ItemStatus, PaletteEntry, Placement } from '@/state/types';
+import type {
+  Facet,
+  Item,
+  ItemKind,
+  ItemStatus,
+  ItemTerm,
+  PaletteEntry,
+  Placement,
+  Term,
+  TermVia,
+} from '@/state/types';
 
 function asString(v: DbRow[string]): string {
   return v === null ? '' : String(v);
@@ -59,6 +69,29 @@ export function rowToPlacement(row: DbRow): Placement {
     h: Number(row.h),
     z: Number(row.z ?? 0),
     frameId: asNullableString(row.frame_id),
+    addedAt: asString(row.added_at),
+  };
+}
+
+/** Maps one row from `SELECT * FROM terms`. */
+export function rowToTerm(row: DbRow): Term {
+  return {
+    id: asString(row.id),
+    facet: asString(row.facet) as Facet,
+    name: asString(row.name),
+    nameNorm: asString(row.name_norm),
+    aiHint: asNullableString(row.ai_hint),
+    sort: Number(row.sort ?? 0),
+    createdAt: asString(row.created_at),
+  };
+}
+
+/** Maps one row from `SELECT * FROM item_terms`. */
+export function rowToItemTerm(row: DbRow): ItemTerm {
+  return {
+    itemId: asString(row.item_id),
+    termId: asString(row.term_id),
+    via: asString(row.via) as TermVia,
     addedAt: asString(row.added_at),
   };
 }

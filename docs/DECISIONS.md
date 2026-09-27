@@ -369,4 +369,35 @@ are the M1 **Owner checks** the plan calls for, still outstanding on the owner's
 
 ---
 
+## M2: Classify, search, list, Inbox
+
+### Vocabulary seeding + the term/item-term store
+Seeded Type/Vibe/Movement from Appendix A (`src/lib/vocabulary.ts`, plain data) via
+`seedVocabulary` (`src/state/vocabularySeed.ts`) — idempotent like `seedDemoLibrary` (checks
+`COUNT(*) FROM terms` first), one `db.batch` insert, sort index restarting at 0 per facet (§2.5:
+reordering "sets the number keys in Triage", which are per-facet — Type's 1-9, not a global
+ordering across all three vocabularies). Tags start empty, per plan. Wired into both boot paths in
+`App.tsx` and into `Onboarding.tsx`'s `createLibrary()` (a fresh library via first-run also needs
+seeding before the vocabulary is used, not just the two "recent library" paths).
+
+Added `useTermStore` (`src/state/termStore.ts`) alongside `useLibraryStore`: terms are
+library-wide, not per-space, and the vocabulary manager and Details panel both need to read/write
+them independently of the current selection, so it's a separate store rather than folded into
+`libraryStore`. `itemTerms` is `Map<itemId, Set<termId>>` for O(1) per-item lookups; `item_terms`
+rows aren't filtered by `deleted_at` on load (§ analogous to placements in M1: a trashed item's
+terms stay assigned so a restore doesn't lose them).
+
+`loadVocabulary` (`src/state/loadVocabulary.ts`) mirrors `loadLibraryItems`'s shape and is called
+alongside it at startup.
+
+Verified with new unit tests: `vocabularySeed.test.ts` (idempotency, exact starter counts per
+facet — 21/24/31 — per-facet sort restarting at 0, and that a hinted value like Memphis carries
+its `aiHint` while an unhinted one like Bauhaus is `null`), `termStore.test.ts` (load indexing,
+add/remove-item-term isolation, cascade-delete scrubbing a removed term from every item,
+per-facet filtering), and `rowMapping.test.ts` additions for `rowToTerm`/`rowToItemTerm`. Also ran
+the full M1 Playwright suite again (all 6 still green) to confirm the new startup calls don't
+throw or slow anything down.
+
+---
+
 *(Later milestones append below this line.)*

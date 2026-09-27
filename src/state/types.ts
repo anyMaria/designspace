@@ -47,3 +47,25 @@ export interface Placement {
   frameId: string | null;
   addedAt: string;
 }
+
+/** §2.5 classification vocabulary — one row per Type/Vibe/Movement/Tag value. */
+export type Facet = 'type' | 'vibe' | 'movement' | 'tag';
+
+export interface Term {
+  id: string;
+  facet: Facet;
+  name: string;
+  nameNorm: string;
+  aiHint: string | null;
+  sort: number;
+  createdAt: string;
+}
+
+export type TermVia = 'user' | 'ai';
+
+export interface ItemTerm {
+  itemId: string;
+  termId: string;
+  via: TermVia;
+  addedAt: string;
+}

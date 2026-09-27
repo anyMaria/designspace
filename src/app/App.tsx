@@ -4,6 +4,8 @@ import { getPlatform } from '@/platform';
 import { ensureLibraryReady, readDevUrlFlags } from '@/platform/bootstrap';
 import { seedDemoLibrary } from '@/platform/seed/demo';
 import { loadLibraryItems } from '@/state/loadLibrary';
+import { loadVocabulary } from '@/state/loadVocabulary';
+import { seedVocabulary } from '@/state/vocabularySeed';
 import { resumePendingIngest } from '@/workers/ingestQueue';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
@@ -39,8 +41,9 @@ export function App() {
           const library = await platform.library.open();
           const libraryBoardId = await ensureLibraryReady(platform);
           const { seedDemo, bench } = readDevUrlFlags();
+          await seedVocabulary(platform);
           if (seedDemo) await seedDemoLibrary(platform, libraryBoardId);
-          await loadLibraryItems(platform, libraryBoardId);
+          await Promise.all([loadLibraryItems(platform, libraryBoardId), loadVocabulary(platform)]);
           void resumePendingIngest(platform);
           void purgeExpiredTrash(platform);
           if (!cancelled)
@@ -54,7 +57,8 @@ export function App() {
         }
         const library = await platform.library.open(recent[0].path);
         const libraryBoardId = await ensureLibraryReady(platform);
-        await loadLibraryItems(platform, libraryBoardId);
+        await seedVocabulary(platform);
+        await Promise.all([loadLibraryItems(platform, libraryBoardId), loadVocabulary(platform)]);
         void resumePendingIngest(platform);
         void purgeExpiredTrash(platform);
         void maybeBackupAtStartup(platform);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rowToItem, rowToPlacement } from './rowMapping';
+import { rowToItem, rowToItemTerm, rowToPlacement, rowToTerm } from './rowMapping';
 
 describe('rowToItem', () => {
   it('maps a full row', () => {
@@ -96,6 +96,46 @@ describe('rowToPlacement', () => {
       h: 240,
       z: 3,
       frameId: null,
+      addedAt: '2026-09-27T00:00:00.000Z',
+    });
+  });
+});
+
+describe('rowToTerm', () => {
+  it('maps a term row', () => {
+    const term = rowToTerm({
+      id: 't1',
+      facet: 'vibe',
+      name: 'Dreamy',
+      name_norm: 'dreamy',
+      ai_hint: null,
+      sort: 0,
+      created_at: '2026-09-27T00:00:00.000Z',
+    });
+    expect(term).toEqual({
+      id: 't1',
+      facet: 'vibe',
+      name: 'Dreamy',
+      nameNorm: 'dreamy',
+      aiHint: null,
+      sort: 0,
+      createdAt: '2026-09-27T00:00:00.000Z',
+    });
+  });
+});
+
+describe('rowToItemTerm', () => {
+  it('maps an item_term row', () => {
+    const itemTerm = rowToItemTerm({
+      item_id: 'i1',
+      term_id: 't1',
+      via: 'user',
+      added_at: '2026-09-27T00:00:00.000Z',
+    });
+    expect(itemTerm).toEqual({
+      itemId: 'i1',
+      termId: 't1',
+      via: 'user',
       addedAt: '2026-09-27T00:00:00.000Z',
     });
   });
