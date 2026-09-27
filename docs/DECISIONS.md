@@ -580,4 +580,47 @@ now fully covers the app behind it.
 
 ---
 
+### Search engine (M2-6)
+`src/lib/search.ts` implements §4.8 as a pure library layer — no UI yet (that's M2-7's search
+bar), so nothing in the plan's checklist gets ticked by this task alone; "search bar" is one
+combined checklist item covering both.
+
+**Text index**: a `MiniSearch` instance over `title`, `termNames` (space-joined vocabulary names
+for whatever terms an item carries), `artist`, `sourceDomain` (parsed from `sourceUrl`, only
+populated once links exist), `why` and `fileName`, with `termNames` boosted ×3 and `title` ×2 per
+the plan's exact numbers. Tokens run through the existing `normalize()` helper (already built for
+term-name matching in M2-1) so free text and vocabulary names share one accent/case-insensitive
+rule instead of two similar-but-different ones. `prefix` and `fuzzy` both use MiniSearch's
+per-term function form (`(term, index, terms) => …`) rather than the plain boolean — the plan's
+"the **last** token is matched as a prefix" is specifically about the last token, not all of them,
+and MiniSearch only supports that distinction through the function form. `bodyText`/`fontFamily`/
+`linkTitle`/`linkDescription` from the plan's field list are left out of the index entirely: notes,
+fonts and links don't exist as kinds until M4/M5, and `Item` has no fields for them yet.
+
+**Facets**: `buildFacetSets()` does one pass over the live items + `itemTerms` map and returns
+plain `termId/kind/colorFamily/artist → Set<itemId>` maps plus `favorite`/`inbox` sets and a
+`createdAt` lookup for date-range filtering — built fresh per search call rather than maintained
+incrementally. `evaluateFilter()` then does exactly what §4.8 specifies: union within a field,
+intersect across fields, intersect with text results if there's a text query, then subtract the
+excluded term ids last. `boards` stays in the `Filter` type (so M2-7 and M3/M4 don't need to widen
+it later) but is never read by `evaluateFilter` — Boards don't exist before M3, and until then
+every item lives on the one Library board.
+
+**Incremental updates deferred**: the plan explicitly wants `MiniSearch` `replace`/`discard` plus
+incremental set updates so the index doesn't get rebuilt on every keystroke. That wiring belongs
+naturally in M2-7 (the search bar is the thing that would call it, hooked into the stores'
+`upsertItem` etc.), not in the engine itself — for now, `buildSearchIndex`/`buildFacetSets` just
+rebuild from the current store state, which a benchmark test (`search.bench.test.ts`) confirms
+comfortably clears the §4.8 "≤ 30ms per keystroke at 10,000 items" budget even rebuilt from
+scratch (a generous CI-safe ceiling is asserted rather than the exact 30ms, since CI hardware
+varies and the point is to catch a real algorithmic regression, not chase a machine-specific
+number — the tight number is meaningful on the owner's own machine).
+
+Verified with unit tests covering text matching (case/accent-insensitivity, last-token prefix,
+5+-letter fuzzy typo tolerance, term-name boosting, soft-delete exclusion), `evaluateFilter`'s
+union/intersect/exclude/date-range logic, and an end-to-end `search()` test combining text with a
+facet filter — plus the two-part performance benchmark above.
+
+---
+
 *(Later milestones append below this line.)*
