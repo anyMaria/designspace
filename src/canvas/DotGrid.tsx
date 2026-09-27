@@ -1,6 +1,11 @@
 import { useEffect, useRef } from 'react';
 import type { Engine } from './Engine';
 import { canvasGeometry } from '@/design/tokens';
+import { useUiStore, type DotGridDensity } from '@/state/uiStore';
+
+/** Settings → Canvas's manual density override (§2.14) on top of the automatic zoom-based
+ * subdivision below. */
+const DENSITY_MULTIPLIER: Record<DotGridDensity, number> = { fine: 0.5, normal: 1, wide: 2 };
 
 /**
  * The bullet-journal dot grid, drawn in CSS behind the transparent Pixi canvas and kept in sync
@@ -21,7 +26,8 @@ export function DotGrid({ engine }: { engine: Engine }) {
       const vh = el.clientHeight;
       const { zoom } = engine.camera.state;
 
-      let worldSpacing = canvasGeometry.dotGridWorldSpacing;
+      let worldSpacing =
+        canvasGeometry.dotGridWorldSpacing * DENSITY_MULTIPLIER[useUiStore.getState().dotGridDensity];
       let screenSpacing = worldSpacing * zoom;
       if (screenSpacing < canvasGeometry.dotDenseThresholdPx) {
         worldSpacing *= 4;
@@ -40,11 +46,15 @@ export function DotGrid({ engine }: { engine: Engine }) {
 
     update();
     const unsubscribe = engine.camera.subscribe(update);
+    const unsubscribeDensity = useUiStore.subscribe((s, prev) => {
+      if (s.dotGridDensity !== prev.dotGridDensity) update();
+    });
     const resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(el);
 
     return () => {
       unsubscribe();
+      unsubscribeDensity();
       resizeObserver.disconnect();
     };
   }, [engine]);

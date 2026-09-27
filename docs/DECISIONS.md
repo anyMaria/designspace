@@ -297,6 +297,41 @@ check (`smoke-m1-trash-focus.spec.ts`): double-click opens Focus view and Esc cl
 shows the Trash toast, Settings → Library → Trash lists the item with a thumbnail, and Restore
 empties it again — zero console errors throughout.
 
+### Empty state, Settings → Canvas, Settings → Library (closing out M1)
+**Empty state.** It was rendering inside the right List panel (an M0 placeholder), not centered
+on the canvas the way §2.14 actually specifies ("a soft centered card"). Moved it there, gated on
+`useLibraryStore`'s item count (and off during `?bench=…`), with its "+ Add" button wired to
+actually open the dock's add menu rather than doing nothing. That needed lifting the menu's open
+state out of `<AddMenu>` into a new tiny `useAddMenuStore` — the same one-purpose-store pattern as
+`importStore`/`toastStore`/`focusStore` — so a button elsewhere on the page can open it too. The
+List panel's own placeholder now says plainly that it lands with search/classification in M2,
+instead of duplicating the canvas empty-state card.
+
+**Settings → Canvas.** Wheel mode (Zoom/Pan) and reduce-motion had store fields since M0
+(`useUiStore`) but neither was ever read by anything real: `wheelMode` had no UI to change it, and
+`prefersReducedMotion()` (M1-7) only ever checked the OS media query, ignoring the store entirely.
+Both are real gaps, now fixed — `reduceMotion` became a proper `'system' | 'on' | 'off'` (was a
+dead boolean) and `prefersReducedMotion()` consults it first. Dot grid density (Fine/Normal/Wide)
+didn't exist as a concept at all; added `dotGridDensity` to the store and a multiplier in
+`DotGrid.tsx`, layered on top of the automatic zoom-based subdivision that was already there.
+Minimap on/off already worked (`M`, M1-7) — this pass just gave it a `<Toggle>` alongside the rest.
+
+**Settings → Library.** Trash landed in M1-8. This pass added the remaining three: location
+(already shown in About; shown again here per §2.14's list), recent libraries and "Open or create
+another library…" (Tauri only — opens a folder, calls `library.open`, then `window.location.reload()`,
+since a live library swap would mean tearing down every store, the engine and the undo history;
+a clean reboot through `App.tsx`'s existing boot path is simpler and was already exercised by the
+M0 startup flow), and backups (Back up now, a list with Restore, same reload-after-restore
+reasoning). All three are no-ops with an explanatory note on the browser dev build, which has no
+filesystem-backed libraries to switch between.
+
+Verified with a new Playwright check (`smoke-m1-settings-empty.spec.ts`): the empty state shows on
+a fresh library and its + Add opens the menu, every Canvas control actually flips (screenshotted
+mid-change), and Library shows the browser note plus a working Trash — zero console errors.
+
+M1's checklist is now fully ticked. `M1-10` (final full verification pass across
+lint/typecheck/vitest/cargo test+clippy+fmt/e2e, plus this write-up) is next.
+
 ---
 
 *(Later milestones append below this line.)*

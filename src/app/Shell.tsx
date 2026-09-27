@@ -26,6 +26,7 @@ import { AddMenu } from '@/features/import/AddMenu';
 import { DropOverlay } from '@/features/import/DropOverlay';
 import { ImportProgressCard } from '@/features/import/ImportProgressCard';
 import { ToastHost } from '@/features/toasts/ToastHost';
+import { useAddMenuStore } from '@/state/addMenuStore';
 import {
   Dock,
   DockDivider,
@@ -59,6 +60,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
   const [inboxCount] = useState(0);
   const [engine, setEngine] = useState<Engine | null>(null);
+  const itemCount = useLibraryStore((s) => s.items.size);
 
   useEffect(() => {
     useLibraryStore.getState().setLibraryBoardId(libraryBoardId);
@@ -78,6 +80,32 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         benchCount={benchCount}
         onEngineReady={setEngine}
       />
+
+      {/* Library map empty state — §2.14 */}
+      {itemCount === 0 && !benchCount && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ pointerEvents: 'auto' }}>
+            <EmptyState
+              title={en.emptyStates.libraryMap}
+              action={
+                <Button variant="primary" onClick={() => useAddMenuStore.getState().setOpen(true)}>
+                  + Add
+                </Button>
+              }
+            />
+          </div>
+        </div>
+      )}
 
       {/* Top-left: space switcher, Inbox chip, Rediscover — §2.1 */}
       <div
@@ -205,10 +233,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             onChange={setPanelTab}
           />
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <EmptyState
-              title={en.emptyStates.libraryMap}
-              action={<Button variant="primary">+ Add</Button>}
-            />
+            <p style={{ color: 'var(--text-3)', textAlign: 'center' }}>{en.panel.listComingSoon}</p>
           </div>
         </Panel>
       )}

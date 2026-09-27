@@ -8,6 +8,7 @@ import { en } from '@/i18n/en';
 import { importFiles, importPaths } from './importItems';
 import { isSupportedImage } from '@/lib/fileKinds';
 import { useToastStore } from '@/state/toastStore';
+import { useAddMenuStore } from '@/state/addMenuStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
 
 const IMAGE_FILTERS: FileFilter[] = [
@@ -21,7 +22,8 @@ export interface AddMenuProps {
 
 /** The dock's "+ Add" entry point (§2.3): Files…, Folder…, Paste. Ctrl+O opens Files… directly. */
 export function AddMenu({ platform, engine }: AddMenuProps) {
-  const [open, setOpen] = useState(false);
+  const open = useAddMenuStore((s) => s.open);
+  const setOpen = useAddMenuStore((s) => s.setOpen);
   const [folderConfirm, setFolderConfirm] = useState<FolderConfirmState | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
@@ -110,7 +112,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
         icon={<Plus size={20} strokeWidth={1.75} />}
         label={en.dock.add}
         active={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => useAddMenuStore.getState().toggle()}
       />
       {open && (
         <>

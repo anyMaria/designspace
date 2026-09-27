@@ -1174,7 +1174,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] Commands and undo/redo for all of the above; the Trash (soft delete, Trash view, restore, purge to the Recycle Bin, automatic purge after 30 days).
 - [x] Focus view for images.
 - [ ] Automatic backups with rotation.
-- [ ] The empty state; toasts with Undo; the Library and Canvas sections of Settings.
+- [x] The empty state; toasts with Undo; the Library and Canvas sections of Settings.
 
 **Acceptance:**
 - Importing 500 mixed images (one of them a duplicate) gives the correct counts without freezing the UI.

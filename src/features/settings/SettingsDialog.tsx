@@ -3,7 +3,8 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { Dialog } from '@/design/components';
 import { en } from '@/i18n/en';
 import { DropInspector } from '@/features/diagnostics/DropInspector';
-import { TrashSection } from '@/features/trash/TrashSection';
+import { LibrarySection } from './LibrarySection';
+import { CanvasSection } from './CanvasSection';
 
 type Section = 'library' | 'canvas' | 'contentNetwork' | 'vocabularies' | 'ai' | 'about';
 
@@ -15,8 +16,8 @@ export interface SettingsDialogProps {
   onClose: () => void;
 }
 
-/** Settings shell (§2.14). Only About → Diagnostics is functional in M0; the rest are
- * placeholders that name the milestone that fills them in. */
+/** Settings shell (§2.14). Library, Canvas and About are functional; Content & network,
+ * Vocabularies and AI are placeholders naming the milestone that fills them in. */
 export function SettingsDialog({ platform, library, onClose }: SettingsDialogProps) {
   const [section, setSection] = useState<Section>('about');
 
@@ -45,7 +46,9 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
           {section === 'about' ? (
             <AboutSection platform={platform} library={library} />
           ) : section === 'library' ? (
-            <LibrarySection platform={platform} />
+            <LibrarySection platform={platform} library={library} />
+          ) : section === 'canvas' ? (
+            <CanvasSection />
           ) : (
             <p style={{ color: 'var(--text-2)' }}>{milestoneFor(section)}</p>
           )}
@@ -55,27 +58,13 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
   );
 }
 
-function milestoneFor(section: Exclude<Section, 'about' | 'library'>): string {
-  const table: Record<Exclude<Section, 'about' | 'library'>, string> = {
-    canvas:
-      'Wheel mode, dot grid density and reduced motion land alongside the canvas engine, M0–M1.',
+function milestoneFor(section: Exclude<Section, 'about' | 'library' | 'canvas'>): string {
+  const table: Record<Exclude<Section, 'about' | 'library' | 'canvas'>, string> = {
     contentNetwork: 'Link previews, image downloads and Offline mode land in M5.',
     vocabularies: 'The vocabulary manager lands in M2.',
     ai: 'Offline AI settings land in M6.',
   };
   return table[section];
-}
-
-function LibrarySection({ platform }: { platform: Platform }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-      <TrashSection platform={platform} />
-      <p style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>
-        Location, recent libraries and the backups UI land alongside this section's remaining
-        checklist items.
-      </p>
-    </div>
-  );
 }
 
 function AboutSection({ platform, library }: { platform: Platform; library: LibraryInfo }) {
