@@ -531,4 +531,53 @@ future consumer) — both stay off the bulk actions list rather than being wired
 
 ---
 
+### Triage full-screen overlay (M2-5)
+`useTriageStore` (`src/state/`) holds a **snapshot** of the Inbox's item ids taken the moment the
+Inbox chip opens Triage — not a live-filtered view — so the header's "N of M" denominator stays
+fixed while working through it (a live view would shrink out from under the owner every time an
+item got classified, since classifying is exactly what removes it from the Inbox). `index` is a
+plain cursor into that snapshot; `next`/`prev` clamp it to `[0, order.length]`, where
+`index === order.length` is the "Inbox zero" end state. `toggleOrder` (oldest/newest) just reverses
+the snapshot array and re-points the index at its mirror position, rather than re-touching the
+library store — it's already sorted, reversing it is the other sort.
+
+`<TriageView>` (`src/features/triage/`) is a full-screen overlay in the same style as `FocusView`:
+left ~60% large preview, right ~40% the classification fields (Type chips numbered 1–9 for the
+keyboard shortcut, Vibe/Movement/Tags chip inputs, Favorite). Number keys set Type, `V`/`M`/`T`
+focus the matching chip input (via a container `ref` + `querySelector('input')`, since `ChipInput`
+doesn't forward a ref itself — simpler than widening its public props for one caller), `S` toggles
+Favorite, `Enter`/`→` advance, `←` goes back, `Esc` exits. `A` ("accept all AI suggestions") is
+registered as a documented no-op: there are no AI suggestions to accept until the AI worker lands
+in M6, and the key exists in the spec's table today, so it's better to have it do nothing than to
+not exist.
+
+**Real bug, caught by the Playwright check, not by unit tests**: the global keydown handler
+originally read `document.activeElement` to decide "is the owner typing in a field, so let
+`ChipInput` own this keystroke instead of firing a Triage shortcut." That worked for `Enter`, but
+not `Escape` — `ChipInput`'s own `Escape` handler calls `blur()` *synchronously inside its keydown
+handler*, so by the time our `window`-level listener ran (later in the same event's bubble phase),
+`document.activeElement` had already changed to something that no longer looked like "typing,"
+and the same keystroke both left the field *and* closed all of Triage. Fixed by reading `e.target`
+instead, which is fixed for the lifetime of one event dispatch regardless of what its handlers do
+to focus. Caught visually too: an early version of the overlay used a `background` of
+`var(--surface-0)`, a token that doesn't exist in `tokens.css` (`--surface-1` is the panel
+surface; there's no "0"), so the overlay was fully transparent and the Shell's own Inbox
+chip/right panel showed straight through it in the first screenshot — fixed to `var(--canvas)`,
+the same solid backdrop the map itself uses.
+
+**Deferred, matching kind support elsewhere in M2**: video (muted autoplay), PDF (cover + page
+picker) and link (cover + title) previews — every item is `kind: 'image'` until those importers
+land in later milestones, so the preview pane only ever needs to handle images for now. AI ghost
+suggestion chips are M6, same as the Details panel.
+
+Verified with unit tests for `triageStore` (open/next/prev clamping, `toggleOrder`'s reversal and
+re-pointing, close) and a new Playwright check (`smoke-m2-triage.spec.ts`): opens Triage from the
+Inbox chip, sets a Type with a number key, focuses Vibe with `V` and adds a value with `Enter`
+(confirming the field's own `Enter` doesn't also advance Triage), leaves the field with `Escape`
+(confirming Triage itself doesn't close), advances with `Enter`, `→`/`←` skip and go back, and
+`Esc` exits back to the map — zero console errors, and the fixed screenshot confirms the overlay
+now fully covers the app behind it.
+
+---
+
 *(Later milestones append below this line.)*

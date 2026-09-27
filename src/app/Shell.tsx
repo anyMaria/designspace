@@ -29,6 +29,8 @@ import { ToastHost } from '@/features/toasts/ToastHost';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
 import { BulkDetailsPanel } from '@/features/details/BulkDetailsPanel';
+import { TriageView } from '@/features/triage/TriageView';
+import { useTriageStore } from '@/state/triageStore';
 import {
   Dock,
   DockDivider,
@@ -73,6 +75,13 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
     () => [...items.values()].filter((i) => !i.deletedAt && !i.sortedAt).length,
     [items],
   );
+
+  function openTriage(): void {
+    const inboxItems = [...items.values()]
+      .filter((i) => !i.deletedAt && !i.sortedAt)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    useTriageStore.getState().open(inboxItems.map((i) => i.id));
+  }
 
   useEffect(() => {
     useLibraryStore.getState().setLibraryBoardId(libraryBoardId);
@@ -148,9 +157,20 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           <span className="font-display">{en.spaceSwitcher.library}</span>
         </Panel>
         {inboxCount > 0 && (
-          <Panel style={{ padding: 'var(--space-2) var(--space-4)' }}>
+          <button
+            type="button"
+            className="ds-panel"
+            style={{
+              padding: 'var(--space-2) var(--space-4)',
+              border: 'none',
+              cursor: 'pointer',
+              font: 'inherit',
+              color: 'inherit',
+            }}
+            onClick={openTriage}
+          >
             {en.inbox.chip(inboxCount)}
-          </Panel>
+          </button>
         )}
         <IconButton icon={<Share2 size={20} strokeWidth={1.75} />} label={en.rediscover} />
       </div>
@@ -287,6 +307,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         />
       )}
       <FocusView platform={platform} />
+      <TriageView platform={platform} />
     </div>
   );
 }

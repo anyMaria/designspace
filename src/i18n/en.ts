@@ -190,6 +190,17 @@ export const en = {
     next: 'Next',
     showOriginal: 'Show original',
   },
+  triage: {
+    progress: (index: number, total: number) => `${index} of ${total}`,
+    oldestFirst: 'Oldest first',
+    newestFirst: 'Newest first',
+    close: 'Back to map',
+    zero: 'Inbox zero ✦',
+    zeroSubtitle: "You've sorted everything in the Inbox.",
+    done: 'Done',
+    skip: 'Skip',
+    previous: 'Previous',
+  },
   contextMenu: {
     copyImage: 'Copy image',
     showInExplorer: 'Show in Explorer',
