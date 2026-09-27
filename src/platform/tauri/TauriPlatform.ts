@@ -1,7 +1,8 @@
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
+import { readImage, readText, writeImage } from '@tauri-apps/plugin-clipboard-manager';
+import { Image } from '@tauri-apps/api/image';
 import type {
   BackupInfo,
   DbRow,
@@ -140,6 +141,10 @@ export class TauriPlatform implements Platform {
       } catch {
         return null;
       }
+    },
+    writeImage: async (bytes: Uint8Array): Promise<void> => {
+      const image = await Image.fromBytes(bytes);
+      await writeImage(image);
     },
   };
 }

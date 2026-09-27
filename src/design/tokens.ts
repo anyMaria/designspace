@@ -104,4 +104,6 @@ export const motion = {
 export const zoomRange = {
   min: 0.02,
   max: 8,
+  /** Multiplier per Ctrl+=/Ctrl+− press or zoom-menu click. */
+  step: 1.3,
 } as const;

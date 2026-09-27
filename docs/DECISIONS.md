@@ -217,6 +217,43 @@ Files…, picks a fixture image, confirms it lands selected on the canvas) and `
 (synthesizes a `DragEvent`/`DataTransfer`, checks the "Drop to add" overlay appears, then confirms
 the drop imports). Both ran clean against the real seeded app with zero console errors.
 
+### Context menu, minimap, zoom menu, fly-to
+Built on top of engine machinery M1-5 already had in place (`Engine.on('contextmenu', …)` already
+selected the right-clicked item and suppressed the WebView's own menu; `Camera.flyTo` already
+eased to a rect). Added:
+- `Camera.flyToZoom`/`setPosition` (zoom-only and position-only camera moves, both reusing the
+  same `animateTo` the old `flyTo` was refactored to share) and `Engine.zoomToFit`/`zoomToSelection`/
+  `zoomTo100`/`zoomStep`, wired to the dock's new `<ZoomMenu>` and to Ctrl+=/Ctrl+−/Shift+1/Shift+2/
+  Shift+0 in `useCanvasShortcuts`.
+- `<Minimap>`: every placement as a dot plus the viewport rectangle, in a `<div>` (not a second
+  Pixi canvas — no LOD/culling concerns at this scale, and it keeps the minimap trivially testable
+  and CSP-simple). Click/drag calls the new `Engine.panTo` (instant, no easing, since a drag needs
+  to track the pointer 1:1). It was already toggle-wired (`M`, `minimapOpen` in `uiStore`, default
+  **on**) since M0 — this pass only replaced the empty placeholder panel with real content.
+- `<ContextMenu>`, right-click on an item: Copy image, Show in Explorer, Bring to front, Send to
+  back, Move to Trash. The plan's full list (§2.4) also has Open, Add to board ›, Connect to…,
+  Find similar, Copy palette, Set cover, Back to Inbox — all deferred, since each needs a feature
+  M1 doesn't have yet (Focus view lands in M1-8; Boards in M4; Connections in M3; the Details panel
+  and its palette swatches in M2; video/PDF cover frames in M5; the Inbox rule in M2). Showing them
+  as dead buttons would be worse than leaving them out; they get added alongside the feature that
+  backs each one. "Show in Explorer" itself is disabled (not hidden) on the browser dev build,
+  since `media.reveal` has no meaning there.
+- `Platform.clipboard` gained `writeImage(bytes, mime)` for "Copy image" — Tauri via
+  `Image.fromBytes` + the clipboard-manager plugin's `writeImage`; browser via re-encoding to PNG
+  on a canvas before `navigator.clipboard.write`, since `ClipboardItem`'s source-mime-type support
+  is inconsistent across browsers but PNG always works.
+- `Camera.state` used to allocate a new `{x,y,zoom}` object on every read; the zoom menu and
+  minimap both need to re-render on camera changes via `useSyncExternalStore`, which requires
+  `getSnapshot` to return a stable reference when nothing changed (React warns/loops otherwise).
+  Fixed by caching the snapshot and only replacing it inside `notify()` — a strict improvement
+  for any other `.state` reader too, not just these two.
+
+Verified with new `Camera.test.ts` cases (`setPosition`, `flyToZoom` clamping, `.state` reference
+stability) and a new Playwright check (`smoke-m1-canvas-ui.spec.ts`) that opens the zoom menu,
+clicks "Zoom to fit" against the 60-item seeded library and confirms the percentage actually
+changed, confirms the minimap renders, and right-clicks an item to confirm the context menu opens
+with "Show in Explorer" correctly disabled — all with zero console errors.
+
 ---
 
 *(Later milestones append below this line.)*

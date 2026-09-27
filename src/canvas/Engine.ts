@@ -17,6 +17,7 @@ import {
 } from './selection';
 import { canvasGeometry } from '@/design/tokens';
 import type { BenchRect } from '@/platform/seed/bench';
+import { unionRects } from '@/lib/geometry';
 
 export interface EngineOptions {
   getTool: () => Tool;
@@ -261,6 +262,16 @@ export class Engine {
    * outside the window (§2.3, paste). */
   viewportCenter(): { x: number; y: number } {
     return { x: this.camera.x, y: this.camera.y };
+  }
+
+  /** Screen-pixel viewport size — the minimap needs it to draw the viewport rectangle. */
+  viewportSize(): { w: number; h: number } {
+    return { w: this.app?.screen.width ?? 0, h: this.app?.screen.height ?? 0 };
+  }
+
+  /** Sets the camera position directly, no easing — the minimap's drag-to-navigate (§2.1). */
+  panTo(x: number, y: number): void {
+    this.camera.setPosition(x, y);
   }
 
   private attachSelectionInput(container: HTMLElement, opts: EngineOptions): () => void {
@@ -539,6 +550,31 @@ export class Engine {
   flyTo(rect: { x: number; y: number; w: number; h: number }, reduceMotion = false): void {
     if (!this.app) return;
     this.camera.flyTo(rect, this.app.screen.width, this.app.screen.height, reduceMotion);
+  }
+
+  /** The zoom menu's "Zoom to fit"/"Zoom to selection" (§2.1). */
+  zoomToFit(reduceMotion = false): void {
+    const bounds = unionRects([...this.cards.values()].map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h })));
+    if (bounds) this.flyTo(bounds, reduceMotion);
+  }
+
+  zoomToSelection(reduceMotion = false): void {
+    const rects = [...this.selection]
+      .map((id) => this.cards.get(id))
+      .filter((c): c is ItemCard => c !== undefined)
+      .map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h }));
+    const bounds = unionRects(rects);
+    if (bounds) this.flyTo(bounds, reduceMotion);
+  }
+
+  /** "100 %" / Shift+0 (§2.2). */
+  zoomTo100(reduceMotion = false): void {
+    this.camera.flyToZoom(1, reduceMotion);
+  }
+
+  /** Ctrl+=/Ctrl+− and the zoom menu's in/out buttons (§2.2). */
+  zoomStep(factor: number, reduceMotion = false): void {
+    this.camera.flyToZoom(this.camera.zoom * factor, reduceMotion);
   }
 
   private scheduleFrame(): void {

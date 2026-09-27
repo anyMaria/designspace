@@ -15,6 +15,10 @@ import { CanvasView } from '@/canvas/CanvasView';
 import type { Engine } from '@/canvas/Engine';
 import { useEngineBindings } from '@/canvas/useEngineBindings';
 import { useCanvasShortcuts } from '@/canvas/useCanvasShortcuts';
+import { useContextMenu } from '@/canvas/useContextMenu';
+import { ContextMenu } from '@/canvas/ContextMenu';
+import { ZoomMenu } from '@/canvas/ZoomMenu';
+import { Minimap } from '@/canvas/Minimap';
 import { useDropAndPaste } from '@/features/import/useDropAndPaste';
 import { AddMenu } from '@/features/import/AddMenu';
 import { DropOverlay } from '@/features/import/DropOverlay';
@@ -61,6 +65,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   useEngineBindings(engine, platform);
   useCanvasShortcuts(engine, platform);
   const { dragOver } = useDropAndPaste(engine, platform);
+  const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
@@ -151,10 +156,12 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             active={tool === 'hand'}
             onClick={() => setTool('hand')}
           />
+          <DockDivider />
+          <ZoomMenu engine={engine} />
         </Dock>
       </div>
 
-      {/* Bottom-left: minimap placeholder — §2.1 */}
+      {/* Bottom-left: minimap — §2.1 */}
       {minimapOpen && (
         <Panel
           style={{
@@ -162,10 +169,11 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             bottom: 'var(--space-4)',
             left: 'var(--space-4)',
             zIndex: 1,
-            width: 160,
-            height: 110,
+            padding: 0,
           }}
-        />
+        >
+          <Minimap engine={engine} />
+        </Panel>
       )}
 
       {/* Right panel — §2.1, §2.6, §2.9 (content lands in M2) */}
@@ -213,6 +221,14 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       {dragOver && <DropOverlay />}
       <ImportProgressCard />
       <ToastHost />
+      {contextMenu && (
+        <ContextMenu
+          state={contextMenu}
+          engine={engine}
+          platform={platform}
+          onClose={closeContextMenu}
+        />
+      )}
     </div>
   );
 }

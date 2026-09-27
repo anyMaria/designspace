@@ -117,5 +117,8 @@ export interface Platform {
   clipboard: {
     readImage(): Promise<Uint8Array | null>;
     readText(): Promise<string | null>;
+    /** `bytes` is an encoded image file (PNG/JPEG/…), not raw pixels — the context menu's
+     * "Copy image" (§2.4). */
+    writeImage(bytes: Uint8Array, mime: string): Promise<void>;
   };
 }

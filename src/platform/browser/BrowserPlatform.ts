@@ -210,6 +210,19 @@ export class BrowserPlatform implements Platform {
         return null;
       }
     },
+    writeImage: async (bytes: Uint8Array, mime: string): Promise<void> => {
+      // Re-encode to PNG — the Clipboard API's ClipboardItem support for arbitrary source
+      // mime types (e.g. image/jpeg) is inconsistent across browsers; PNG always works.
+      const bitmap = await createImageBitmap(new Blob([bytes.slice()], { type: mime }));
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(bitmap, 0, 0);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (blob) await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    },
   };
 
   /** Caches a blob: URL for a store/key pair at write time, so `originalUrl`/`cache.url` — which

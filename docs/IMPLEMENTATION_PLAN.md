@@ -1169,7 +1169,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [ ] Canvas:
   - [x] item sprites with LOD and the texture manager;
   - [x] selecting (click, Shift, marquee, Ctrl+A), moving, resizing, stacking, hover;
-  - [ ] the context menu, minimap, zoom menu and fly-to.
+  - [x] the context menu, minimap, zoom menu and fly-to.
 - [ ] Placement: drop point, cursor, free-space search, justified rows for several items; Tidy up.
 - [ ] Commands and undo/redo for all of the above; the Trash (soft delete, Trash view, restore, purge to the Recycle Bin, automatic purge after 30 days).
 - [ ] Focus view for images.

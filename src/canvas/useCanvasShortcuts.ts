@@ -5,6 +5,8 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { useHistoryStore } from '@/commands/history';
 import { useToastStore } from '@/state/toastStore';
 import { createMoveItemsCommand, createStackOrderCommand, createTrashCommand } from '@/commands/itemCommands';
+import { prefersReducedMotion } from '@/lib/motion';
+import { zoomRange } from '@/design/tokens';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -25,6 +27,33 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
     function onKeyDown(e: KeyboardEvent) {
       if (isTypingTarget(e.target)) return;
       const selection = [...useLibraryStore.getState().selection];
+      const reduceMotion = prefersReducedMotion();
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        engine!.zoomStep(zoomRange.step, reduceMotion);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+        e.preventDefault();
+        engine!.zoomStep(1 / zoomRange.step, reduceMotion);
+        return;
+      }
+      if (e.shiftKey && e.code === 'Digit1') {
+        e.preventDefault();
+        engine!.zoomToFit(reduceMotion);
+        return;
+      }
+      if (e.shiftKey && e.code === 'Digit2') {
+        e.preventDefault();
+        engine!.zoomToSelection(reduceMotion);
+        return;
+      }
+      if (e.shiftKey && e.code === 'Digit0') {
+        e.preventDefault();
+        engine!.zoomTo100(reduceMotion);
+        return;
+      }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();

@@ -87,6 +87,26 @@ export const en = {
     folder: 'Folder…',
     paste: 'Paste',
   },
+  zoomMenu: {
+    label: 'Zoom',
+    fit: 'Zoom to fit',
+    selection: 'Zoom to selection',
+    oneHundred: '100%',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+  },
+  minimap: {
+    label: 'Minimap',
+  },
+  contextMenu: {
+    copyImage: 'Copy image',
+    showInExplorer: 'Show in Explorer',
+    bringToFront: 'Bring to front',
+    sendToBack: 'Send to back',
+    moveToTrash: 'Move to Trash',
+    copyImageFailed: "Couldn't copy the image",
+    copyImageSucceeded: 'Copied',
+  },
   dropOverlay: {
     title: 'Drop to add',
   },
