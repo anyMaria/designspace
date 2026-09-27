@@ -16,6 +16,8 @@ import { useTriageStore } from '@/state/triageStore';
 import { createSetItemFieldCommand } from '@/commands/itemCommands';
 import { triggerRediscover } from '@/features/rediscover/triggerRediscover';
 import { openInboxTriage } from '@/features/triage/openInboxTriage';
+import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
+import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -100,6 +102,8 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
       }
 
       if (e.key === 'Escape') {
+        engine!.cancelConnectPick();
+        engine!.setSelectedConnectionPair(null);
         useLibraryStore.getState().clearSelection();
         return;
       }
@@ -108,6 +112,26 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
         e.preventDefault();
         useFocusStore.getState().open(selection[0]);
         return;
+      }
+
+      // "select the line and press Delete" (§2.10) — takes priority over trashing the item
+      // selection, since selecting a connection line doesn't touch item selection at all.
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const pair = engine!.getSelectedConnectionPair();
+        if (pair) {
+          e.preventDefault();
+          const connection = useManualConnectionsStore
+            .getState()
+            .connectionsFor(pair.fromId)
+            .find((c) => c.fromId === pair.toId || c.toId === pair.toId);
+          if (connection) {
+            void useHistoryStore
+              .getState()
+              .execute(createRemoveConnectionCommand(platform, connection.id));
+            engine!.setSelectedConnectionPair(null);
+          }
+          return;
+        }
       }
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && selection.length > 0) {

@@ -37,8 +37,10 @@ import { ShortcutListOverlay } from '@/features/shortcuts/ShortcutListOverlay';
 import { SearchBar } from '@/features/search/SearchBar';
 import { useSearchBinding } from '@/canvas/useSearchBinding';
 import { useConnectionsBinding } from '@/canvas/useConnectionsBinding';
+import { useManualConnectionsBinding } from '@/canvas/useManualConnectionsBinding';
 import { ConnectionTooltip } from '@/features/connections/ConnectionTooltip';
 import { ConnectionsPopover } from '@/features/connections/ConnectionsPopover';
+import { ConnectionLabelDialog } from '@/features/connections/ConnectionLabelDialog';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import { useSearchStore, isFilterActive } from '@/state/searchStore';
 import { ListPanel } from '@/features/list/ListPanel';
@@ -107,6 +109,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   useFocusViewBinding(engine);
   useSearchBinding(engine);
   useConnectionsBinding(engine);
+  useManualConnectionsBinding(engine, platform);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
   const listExpanded = useListStore((s) => s.expanded);
 
@@ -380,6 +383,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       <SearchBar engine={engine} />
       <ShortcutListOverlay />
       <ConnectionTooltip engine={engine} />
+      <ConnectionLabelDialog platform={platform} />
     </div>
   );
 }

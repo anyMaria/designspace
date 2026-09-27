@@ -963,6 +963,57 @@ switches to Show all, confirms the cap message stays hidden, and screenshots the
 screenshot shows a correctly labeled star at the cluster's centroid with all 60 fan lines
 converging on it, zero console errors.
 
+### My connections: drag handle, "Connect to…", labels, deleting (M3-5)
+Three new commands in `commands/connectionCommands.ts` (`createAddConnectionCommand`/
+`createRemoveConnectionCommand`/`createLabelConnectionCommand`) follow the same snapshot/do/undo
+shape as every other command in the app; callers check `isConnected` first so a duplicate never
+reaches `UNIQUE (from_id, to_id)`.
+
+`Engine.ts` gained the interaction surface: a small circle handle on a hovered item's right edge
+(drag it onto another item to connect — reuses the same pointer-capture drag pattern as move/
+resize, not Pixi's per-object event system, so it was reliable from the start), a
+`startConnectPick`/`cancelConnectPick` pair backing the context menu's "Connect to…" (the next
+canvas click resolves the target, Escape or missing cancels), and click/double-click handling on
+the manual-criterion line (Hover mode) or hub edge (Show all, only when `hub.criterion ===
+'manual'` — computed the same way M3-4's `computeHubs` already keys a manual hub, `member ->
+hub.value`). A single tap selects the pair (for "press Delete"); a second tap within 350ms on the
+same pair is the double-click that opens `ConnectionLabelDialog`. Deleting reads
+`engine.getSelectedConnectionPair()` synchronously from `useCanvasShortcuts`'s existing Delete
+handler rather than adding a new store just to shuttle that one value across a hook boundary.
+
+**Real bug found via the e2e test, not before:** clicking a connection line silently did nothing
+— the hover tooltip worked (hover is pure `pointermove` hit-testing, unaffected), but neither
+single-click selection nor double-click labeling ever fired, even though the click landed exactly
+on the line. Root cause: `attachSelectionInput`'s pointerdown handler runs on every click
+(container-level, native DOM listener) and, on any click that misses an `ItemCard` — which a
+connection line always does, since it isn't one — called `container.setPointerCapture()`
+immediately to make marquee-dragging robust to the pointer leaving the canvas mid-drag. Pointer
+capture retargets *all* subsequent events for that pointer to the capturing element; since Pixi's
+own event system listens on `app.canvas` (a child of `container`), its `pointerup` for that same
+click was silently never delivered once `container` had captured it — so the line's own
+`pointertap` handler (which is what `handleManualLineTap` depends on) never ran. Fixed by
+deferring the capture: it's now taken on the first real pointer *move* past the drag threshold,
+not on `pointerdown` itself, so a plain click that never moves — which is exactly what selecting
+or double-clicking a line looks like — never captures the pointer at all, and Pixi's native click
+handling on any interactive overlay graphic (lines, hub edges, hub stars, the connect handle) now
+works correctly. Marquee-dragging itself is unaffected, since it always crosses the threshold
+before the drag matters.
+
+One deliberate limitation, not a bug: Show all's hub model only forms a hub where 2+ items share
+the same value (§4.9), so a single one-to-one manual connection between exactly two items never
+gets a hub in Show all — it only ever renders in Hover mode (which needs no hub, just a shared
+value). A manual hub *does* form once a third item also connects to one of the two, since that
+target's `itemsByValue['manual']` set then has 2+ members. Not worth a special case: it's the
+direct, correct consequence of §4.9's "2 or more" rule applied to `manual` like every other
+criterion.
+
+Verified with 4 new unit tests for the commands module, plus two Playwright tests:
+`smoke-m3-connections-manual.spec.ts` (right-click → "Connect to…" → click target → Details
+panel's "My connections" list shows it → remove via its × button) and
+`smoke-m3-connections-drag-label.spec.ts` (drag the handle to connect, double-click the resulting
+line to label it, confirm the label in Details, then select the line and press Delete) — the
+second test is what caught the pointer-capture bug above before it ever reached a real user.
+
 ---
 
 *(Later milestones append below this line.)*

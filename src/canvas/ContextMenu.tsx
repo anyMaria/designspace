@@ -17,9 +17,9 @@ import { logger } from '@/lib/logger';
 import type { ContextMenuState } from './useContextMenu';
 
 /** Right-click menu for a canvas item — §2.4. Only the actions M1/M2/M3 can actually back: the
- * rest (Open, Add to board, Connect to…, Find similar, Copy palette, Set cover) need Boards or
- * video/PDF support that land in later milestones — deferred and logged in docs/DECISIONS.md
- * rather than shown as dead buttons. */
+ * rest (Open, Add to board, Find similar, Copy palette, Set cover) need Boards or video/PDF
+ * support that land in later milestones — deferred and logged in docs/DECISIONS.md rather than
+ * shown as dead buttons. */
 export function ContextMenu({
   state,
   engine,
@@ -80,6 +80,13 @@ export function ContextMenu({
     void useHistoryStore.getState().execute(createBackToInboxCommand(platform, ids));
   }
 
+  function connectTo(): void {
+    onClose();
+    if (!engine) return;
+    engine.startConnectPick(state.itemId);
+    useToastStore.getState().show(en.connections.pickTarget);
+  }
+
   function moveToTrash(): void {
     onClose();
     void useHistoryStore
@@ -132,6 +139,11 @@ export function ContextMenu({
                 id: 'tidy-up',
                 label: en.contextMenu.tidyUp,
                 onSelect: tidyUp,
+              },
+              {
+                id: 'connect-to',
+                label: en.connections.connectTo,
+                onSelect: connectTo,
               },
               {
                 id: 'back-to-inbox',

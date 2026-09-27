@@ -1,9 +1,11 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
 import { useTermStore } from '@/state/termStore';
 import { useFocusStore } from '@/state/focusStore';
+import { useLibraryStore } from '@/state/libraryStore';
+import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { useHistoryStore } from '@/commands/history';
 import { createSetItemFieldCommand } from '@/commands/itemCommands';
 import {
@@ -11,7 +13,8 @@ import {
   createRemoveItemTermCommand,
   createSetItemTypeCommand,
 } from '@/commands/itemTermCommands';
-import { ChipInput, Swatch, Toggle, Button } from '@/design/components';
+import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
+import { ChipInput, Swatch, Toggle, Button, IconButton } from '@/design/components';
 import { formatBytes } from '@/lib/formatBytes';
 import { en } from '@/i18n/en';
 
@@ -64,6 +67,20 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
     .map((t) => t!.name);
 
   const [showAllTypes, setShowAllTypes] = useState(false);
+  const items = useLibraryStore((s) => s.items);
+  const manualConnections = useManualConnectionsStore((s) => s.connections);
+  const manualByItem = useManualConnectionsStore((s) => s.byItem);
+  const connections = useMemo(
+    () =>
+      [...(manualByItem.get(item.id) ?? [])]
+        .map((id) => manualConnections.get(id))
+        .filter((c): c is NonNullable<typeof c> => !!c),
+    [manualByItem, manualConnections, item.id],
+  );
+
+  function removeConnection(connectionId: string): void {
+    void useHistoryStore.getState().execute(createRemoveConnectionCommand(platform, connectionId));
+  }
 
   function setType(termRef: { id: string } | { name: string }): void {
     void useHistoryStore.getState().execute(createSetItemTypeCommand(platform, item.id, termRef));
@@ -192,6 +209,40 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
           placeholder={en.details.tagsPlaceholder}
           suggestions={tagTerms.map((t) => t.name)}
         />
+      </Field>
+
+      <Field label={en.connections.myConnections}>
+        {connections.length === 0 ? (
+          <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
+            {en.connections.noConnections}
+          </span>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+            {connections.map((c) => {
+              const otherId = c.fromId === item.id ? c.toId : c.fromId;
+              const otherTitle = items.get(otherId)?.title ?? otherId;
+              return (
+                <div
+                  key={c.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 'var(--space-2)',
+                    fontSize: 'var(--text-sm)',
+                  }}
+                >
+                  <span>{c.label ? `${otherTitle} — ${c.label}` : otherTitle}</span>
+                  <IconButton
+                    icon={<X size={14} strokeWidth={1.75} />}
+                    label={en.connections.removeConnection}
+                    onClick={() => removeConnection(c.id)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Field>
 
       {item.palette && item.palette.length > 0 && (

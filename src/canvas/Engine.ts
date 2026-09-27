@@ -51,6 +51,12 @@ interface EngineEvents {
   connectionLineHover: (
     info: { fromId: string; toId: string; shared: Partial<Record<Criterion, string[]>> } | null,
   ) => void;
+  /** §2.10 "My connections": the drag handle was dropped on another item, or "Connect to…" 's
+   * picked target was clicked — either way, the caller (which owns the store/command) decides
+   * whether to actually create the connection (e.g. `isConnected` already true). */
+  connectDrop: (fromId: string, toId: string) => void;
+  /** A manual-criterion line/edge was double-clicked — "Double-click a line to add a label". */
+  connectionLineDblClick: (pair: { fromId: string; toId: string }) => void;
 }
 
 const CRITERION_COLOR: Record<Criterion, number> = {
@@ -80,6 +86,10 @@ const HUB_STAR_INNER_RADIUS_PX = 4;
 const HUB_LINE_OPACITY = 0.35; // §4.6: "0.7 on hover and 0.35 in Show all"
 const HUB_LINE_WIDTH_PX = 1.5; // §4.6: "Lines are 1.5px on screen at every zoom level"
 const HUB_LABEL_FONT_SIZE = 11;
+
+const CONNECT_HANDLE_RADIUS_PX = 6;
+const CONNECT_HANDLE_HIT_PX = 12;
+const DOUBLE_TAP_MS = 350;
 
 const HANDLE_SCREEN_PX = 10;
 const DRAG_THRESHOLD_PX = 3;
@@ -127,6 +137,14 @@ export class Engine {
   // Show all isn't active right now (Hover mode owns `connectionSources` instead).
   private showAllHubs: ShowAllHub[] = [];
   private hubDisplayObjects: (Graphics | Text)[] = [];
+  // "My connections" (§2.10) — the drag handle, "Connect to…" picking, and the click-to-select/
+  // double-click-to-label interactions on a manual-criterion line or hub edge.
+  private connectHandleGraphic: Graphics | null = null;
+  private connectDragLine: Graphics | null = null;
+  private connecting = false; // hides the static handle while a drag-out is in progress
+  private pickingConnectFrom: string | null = null;
+  private selectedConnectionPair: { fromId: string; toId: string } | null = null;
+  private lastLineTapAt: { key: string; at: number } | null = null;
 
   private selection = new Set<string>();
   private hoveredId: string | null = null;
@@ -147,6 +165,8 @@ export class Engine {
     contextmenu: new Set(),
     hover: new Set(),
     connectionLineHover: new Set(),
+    connectDrop: new Set(),
+    connectionLineDblClick: new Set(),
   };
 
   on<K extends keyof EngineEvents>(event: K, handler: EngineEvents[K]): () => void {
@@ -321,6 +341,28 @@ export class Engine {
     this.scheduleFrame();
   }
 
+  /** Context menu → "Connect to…" (§2.10): the next item click completes the connection
+   * (`connectDrop`) instead of selecting it; clicking empty canvas or the source item itself
+   * cancels. */
+  startConnectPick(fromId: string): void {
+    this.pickingConnectFrom = fromId;
+    if (this.container) this.container.style.cursor = 'crosshair';
+  }
+
+  cancelConnectPick(): void {
+    this.pickingConnectFrom = null;
+    if (this.container) this.container.style.cursor = '';
+  }
+
+  getSelectedConnectionPair(): { fromId: string; toId: string } | null {
+    return this.selectedConnectionPair;
+  }
+
+  setSelectedConnectionPair(pair: { fromId: string; toId: string } | null): void {
+    this.selectedConnectionPair = pair;
+    this.scheduleFrame();
+  }
+
   private refreshAlpha(): void {
     for (const [id, sprite] of this.sprites) sprite.alpha = this.alphaFor(id);
   }
@@ -421,14 +463,26 @@ export class Engine {
     this.camera.setPosition(x, y);
   }
 
+  /** Screen position of an item's "My connections" drag handle (§2.10: "a small connect handle
+   * on its right edge") — shared by the handle's own hit-test, its drag line, and its static
+   * rendering in `drawConnectHandle`. */
+  private connectHandleScreenPos(id: string): { x: number; y: number } | null {
+    if (!this.app) return null;
+    const card = this.cards.get(id);
+    if (!card) return null;
+    const { width: vw, height: vh } = this.app.screen;
+    return this.camera.worldToScreen(card.x + card.w, card.y + card.h / 2, vw, vh);
+  }
+
   private attachSelectionInput(container: HTMLElement, opts: EngineOptions): () => void {
-    let mode: 'idle' | 'marquee' | 'move' | 'resize' = 'idle';
+    let mode: 'idle' | 'marquee' | 'move' | 'resize' | 'connect' = 'idle';
     let startWorld = { x: 0, y: 0 };
     let startScreen = { x: 0, y: 0 };
     let moved = false;
     let resizeHandle: ResizeHandle | null = null;
     let resizeTargetId: string | null = null;
     let moveOrigin = new Map<string, { x: number; y: number }>();
+    let connectFromId: string | null = null;
 
     const viewport = () => ({ w: this.app?.screen.width ?? 0, h: this.app?.screen.height ?? 0 });
     const toWorld = (e: PointerEvent) => {
@@ -443,6 +497,34 @@ export class Engine {
       startWorld = world;
       startScreen = { x: e.clientX, y: e.clientY };
       moved = false;
+
+      // Picking a "Connect to…" target overrides normal click behavior entirely.
+      if (this.pickingConnectFrom) {
+        const fromId = this.pickingConnectFrom;
+        this.pickingConnectFrom = null;
+        if (this.container) this.container.style.cursor = '';
+        const hit = hitTest(this.interactableCards(), world);
+        if (hit && hit.id !== fromId) this.emit('connectDrop', fromId, hit.id);
+        container.setPointerCapture(e.pointerId);
+        return;
+      }
+
+      // The connect handle on the currently-hovered item's right edge?
+      if (this.hoveredId) {
+        const pos = this.connectHandleScreenPos(this.hoveredId);
+        if (pos) {
+          const rect = container.getBoundingClientRect();
+          const dx = e.clientX - (rect.left + pos.x);
+          const dy = e.clientY - (rect.top + pos.y);
+          if (Math.hypot(dx, dy) <= CONNECT_HANDLE_HIT_PX) {
+            mode = 'connect';
+            connectFromId = this.hoveredId;
+            this.connecting = true;
+            container.setPointerCapture(e.pointerId);
+            return;
+          }
+        }
+      }
 
       // Resize handle on the current single-selection?
       if (this.selection.size === 1) {
@@ -484,7 +566,16 @@ export class Engine {
           this.setSelection([]);
           this.emit('select', []);
         }
+        this.setSelectedConnectionPair(null);
         mode = 'marquee';
+        // Capture is deferred to the first real move (below), not taken here: a plain click that
+        // misses every item (e.g. on a connection line or hub star, which aren't `ItemCard`s and
+        // so always land in this branch) must NOT capture the pointer, or the native pointerup
+        // that follows gets routed to `container` instead of the canvas — silently swallowing
+        // Pixi's own click handling for that line/star (its tooltip still works, since hover is
+        // driven by pointermove, but `pointertap` never fires). Marquee dragging still captures
+        // once it's clearly a drag, so it stays robust to the pointer leaving the canvas.
+        return;
       }
       container.setPointerCapture(e.pointerId);
     };
@@ -496,17 +587,29 @@ export class Engine {
         if (hit?.id !== this.hoveredId) {
           this.hoveredId = hit?.id ?? null;
           this.emit('hover', this.hoveredId);
+          this.drawConnectHandle();
         }
         return;
       }
       const dx = e.clientX - startScreen.x;
       const dy = e.clientY - startScreen.y;
-      if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) moved = true;
+      const justStartedMoving = !moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX;
+      if (justStartedMoving) moved = true;
       if (!moved) return;
+      if (justStartedMoving && mode === 'marquee') container.setPointerCapture(e.pointerId);
       const world = toWorld(e);
 
       if (mode === 'marquee') {
         this.drawMarquee(normalizeRect(startWorld, world));
+      } else if (mode === 'connect' && connectFromId) {
+        const fromPos = this.connectHandleScreenPos(connectFromId);
+        if (fromPos) {
+          const rect = container.getBoundingClientRect();
+          this.drawConnectDragLine(fromPos, {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        }
       } else if (mode === 'move') {
         const worldDx = world.x - startWorld.x;
         const worldDy = world.y - startWorld.y;
@@ -554,10 +657,18 @@ export class Engine {
       } else if (mode === 'resize' && moved && resizeTargetId) {
         const c = this.cards.get(resizeTargetId);
         if (c) this.emit('resize', { id: resizeTargetId, x: c.x, y: c.y, w: c.w, h: c.h });
+      } else if (mode === 'connect' && connectFromId) {
+        const world = toWorld(e);
+        const hit = hitTest(this.interactableCards(), world);
+        this.clearConnectDragLine();
+        if (hit && hit.id !== connectFromId) this.emit('connectDrop', connectFromId, hit.id);
       }
       mode = 'idle';
       resizeHandle = null;
       resizeTargetId = null;
+      connectFromId = null;
+      this.connecting = false;
+      this.drawConnectHandle();
       moveOrigin.clear();
       container.releasePointerCapture(e.pointerId);
     };
@@ -647,6 +758,44 @@ export class Engine {
     this.marquee = null;
   }
 
+  /** §2.10 "hover an item to reveal a small connect handle on its right edge" — a static dot,
+   * redrawn whenever the hovered item changes (not every scheduled frame, since nothing else
+   * moves it). Hidden while a drag-out is in progress so it doesn't sit under the cursor. */
+  private drawConnectHandle(): void {
+    if (!this.overlayLayer) return;
+    this.connectHandleGraphic?.destroy();
+    this.connectHandleGraphic = null;
+    if (this.connecting || !this.hoveredId) return;
+    const pos = this.connectHandleScreenPos(this.hoveredId);
+    if (!pos) return;
+    const g = new Graphics()
+      .circle(pos.x, pos.y, CONNECT_HANDLE_RADIUS_PX)
+      .fill({ color: 0xffffff, alpha: 0.95 })
+      .stroke({ color: 0x000000, alpha: 0.2, width: 1 });
+    g.eventMode = 'static';
+    g.cursor = 'pointer';
+    this.overlayLayer.addChild(g);
+    this.connectHandleGraphic = g;
+  }
+
+  private drawConnectDragLine(from: { x: number; y: number }, to: { x: number; y: number }): void {
+    if (!this.overlayLayer) return;
+    if (!this.connectDragLine) {
+      this.connectDragLine = new Graphics();
+      this.overlayLayer.addChild(this.connectDragLine);
+    }
+    this.connectDragLine
+      .clear()
+      .moveTo(from.x, from.y)
+      .lineTo(to.x, to.y)
+      .stroke({ color: criterionColors.manual, width: LINE_WIDTH_HOVERED_PX, alpha: LINE_OPACITY });
+  }
+
+  private clearConnectDragLine(): void {
+    this.connectDragLine?.destroy();
+    this.connectDragLine = null;
+  }
+
   private applyOverlayTransform(node: Container, worldX: number, worldY: number): void {
     if (!this.app) return;
     const { width: vw, height: vh } = this.app.screen;
@@ -704,6 +853,30 @@ export class Engine {
    * Deviation logged in docs/DECISIONS.md: Pixi's core `Graphics` has no dashed-stroke primitive,
    * so `criterionLineStyle`'s dotted/dashed distinction isn't drawn — every line is solid,
    * distinguished by its criterion color only. */
+  /** Shared by a manual-criterion line (Hover mode) and a manual hub edge (Show all): single tap
+   * selects the pair ("select the line and press Delete"), a second tap within `DOUBLE_TAP_MS`
+   * on the same pair is a double-click ("double-click a line to add a label"). */
+  private handleManualLineTap(fromId: string, toId: string): void {
+    const key = [fromId, toId].sort().join('|');
+    const now = performance.now();
+    if (this.lastLineTapAt?.key === key && now - this.lastLineTapAt.at < DOUBLE_TAP_MS) {
+      this.lastLineTapAt = null;
+      this.emit('connectionLineDblClick', { fromId, toId });
+      return;
+    }
+    this.lastLineTapAt = { key, at: now };
+    this.setSelectedConnectionPair({ fromId, toId });
+  }
+
+  private isSelectedConnectionPair(fromId: string, toId: string): boolean {
+    if (!this.selectedConnectionPair) return false;
+    const key = [fromId, toId].sort().join('|');
+    return (
+      [this.selectedConnectionPair.fromId, this.selectedConnectionPair.toId].sort().join('|') ===
+      key
+    );
+  }
+
   private drawConnectionLines(): void {
     if (!this.overlayLayer || !this.app) return;
     for (const g of this.connectionLineGraphics) g.destroy();
@@ -746,11 +919,13 @@ export class Engine {
         const isHoveredPair =
           this.hoveredConnectionLine?.fromId === fromId &&
           this.hoveredConnectionLine?.toId === candidate.id;
+        const isSelectedPair = this.isSelectedConnectionPair(fromId, candidate.id);
 
         criteria.forEach((criterion, i) => {
           const offset = (i - (criteria.length - 1) / 2) * LINE_OFFSET_PX;
           const ox = nx * offset;
           const oy = ny * offset;
+          const isManual = criterion === 'manual';
 
           const line = new Graphics();
           line
@@ -758,7 +933,10 @@ export class Engine {
             .lineTo(toScreen.x + ox, toScreen.y + oy)
             .stroke({
               color: CRITERION_COLOR[criterion],
-              width: isHoveredPair ? LINE_WIDTH_HOVERED_PX : LINE_WIDTH_PX,
+              width:
+                isHoveredPair || (isManual && isSelectedPair)
+                  ? LINE_WIDTH_HOVERED_PX
+                  : LINE_WIDTH_PX,
               alpha: LINE_OPACITY,
             });
           line.eventMode = 'static';
@@ -777,6 +955,9 @@ export class Engine {
             this.emit('connectionLineHover', null);
             this.scheduleFrame();
           });
+          if (isManual) {
+            line.on('pointertap', () => this.handleManualLineTap(fromId, candidate.id));
+          }
 
           this.overlayLayer!.addChild(line);
           this.connectionLineGraphics.push(line);
@@ -804,20 +985,33 @@ export class Engine {
     };
 
     for (const hub of this.showAllHubs) {
-      const memberScreens = hub.itemIds
-        .map((id) => screenCenterOf(id))
-        .filter((p): p is { x: number; y: number } => p !== null);
-      if (memberScreens.length < 2) continue;
+      const members = hub.itemIds
+        .map((id) => ({ id, pos: screenCenterOf(id) }))
+        .filter((m): m is { id: string; pos: { x: number; y: number } } => m.pos !== null);
+      if (members.length < 2) continue;
 
-      const hx = memberScreens.reduce((sum, p) => sum + p.x, 0) / memberScreens.length;
-      const hy = memberScreens.reduce((sum, p) => sum + p.y, 0) / memberScreens.length;
+      const hx = members.reduce((sum, m) => sum + m.pos.x, 0) / members.length;
+      const hy = members.reduce((sum, m) => sum + m.pos.y, 0) / members.length;
       const color = CRITERION_COLOR[hub.criterion];
+      const isManual = hub.criterion === 'manual';
 
-      for (const p of memberScreens) {
+      for (const member of members) {
+        // A manual hub's "value" IS the connected item's own id (see `computeHubs`), so each
+        // edge here is exactly one manual connection: member <-> hub.value.
+        const isSelected = isManual && this.isSelectedConnectionPair(member.id, hub.value);
         const edge = new Graphics()
-          .moveTo(p.x, p.y)
+          .moveTo(member.pos.x, member.pos.y)
           .lineTo(hx, hy)
-          .stroke({ color, width: HUB_LINE_WIDTH_PX, alpha: HUB_LINE_OPACITY });
+          .stroke({
+            color,
+            width: isSelected ? LINE_WIDTH_HOVERED_PX : HUB_LINE_WIDTH_PX,
+            alpha: HUB_LINE_OPACITY,
+          });
+        if (isManual) {
+          edge.eventMode = 'static';
+          edge.cursor = 'pointer';
+          edge.on('pointertap', () => this.handleManualLineTap(member.id, hub.value));
+        }
         this.overlayLayer.addChild(edge);
         this.hubDisplayObjects.push(edge);
       }
@@ -895,6 +1089,7 @@ export class Engine {
       this.drawSelectionOverlay();
       this.drawConnectionLines();
       this.drawHubs();
+      this.drawConnectHandle();
     });
   }
 
@@ -1000,6 +1195,8 @@ export class Engine {
     for (const h of this.handles) h.destroy();
     for (const g of this.connectionLineGraphics) g.destroy();
     for (const g of this.hubDisplayObjects) g.destroy();
+    this.connectHandleGraphic?.destroy();
+    this.connectDragLine?.destroy();
     this.rectContext?.destroy();
     this.app?.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     this.app = null;
