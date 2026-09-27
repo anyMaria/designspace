@@ -7,6 +7,8 @@ import { loadLibraryItems } from '@/state/loadLibrary';
 import { loadVocabulary } from '@/state/loadVocabulary';
 import { seedVocabulary } from '@/state/vocabularySeed';
 import { loadManualConnections } from '@/state/loadManualConnections';
+import { loadBoards } from '@/state/loadBoards';
+import { useBoardStore } from '@/state/boardStore';
 import { resumePendingIngest } from '@/workers/ingestQueue';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
@@ -48,7 +50,9 @@ export function App() {
             loadLibraryItems(platform, libraryBoardId),
             loadVocabulary(platform),
             loadManualConnections(platform),
+            loadBoards(platform),
           ]);
+          useBoardStore.getState().setCurrentBoardId(libraryBoardId);
           void resumePendingIngest(platform);
           void purgeExpiredTrash(platform);
           if (!cancelled)
@@ -67,7 +71,9 @@ export function App() {
           loadLibraryItems(platform, libraryBoardId),
           loadVocabulary(platform),
           loadManualConnections(platform),
+          loadBoards(platform),
         ]);
+        useBoardStore.getState().setCurrentBoardId(libraryBoardId);
         void resumePendingIngest(platform);
         void purgeExpiredTrash(platform);
         void maybeBackupAtStartup(platform);

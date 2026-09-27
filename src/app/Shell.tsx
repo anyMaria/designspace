@@ -46,6 +46,9 @@ import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import { useSearchStore, isFilterActive } from '@/state/searchStore';
 import { ListPanel } from '@/features/list/ListPanel';
 import { useListStore } from '@/state/listStore';
+import { SpaceSwitcher } from '@/features/boards/SpaceSwitcher';
+import { BoardsGallery } from '@/features/boards/BoardsGallery';
+import { useBoardUiStore } from '@/state/boardUiStore';
 import {
   Dock,
   DockDivider,
@@ -163,16 +166,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           gap: 'var(--space-2)',
         }}
       >
-        <Panel
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-2)',
-            padding: 'var(--space-2) var(--space-4)',
-          }}
-        >
-          <span className="font-display">{en.spaceSwitcher.library}</span>
-        </Panel>
+        <SpaceSwitcher platform={platform} libraryBoardId={libraryBoardId} />
         {inboxCount > 0 && (
           <button
             type="button"
@@ -418,6 +412,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       )}
       <FocusView platform={platform} />
       <TriageView platform={platform} />
+      {useBoardUiStore((s) => s.galleryOpen) && <BoardsGallery platform={platform} />}
       <SearchBar engine={engine} />
       <ShortcutListOverlay />
       <ConnectionTooltip engine={engine} />

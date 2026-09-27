@@ -1,5 +1,8 @@
 import type { DbRow } from '@/platform/types';
 import type {
+  Board,
+  BoardCamera,
+  BoardKind,
   Facet,
   Item,
   ItemKind,
@@ -95,6 +98,21 @@ export function rowToItemTerm(row: DbRow): ItemTerm {
     termId: asString(row.term_id),
     via: asString(row.via) as TermVia,
     addedAt: asString(row.added_at),
+  };
+}
+
+/** Maps one row from `SELECT * FROM boards`. */
+export function rowToBoard(row: DbRow): Board {
+  return {
+    id: asString(row.id),
+    kind: asString(row.kind) as BoardKind,
+    name: asString(row.name),
+    sourceFilter: asJson<unknown>(row.source_filter),
+    settings: asJson<Record<string, unknown>>(row.settings),
+    camera: asJson<BoardCamera>(row.camera),
+    createdAt: asString(row.created_at),
+    updatedAt: asString(row.updated_at),
+    deletedAt: asNullableString(row.deleted_at),
   };
 }
 

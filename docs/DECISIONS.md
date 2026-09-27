@@ -1153,6 +1153,34 @@ than only implied by the seeded PRNG.
 No tag for M3 — the plan only calls for tagging at the end of M2 (`v0.1.0`); M4 continues on the
 same branch.
 
+### M4-1: Boards data layer, gallery, space switcher
+The `boards`/`frames`/`placements` tables were already fully scaffolded in M0's `001_init.sql`
+(§5.2), so this sub-task was almost entirely application-layer: a `Board` type + `rowToBoard`,
+a `boardStore`/`loadBoards`/`boardUiStore` trio mirroring the existing library/vocabulary stores,
+undoable `boardCommands` (create/rename/duplicate/delete-as-soft-delete/restore), and two UI
+pieces — `SpaceSwitcher` (a popover off the top-left chip: Library, the 5 most-recently-updated
+boards, "+ New board", "All boards…") and `BoardsGallery` (a full-screen grid with inline rename,
+duplicate, delete, and a Trash section for restore, mirroring items' own Trash pattern).
+
+Two scoping decisions, both deliberate rather than oversights:
+- **Covers are a placeholder** (the board name's first letter on a tinted tile), not a real
+  thumbnail. Actually compositing a board's item placements into a cover image needs the board
+  canvas itself to exist first — that's the plan's next M4 bullet ("The board canvas"), not this
+  one. Revisit once boards can hold placed items.
+- **Duplicate copies the board row, its frames, and its placements** (all with fresh ids, frame
+  ids remapped in the copied placements), but not board-only notes/swatches — those are `items`
+  rows of their own (`origin_board_id`), and cloning item rows is squarely M4's later Notes
+  sub-task's territory. Until then, duplicating a board with notes on it will carry over its
+  image/video/etc. placements but drop the notes; logged here so it isn't mistaken for a bug once
+  Notes exists.
+- **Switching the current space is UI-only for now**: `boardStore.currentBoardId` changes and the
+  switcher/gallery reflect it, but the canvas itself still always renders the Library's own items
+  (`useLibraryStore`, unchanged) — actually scoping the canvas to a board's placements is the
+  plan's next bullet, "The board canvas", and needs its own design (a board is a *view* over a
+  subset of Library items via `placements`, not a separate item namespace). Wiring the switcher
+  ahead of that, rather than blocking the whole gallery on it, matches the plan's own bullet
+  split (space switcher + gallery is one line; the board canvas is a separate one below it).
+
 ---
 
 *(Later milestones append below this line.)*

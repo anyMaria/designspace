@@ -71,6 +71,28 @@ export interface ItemTerm {
   addedAt: string;
 }
 
+/** §2.11 Boards — one row per space; the single `kind: 'library'` row is the Library map itself
+ * (created by `ensureLibraryReady`), every other row is a moodboard. */
+export type BoardKind = 'library' | 'board';
+
+export interface BoardCamera {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+export interface Board {
+  id: string;
+  kind: BoardKind;
+  name: string;
+  sourceFilter: unknown;
+  settings: Record<string, unknown> | null;
+  camera: BoardCamera | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 /** §2.10 "My connections" — manual, undirected in the UI but stored as an ordered pair so the
  * `UNIQUE (from_id, to_id)` constraint can't be defeated by adding the same pair in reverse (the
  * commands always normalize the order before writing — see `commands/connectionCommands.ts`). */

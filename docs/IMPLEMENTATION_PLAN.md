@@ -1231,7 +1231,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 
 ### M4: Moodboards
 - [ ] Spike **S4 Notes on the canvas:** `HTMLText` vs `pixi.js/html-source` vs a canvas layout (crispness, speed, handing off to the editor).
-- [ ] Boards: the space switcher, the Boards gallery with covers, rename, duplicate, delete/restore.
+- [x] Boards: the space switcher, the Boards gallery with covers, rename, duplicate, delete/restore.
 - [ ] Create a board from a selection, from search results, or empty; justified-row layout; save the source filter.
 - [ ] The board canvas:
   - [ ] remove from board vs move to Trash;
