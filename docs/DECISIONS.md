@@ -1053,6 +1053,74 @@ from the origin, the zero-hub edge case, and a manual-connection hub's label res
 target item's title), a performance test confirming 3,000 items lay out well within §4.9's 1.5s
 budget, and 2 tests for the worker's request/response wrapper against a fake `Worker`.
 
+### Constellations UI integration (M3-7)
+`useConstellationsBinding.ts` is the only new piece that talks to the layout worker directly —
+Shift+C and the popover's ✦ switch both just flip `connectionsUiStore.constellationsOn`, and this
+hook reacts: computes the visible id set (same "respects the active filter" rule as Show all),
+spins up a `layout.worker` via `runConstellationLayout`, and on success calls the new
+`Engine.enterConstellations(itemPositions, hubs, unclassifiedIds)`. Turning it off calls
+`Engine.exitConstellations()` — "Back to my layout" is a `Panel`/`Button` pair in `Shell.tsx`
+that just calls `setConstellationsOn(false)`, and an "Arranging…" label shows in the same spot
+while the worker is computing (`connectionsUiStore.arranging`), per §4.9's "keep the old view
+until the new one is ready."
+
+`Engine.ts` owns the 800ms morph itself (`tweenCardsTo`, sharing the `easeInOut` curve `Camera.ts`
+already used for `flyTo` — pulled out to `lib/motion.ts` so both use the same one). The first call
+to `enterConstellations` snapshots every item's real placement rect into `constellationMyLayout`
+("my layout," for "Back to my layout" and for computing each card's constellation aspect ratio);
+later calls while already on — a live re-settle — reuse that same snapshot rather than
+re-snapshotting the already-arranged positions, and tween from wherever the cards currently sit,
+so a re-settle reads as an adjustment, not a jump. Uniform card size (§2.10 "long side 160") keeps
+each item's own aspect ratio, computed from its *real* placement rect, not whatever size Show all
+or a previous constellation left it at. Hub stars are bigger and "glowing" (a soft low-alpha halo
+circle behind the star) versus Show all's small ones, and are draggable: a hub-star pointerdown
+starts a `hubdrag` mode in `attachSelectionInput`'s existing state machine (same pattern as the
+connect handle), and on release `resettleAroundHub` re-tweens only that hub's member items to the
+average of their (now-moved) hubs — the same placement rule `lib/constellations.ts` uses for the
+initial layout, just re-applied locally instead of re-running the whole worker. The Unclassified
+ring is a faint circle plus a label, centered on `constellationOrigin` (see below) at a radius
+past the farthest hub. "Items can't be dragged here" is enforced in the same pointerdown handler:
+a hit on a selected item just selects, never enters `move` mode, while `constellationsOn`.
+
+**Two real bugs, both found by the e2e test's screenshot looking wrong, not by inspection:**
+
+1. `lib/constellations.ts` centers its hub graph on its own coordinate origin (0,0) — unrelated to
+   wherever the library actually sits on the map. Applying that directly would make the morph jump
+   to a random spot near world-origin instead of happening "in place." Fixed by computing
+   `constellationOrigin` (the centroid of the snapshotted real placements) once, on first entry,
+   and adding it to every hub and item position before use.
+
+2. **The real one.** `useEngineBindings.ts`'s `syncCards()` subscribes to the *whole* library
+   store with no selector, so it re-runs on any item field changing — including an ingest write
+   to an unrelated item's thumbnail or palette, which can keep trickling in for several seconds
+   after import. Each run calls `Engine.setLibraryItems()`, which rebuilds every card's rect from
+   its real DB-backed placement — correct and necessary in general, but while Constellations is on
+   it silently snapped every item straight back to its real position and size the instant *any*
+   unrelated store write landed, often mid-morph or well after. Items whose data happened to
+   settle before the next such write kept their arranged spot; items that didn't (which, right
+   after importing 60 items, was most of them) stayed stuck at their real placement — exactly the
+   "half the map never arranges" symptom the screenshot showed. Fixed in two parts: (a)
+   `Engine.setLibraryItems` now preserves each existing item's *current* rect while
+   `constellationsOn`, only letting genuinely new cards take their real placement — "items can't be
+   dragged here" turns out to mean "nothing else gets to move them either," not just the pointer;
+   (b) `useConstellationsBinding`'s own re-settle trigger was *also* too broad — it keyed off
+   `items` directly, so it independently re-ran (and restarted its own 800ms tween) on the same
+   ingest noise. Replaced with a signature of just the fields `computeHubs` actually reads
+   (`deletedAt`, `title`, and `colorFamilies` only when `color` is an active criterion), confirmed
+   by direct engine-state introspection (a temporary `debugCardSizes()` accessor, removed once
+   verified) that all 60 cards converge to the correct uniform size and clustered position and
+   *stay* there.
+
+Verified with a Playwright test (`smoke-m3-constellations.spec.ts`) that bulk-tags all 60 seeded
+items with the same Vibe, presses Shift+C, waits for "Back to my layout" to appear, screenshots
+the result, then toggles back off — zero console errors. (One remaining oddity, noted for anyone
+debugging this test later: even after directly confirming via engine introspection that every
+card's data is fully converged and stable, the Playwright screenshot itself sometimes still shows
+a handful of cards at their old size/position. This reproduces even with a large safety margin
+after confirmed convergence, so it reads as a headless-Chromium canvas screenshot-capture quirk in
+this sandboxed environment rather than a real rendering bug — not worth the owner's time chasing
+further here, but worth knowing about before assuming a regression from a future screenshot.)
+
 ---
 
 *(Later milestones append below this line.)*

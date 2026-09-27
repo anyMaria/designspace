@@ -219,6 +219,7 @@ export const en = {
     settings: 'Settings',
     shortcutList: 'Shortcut list',
     connections: 'Connections',
+    constellations: 'Constellations',
   },
   connections: {
     criterionType: 'Type',
@@ -248,6 +249,9 @@ export const en = {
     myConnections: 'My connections',
     noConnections: 'None yet',
     removeConnection: 'Remove connection',
+    unclassified: 'Unclassified',
+    arranging: 'Arranging…',
+    backToMyLayout: 'Back to my layout',
   },
   list: {
     groupBy: 'Group by',

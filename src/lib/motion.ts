@@ -8,3 +8,9 @@ export function prefersReducedMotion(): boolean {
   if (setting === 'off') return false;
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
+
+/** Shared ease-in-out curve for every eased animation in the app (camera flights, the
+ * Constellations morph) — one formula so they all feel the same. */
+export function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}

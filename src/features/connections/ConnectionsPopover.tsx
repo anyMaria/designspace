@@ -40,10 +40,9 @@ function hexToCss(hex: number): string {
 }
 
 /** Dock → Connections (or "C"): criteria toggles, hover/show-all mode, strength, and the
- * Constellations switch (§2.10). Show all's hub rendering is wired up (M3-4, via
- * `useConnectionsBinding`), including the 5,000-line cap message here; the Constellations layout
- * itself (M3-6/M3-7) reads the same store's switch but isn't built yet, so toggling it here
- * doesn't change the canvas until that task lands. */
+ * Constellations switch (§2.10). Show all's hub rendering (M3-4) and the Constellations layout
+ * itself (M3-6/M3-7, via `useConstellationsBinding`) both read this same store, so every control
+ * here changes the canvas live. */
 export function ConnectionsPopover() {
   const isOpen = useConnectionsUiStore((s) => s.isOpen);
   const activeCriteria = useConnectionsUiStore((s) => s.activeCriteria);

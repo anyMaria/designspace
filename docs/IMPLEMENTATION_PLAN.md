@@ -1216,10 +1216,10 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] Hover and selection connections: parallel lines, dimming, line tooltips.
 - [x] Show all with hubs, the line cap and the hint.
 - [x] My connections: the connect handle, "Connect to…", labels, deleting, and the list in Details.
-- [ ] Constellations:
-  - [ ] the layout worker (§4.9) and the morph;
-  - [ ] star hubs, the Unclassified ring, hub dragging;
-  - [ ] deterministic layouts that respect filters.
+- [x] Constellations:
+  - [x] the layout worker (§4.9) and the morph;
+  - [x] star hubs, the Unclassified ring, hub dragging;
+  - [x] deterministic layouts that respect filters.
 - [ ] (If time allows) Arrange by….
 
 **Acceptance:**

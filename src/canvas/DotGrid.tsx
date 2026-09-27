@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { Engine } from './Engine';
-import { canvasGeometry } from '@/design/tokens';
+import { canvasGeometry, motion } from '@/design/tokens';
 import { useUiStore, type DotGridDensity } from '@/state/uiStore';
+import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 
 /** Settings → Canvas's manual density override (§2.14) on top of the automatic zoom-based
  * subdivision below. */
@@ -60,6 +61,9 @@ export function DotGrid({ engine }: { engine: Engine }) {
     };
   }, [engine]);
 
+  // §2.10 "the dot grid fades to 50% for a night-sky feel" while Constellations is on.
+  const constellationsOn = useConnectionsUiStore((s) => s.constellationsOn);
+
   return (
     <div
       style={{
@@ -76,6 +80,8 @@ export function DotGrid({ engine }: { engine: Engine }) {
         style={{
           position: 'absolute',
           inset: 0,
+          opacity: constellationsOn ? 0.5 : 1,
+          transition: `opacity ${motion.constellations}ms ease`,
           backgroundImage: `radial-gradient(var(--dot) ${canvasGeometry.dotScreenPx}px, transparent ${canvasGeometry.dotScreenPx}px)`,
         }}
       />

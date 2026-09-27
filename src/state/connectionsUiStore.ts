@@ -19,6 +19,9 @@ interface ConnectionsUiState {
    * Set by `useConnectionsBinding` whenever Show all's edge count would exceed the 5,000-line
    * cap, so no lines are drawn until the owner filters down or turns on Constellations. */
   showAllOverLimit: boolean;
+  /** §4.9: "Show a subtle 'Arranging…' and keep the old view until the new one is ready" — set
+   * by `useConstellationsBinding` while the layout worker is computing. */
+  arranging: boolean;
 
   open: () => void;
   close: () => void;
@@ -28,6 +31,7 @@ interface ConnectionsUiState {
   setMinStrength: (n: number) => void;
   setConstellationsOn: (v: boolean) => void;
   setShowAllOverLimit: (v: boolean) => void;
+  setArranging: (v: boolean) => void;
 }
 
 /** Connections popover state (§2.10) — "remembered per space" in the plan, but there's only one
@@ -42,6 +46,7 @@ export const useConnectionsUiStore = create<ConnectionsUiState>((set) => ({
   constellationsOn: false,
   limitHitAt: null,
   showAllOverLimit: false,
+  arranging: false,
 
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
@@ -62,4 +67,5 @@ export const useConnectionsUiStore = create<ConnectionsUiState>((set) => ({
   setMinStrength: (n) => set({ minStrength: n }),
   setConstellationsOn: (v) => set({ constellationsOn: v }),
   setShowAllOverLimit: (v) => set({ showAllOverLimit: v }),
+  setArranging: (v) => set({ arranging: v }),
 }));

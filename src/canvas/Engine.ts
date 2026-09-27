@@ -15,10 +15,13 @@ import {
   resizeWithAspect,
   type ResizeHandle,
 } from './selection';
-import { canvasGeometry, criterionColors } from '@/design/tokens';
+import { canvasGeometry, criterionColors, motion } from '@/design/tokens';
 import type { BenchRect } from '@/platform/seed/bench';
 import { unionRects } from '@/lib/geometry';
 import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
+import type { ConstellationHub } from '@/lib/constellations';
+import { easeInOut } from '@/lib/motion';
+import { en } from '@/i18n/en';
 
 export interface EngineOptions {
   getTool: () => Tool;
@@ -94,6 +97,13 @@ const DOUBLE_TAP_MS = 350;
 const HANDLE_SCREEN_PX = 10;
 const DRAG_THRESHOLD_PX = 3;
 
+// Constellations (§2.10/§4.9).
+const CONSTELLATION_CARD_LONG_SIDE = 160; // "Items show at a uniform size (long side 160)"
+const CONSTELLATION_HUB_STAR_RADIUS_PX = 14; // bigger + glowing vs. Show all's small hub stars
+const CONSTELLATION_HUB_STAR_INNER_RADIUS_PX = 6;
+const CONSTELLATION_HUB_HIT_PX = 18;
+const CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE = 13;
+
 /**
  * The framework-agnostic canvas engine — §4.6. Owns the Pixi `Application`, the camera and
  * culling. React mounts it once in `<CanvasView>` and never re-renders per frame; everything
@@ -145,6 +155,28 @@ export class Engine {
   private pickingConnectFrom: string | null = null;
   private selectedConnectionPair: { fromId: string; toId: string } | null = null;
   private lastLineTapAt: { key: string; at: number } | null = null;
+
+  // Constellations (§2.10/§4.9) — `constellationMyLayout` is the real placement rect for every
+  // item, snapshotted the first time Constellations turns on and restored by "Back to my
+  // layout"; it stays set across a live re-settle (classification change while already on) so
+  // repeated re-settles never lose the true original. `constellationsOn` gates uniform item
+  // size, disables item dragging, and switches the hub overlay from Show all's small hubs to
+  // these bigger glowing ones.
+  private constellationsOn = false;
+  private constellationMyLayout: Map<
+    string,
+    { x: number; y: number; w: number; h: number }
+  > | null = null;
+  // `lib/constellations.ts` centers the hub graph on its own origin (0,0), unrelated to where
+  // the library actually sits on the map — this is the real layout's centroid at the moment
+  // Constellations first turns on, added to every hub/item position so the morph happens roughly
+  // in place instead of requiring the camera to jump somewhere else to find it.
+  private constellationOrigin = { x: 0, y: 0 };
+  private constellationHubs: ConstellationHub[] = [];
+  private constellationUnclassifiedRadius: number | null = null;
+  private constellationRaf: number | null = null;
+  private constellationOverlay: (Graphics | Text)[] = [];
+  private draggingHubId: string | null = null;
 
   private selection = new Set<string>();
   private hoveredId: string | null = null;
@@ -268,7 +300,24 @@ export class Engine {
    * diffs against the previous set rather than tearing everything down. */
   setLibraryItems(cards: ItemCard[]): void {
     if (!this.itemsLayer) return;
-    const next = new Map(cards.map((c) => [c.id, c]));
+
+    // `useEngineBindings` calls this on *every* library store change — including an ingest
+    // write to an unrelated item's palette/phash, or any other field — via an unfiltered
+    // `useLibraryStore.subscribe`. Normally that's fine (it just re-applies each item's real
+    // placement, a no-op if nothing moved). But while Constellations is on, every existing
+    // item's on-screen position is the *arranged* one, not its real placement — without this,
+    // the very next unrelated store write would silently snap it back mid-morph (or long after),
+    // which is exactly the "items can't be dragged here" guarantee applying to more than just
+    // the pointer. Preserve the current arranged rect for anything that already has a card; a
+    // genuinely new item (nothing to preserve) still lands at its real placement.
+    const patchedCards = this.constellationsOn
+      ? cards.map((c) => {
+          const current = this.cards.get(c.id);
+          return current ? { ...c, x: current.x, y: current.y, w: current.w, h: current.h } : c;
+        })
+      : cards;
+
+    const next = new Map(patchedCards.map((c) => [c.id, c]));
 
     for (const [id, sprite] of this.sprites) {
       if (!next.has(id)) {
@@ -276,7 +325,7 @@ export class Engine {
         this.sprites.delete(id);
       }
     }
-    for (const card of cards) {
+    for (const card of patchedCards) {
       const existing = this.sprites.get(card.id);
       if (existing) {
         existing.position.set(card.x, card.y);
@@ -298,7 +347,7 @@ export class Engine {
     }
     this.itemsLayer.sortableChildren = true;
     this.cards = next;
-    this.itemIndex.load(cards);
+    this.itemIndex.load(patchedCards);
     this.refreshAlpha();
     this.scheduleFrame();
   }
@@ -361,6 +410,172 @@ export class Engine {
   setSelectedConnectionPair(pair: { fromId: string; toId: string } | null): void {
     this.selectedConnectionPair = pair;
     this.scheduleFrame();
+  }
+
+  isConstellationsOn(): boolean {
+    return this.constellationsOn;
+  }
+
+  /** Shift+C / the popover's ✦ switch (§2.10). `itemPositions` are world-space *centers* from
+   * `lib/constellations.ts`; cards keep their own aspect ratio but scale so their long side is
+   * `CONSTELLATION_CARD_LONG_SIDE`. The first call snapshots every item's real placement into
+   * `constellationMyLayout` (for "Back to my layout"); a later call while already on — a live
+   * re-settle after the owner reclassifies something — reuses that same snapshot rather than
+   * re-snapshotting the (already-arranged) current positions, and tweens from wherever the cards
+   * currently are, so it reads as a smooth adjustment rather than a jump. Items outside
+   * `itemPositions` (filtered out by the active search filter) are left exactly where they are. */
+  enterConstellations(
+    itemPositions: Map<string, { x: number; y: number }>,
+    hubs: ConstellationHub[],
+    unclassifiedIds: string[],
+    reduceMotion = false,
+  ): void {
+    if (!this.constellationMyLayout) {
+      this.constellationMyLayout = new Map(
+        [...this.cards].map(([id, c]) => [id, { x: c.x, y: c.y, w: c.w, h: c.h }]),
+      );
+      const centers = [...this.constellationMyLayout.values()].map((c) => ({
+        x: c.x + c.w / 2,
+        y: c.y + c.h / 2,
+      }));
+      this.constellationOrigin = centers.length
+        ? {
+            x: centers.reduce((s, c) => s + c.x, 0) / centers.length,
+            y: centers.reduce((s, c) => s + c.y, 0) / centers.length,
+          }
+        : { x: 0, y: 0 };
+    }
+    this.constellationsOn = true;
+    const { x: ox, y: oy } = this.constellationOrigin;
+    this.constellationHubs = hubs.map((h) => ({ ...h, x: h.x + ox, y: h.y + oy }));
+    this.constellationUnclassifiedRadius =
+      unclassifiedIds.length > 0
+        ? this.constellationHubs.reduce(
+            (max, h) => Math.max(max, Math.hypot(h.x - ox, h.y - oy)),
+            0,
+          ) +
+          CONSTELLATION_CARD_LONG_SIDE * 2
+        : null;
+
+    const targets = new Map<string, { x: number; y: number; w: number; h: number }>();
+    for (const [id, pos] of itemPositions) {
+      const orig = this.constellationMyLayout.get(id) ?? this.cards.get(id);
+      if (!orig) continue;
+      const aspect = orig.h > 0 ? orig.w / orig.h : 1;
+      const w = aspect >= 1 ? CONSTELLATION_CARD_LONG_SIDE : CONSTELLATION_CARD_LONG_SIDE * aspect;
+      const h = aspect >= 1 ? CONSTELLATION_CARD_LONG_SIDE / aspect : CONSTELLATION_CARD_LONG_SIDE;
+      targets.set(id, { x: pos.x + ox - w / 2, y: pos.y + oy - h / 2, w, h });
+    }
+    this.tweenCardsTo(targets, reduceMotion);
+  }
+
+  /** "Back to my layout" — tweens every item back to its snapshotted real placement and clears
+   * the Constellations overlay once the tween finishes. */
+  exitConstellations(reduceMotion = false): void {
+    this.constellationsOn = false;
+    this.constellationHubs = [];
+    this.constellationUnclassifiedRadius = null;
+    this.draggingHubId = null;
+    if (!this.constellationMyLayout) {
+      this.scheduleFrame();
+      return;
+    }
+    const targets = this.constellationMyLayout;
+    this.constellationMyLayout = null;
+    this.tweenCardsTo(targets, reduceMotion);
+  }
+
+  /** A hub can be dragged while Constellations is on ("hubs can [be dragged], the layout
+   * re-settles around them") — moves that one hub and re-tweens only the items that belong to
+   * it, at the simple average of their (possibly several) hubs' now-current positions, the same
+   * placement rule `lib/constellations.ts` uses for the initial layout. */
+  private resettleAroundHub(hubId: string, reduceMotion: boolean): void {
+    const hub = this.constellationHubs.find((h) => h.id === hubId);
+    if (!hub) return;
+    const hubsByItem = new Map<string, ConstellationHub[]>();
+    for (const h of this.constellationHubs) {
+      for (const itemId of h.itemIds) {
+        const list = hubsByItem.get(itemId);
+        if (list) list.push(h);
+        else hubsByItem.set(itemId, [h]);
+      }
+    }
+    const targets = new Map<string, { x: number; y: number; w: number; h: number }>();
+    for (const itemId of hub.itemIds) {
+      const memberHubs = hubsByItem.get(itemId) ?? [hub];
+      const card = this.cards.get(itemId);
+      if (!card) continue;
+      const avgX = memberHubs.reduce((s, h) => s + h.x, 0) / memberHubs.length;
+      const avgY = memberHubs.reduce((s, h) => s + h.y, 0) / memberHubs.length;
+      targets.set(itemId, { x: avgX - card.w / 2, y: avgY - card.h / 2, w: card.w, h: card.h });
+    }
+    this.tweenCardsTo(targets, reduceMotion);
+  }
+
+  private tweenCardsTo(
+    targets: Map<string, { x: number; y: number; w: number; h: number }>,
+    reduceMotion: boolean,
+  ): void {
+    if (this.constellationRaf !== null) {
+      cancelAnimationFrame(this.constellationRaf);
+      this.constellationRaf = null;
+    }
+    const from = new Map(
+      [...targets.keys()].map((id) => {
+        const c = this.cards.get(id);
+        return [id, c ? { x: c.x, y: c.y, w: c.w, h: c.h } : targets.get(id)!];
+      }),
+    );
+    const applyFinal = () => {
+      this.itemIndex.load([...this.cards.values()]);
+      this.refreshAlpha();
+      this.scheduleFrame();
+    };
+    if (reduceMotion) {
+      for (const [id, target] of targets) this.applyCardRect(id, target);
+      applyFinal();
+      return;
+    }
+
+    const start = performance.now();
+    const duration = motion.constellations;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const e = easeInOut(t);
+      for (const [id, target] of targets) {
+        const f = from.get(id)!;
+        this.applyCardRect(id, {
+          x: f.x + (target.x - f.x) * e,
+          y: f.y + (target.y - f.y) * e,
+          w: f.w + (target.w - f.w) * e,
+          h: f.h + (target.h - f.h) * e,
+        });
+      }
+      this.scheduleFrame();
+      if (t < 1) {
+        this.constellationRaf = requestAnimationFrame(step);
+      } else {
+        this.constellationRaf = null;
+        applyFinal();
+      }
+    };
+    this.constellationRaf = requestAnimationFrame(step);
+  }
+
+  private applyCardRect(id: string, rect: { x: number; y: number; w: number; h: number }): void {
+    const card = this.cards.get(id);
+    const sprite = this.sprites.get(id);
+    if (card) {
+      card.x = rect.x;
+      card.y = rect.y;
+      card.w = rect.w;
+      card.h = rect.h;
+    }
+    if (sprite) {
+      sprite.position.set(rect.x, rect.y);
+      sprite.width = rect.w;
+      sprite.height = rect.h;
+    }
   }
 
   private refreshAlpha(): void {
@@ -474,8 +689,32 @@ export class Engine {
     return this.camera.worldToScreen(card.x + card.w, card.y + card.h / 2, vw, vh);
   }
 
+  /** Screen position of a Constellations hub star — `hub.x/y` are already world coordinates from
+   * `lib/constellations.ts` (or updated live while being dragged, see `resettleAroundHub`). */
+  private constellationHubScreenPos(hub: ConstellationHub): { x: number; y: number } | null {
+    if (!this.app) return null;
+    const { width: vw, height: vh } = this.app.screen;
+    return this.camera.worldToScreen(hub.x, hub.y, vw, vh);
+  }
+
+  private constellationHubAt(
+    clientX: number,
+    clientY: number,
+    rectLeft: number,
+    rectTop: number,
+  ): ConstellationHub | null {
+    for (const hub of this.constellationHubs) {
+      const pos = this.constellationHubScreenPos(hub);
+      if (!pos) continue;
+      const dx = clientX - (rectLeft + pos.x);
+      const dy = clientY - (rectTop + pos.y);
+      if (Math.hypot(dx, dy) <= CONSTELLATION_HUB_HIT_PX) return hub;
+    }
+    return null;
+  }
+
   private attachSelectionInput(container: HTMLElement, opts: EngineOptions): () => void {
-    let mode: 'idle' | 'marquee' | 'move' | 'resize' | 'connect' = 'idle';
+    let mode: 'idle' | 'marquee' | 'move' | 'resize' | 'connect' | 'hubdrag' = 'idle';
     let startWorld = { x: 0, y: 0 };
     let startScreen = { x: 0, y: 0 };
     let moved = false;
@@ -483,6 +722,8 @@ export class Engine {
     let resizeTargetId: string | null = null;
     let moveOrigin = new Map<string, { x: number; y: number }>();
     let connectFromId: string | null = null;
+    let hubDragStartWorld = { x: 0, y: 0 };
+    let hubDragStartPos = { x: 0, y: 0 };
 
     const viewport = () => ({ w: this.app?.screen.width ?? 0, h: this.app?.screen.height ?? 0 });
     const toWorld = (e: PointerEvent) => {
@@ -507,6 +748,20 @@ export class Engine {
         if (hit && hit.id !== fromId) this.emit('connectDrop', fromId, hit.id);
         container.setPointerCapture(e.pointerId);
         return;
+      }
+
+      // A Constellations hub star, draggable to re-settle the items around it?
+      if (this.constellationsOn) {
+        const rect = container.getBoundingClientRect();
+        const hub = this.constellationHubAt(e.clientX, e.clientY, rect.left, rect.top);
+        if (hub) {
+          mode = 'hubdrag';
+          this.draggingHubId = hub.id;
+          hubDragStartWorld = world;
+          hubDragStartPos = { x: hub.x, y: hub.y };
+          container.setPointerCapture(e.pointerId);
+          return;
+        }
       }
 
       // The connect handle on the currently-hovered item's right edge?
@@ -554,13 +809,17 @@ export class Engine {
           this.setSelection([...next]);
           this.emit('select', this.getSelection());
         }
-        mode = 'move';
-        moveOrigin = new Map(
-          [...this.selection].map((id) => {
-            const c = this.cards.get(id);
-            return [id, { x: c?.x ?? 0, y: c?.y ?? 0 }];
-          }),
-        );
+        // "Items can't be dragged here" (§2.10) — Constellations positions are a computed
+        // layout, not something the owner repositions by hand; selecting still works above.
+        if (!this.constellationsOn) {
+          mode = 'move';
+          moveOrigin = new Map(
+            [...this.selection].map((id) => {
+              const c = this.cards.get(id);
+              return [id, { x: c?.x ?? 0, y: c?.y ?? 0 }];
+            }),
+          );
+        }
       } else {
         if (!e.shiftKey) {
           this.setSelection([]);
@@ -637,6 +896,13 @@ export class Engine {
           sprite.height = next.h;
           this.drawSelectionOverlay();
         }
+      } else if (mode === 'hubdrag' && this.draggingHubId) {
+        const hub = this.constellationHubs.find((h) => h.id === this.draggingHubId);
+        if (hub) {
+          hub.x = hubDragStartPos.x + (world.x - hubDragStartWorld.x);
+          hub.y = hubDragStartPos.y + (world.y - hubDragStartWorld.y);
+          this.scheduleFrame();
+        }
       }
     };
 
@@ -662,11 +928,14 @@ export class Engine {
         const hit = hitTest(this.interactableCards(), world);
         this.clearConnectDragLine();
         if (hit && hit.id !== connectFromId) this.emit('connectDrop', connectFromId, hit.id);
+      } else if (mode === 'hubdrag' && this.draggingHubId && moved) {
+        this.resettleAroundHub(this.draggingHubId, false);
       }
       mode = 'idle';
       resizeHandle = null;
       resizeTargetId = null;
       connectFromId = null;
+      this.draggingHubId = null;
       this.connecting = false;
       this.drawConnectHandle();
       moveOrigin.clear();
@@ -1039,6 +1308,88 @@ export class Engine {
     }
   }
 
+  /** Constellations' own hub rendering (§2.10: "Hubs are glowing, labeled stars"), distinct from
+   * Show all's small hub stars — bigger, with a soft halo, and draggable (see `resettleAroundHub`
+   * above). Also draws the faint "Unclassified" ring for items with no value for the active
+   * criteria. */
+  private drawConstellationOverlay(): void {
+    if (!this.overlayLayer || !this.app) return;
+    for (const g of this.constellationOverlay) g.destroy();
+    this.constellationOverlay = [];
+    if (!this.constellationsOn) return;
+
+    const { width: vw, height: vh } = this.app.screen;
+
+    for (const hub of this.constellationHubs) {
+      const pos = this.camera.worldToScreen(hub.x, hub.y, vw, vh);
+      const color = CRITERION_COLOR[hub.criterion];
+
+      const glow = new Graphics()
+        .circle(pos.x, pos.y, CONSTELLATION_HUB_STAR_RADIUS_PX * 2.2)
+        .fill({ color, alpha: 0.18 });
+      this.overlayLayer.addChild(glow);
+      this.constellationOverlay.push(glow);
+
+      const star = new Graphics()
+        .star(
+          pos.x,
+          pos.y,
+          HUB_STAR_POINTS,
+          CONSTELLATION_HUB_STAR_RADIUS_PX,
+          CONSTELLATION_HUB_STAR_INNER_RADIUS_PX,
+        )
+        .fill({ color, alpha: 1 });
+      star.eventMode = 'static';
+      star.cursor = 'grab';
+      const memberSet = new Set(hub.itemIds);
+      star.on('pointerover', () => this.setHoverHighlight(memberSet));
+      star.on('pointerout', () => this.setHoverHighlight(null));
+      this.overlayLayer.addChild(star);
+      this.constellationOverlay.push(star);
+
+      const label = new Text({
+        text: hub.label,
+        style: { fontSize: HUB_LABEL_FONT_SIZE + 1, fill: 0xffffff, fontWeight: '600' },
+      });
+      label.anchor.set(0.5, 0);
+      label.x = pos.x;
+      label.y = pos.y + CONSTELLATION_HUB_STAR_RADIUS_PX + 4;
+      this.overlayLayer.addChild(label);
+      this.constellationOverlay.push(label);
+    }
+
+    if (this.constellationUnclassifiedRadius !== null) {
+      const center = this.camera.worldToScreen(
+        this.constellationOrigin.x,
+        this.constellationOrigin.y,
+        vw,
+        vh,
+      );
+      const r = this.constellationUnclassifiedRadius * this.camera.zoom;
+
+      const ring = new Graphics()
+        .circle(center.x, center.y, r)
+        .stroke({ color: 0xffffff, alpha: 0.15, width: 1 });
+      this.overlayLayer.addChild(ring);
+      this.constellationOverlay.push(ring);
+
+      const label = new Text({
+        text: en.connections.unclassified,
+        style: {
+          fontSize: CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE,
+          fill: 0xffffff,
+          fontStyle: 'italic',
+        },
+      });
+      label.alpha = 0.6;
+      label.anchor.set(0.5, 0.5);
+      label.x = center.x + r;
+      label.y = center.y;
+      this.overlayLayer.addChild(label);
+      this.constellationOverlay.push(label);
+    }
+  }
+
   // ----------------------------------------------------------------------------- Camera / fly-to
 
   flyTo(rect: { x: number; y: number; w: number; h: number }, reduceMotion = false): void {
@@ -1090,6 +1441,7 @@ export class Engine {
       this.drawConnectionLines();
       this.drawHubs();
       this.drawConnectHandle();
+      this.drawConstellationOverlay();
     });
   }
 
@@ -1197,6 +1549,8 @@ export class Engine {
     for (const g of this.hubDisplayObjects) g.destroy();
     this.connectHandleGraphic?.destroy();
     this.connectDragLine?.destroy();
+    for (const g of this.constellationOverlay) g.destroy();
+    if (this.constellationRaf !== null) cancelAnimationFrame(this.constellationRaf);
     this.rectContext?.destroy();
     this.app?.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     this.app = null;
