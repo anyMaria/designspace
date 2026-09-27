@@ -1,6 +1,7 @@
 import type {
   BackupInfo,
   FileFilter,
+  FolderListing,
   ImportResult,
   LibraryInfo,
   LinkMeta,
@@ -111,6 +112,7 @@ export class BrowserPlatform implements Platform {
     originalUrl: (relPath: string): string => this.objectUrlFor(STORE_MEDIA, relPath),
     reveal: (): Promise<void> => notSupported('media.reveal'),
     purge: (): Promise<void> => notSupported('media.purge'),
+    listFolder: (): Promise<FolderListing> => notSupported('media.listFolder'),
   };
 
   cache = {

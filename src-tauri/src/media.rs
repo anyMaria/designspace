@@ -99,6 +99,55 @@ fn import_bytes(
     })
 }
 
+/// v1 supported extensions (§2.3). Folder import only offers what M1 can actually ingest
+/// (images) — deviation logged in docs/DECISIONS.md: the plan's "Supported files" table also
+/// lists video/PDF/font, but no ingest worker or card exists for those kinds yet.
+const SUPPORTED_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif", "avif", "bmp", "svg"];
+
+fn is_supported(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| SUPPORTED_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
+        .unwrap_or(false)
+}
+
+/// Recursively lists a folder's files, split into supported and skipped counts (§2.3's
+/// "Add 342 files? (12 unsupported files will be skipped)" confirmation).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderListing {
+    pub paths: Vec<String>,
+    pub skipped: u32,
+}
+
+fn list_folder(root: &Path) -> AppResult<FolderListing> {
+    let mut paths = Vec::new();
+    let mut skipped = 0u32;
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let file_type = entry.file_type()?;
+            if file_type.is_dir() {
+                stack.push(path);
+            } else if file_type.is_file() {
+                if is_supported(&path) {
+                    paths.push(path.to_string_lossy().into_owned());
+                } else {
+                    skipped += 1;
+                }
+            }
+        }
+    }
+    Ok(FolderListing { paths, skipped })
+}
+
+#[tauri::command]
+pub fn media_list_folder(path: String) -> AppResult<FolderListing> {
+    list_folder(Path::new(&path))
+}
+
 fn with_library<T>(
     state: &State<'_, AppState>,
     f: impl FnOnce(&Connection, &Path) -> AppResult<T>,
@@ -344,5 +393,30 @@ mod tests {
     fn cache_file_name_flattens_slashes_and_traversal() {
         assert_eq!(cache_file_name("t128/abc123"), "t128_abc123");
         assert_eq!(cache_file_name("../../etc/passwd"), "____etc_passwd");
+    }
+
+    #[test]
+    fn list_folder_finds_supported_files_recursively_and_counts_skipped_ones() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("a.jpg"), b"x").unwrap();
+        fs::write(dir.path().join("notes.txt"), b"x").unwrap();
+        let sub = dir.path().join("sub");
+        fs::create_dir(&sub).unwrap();
+        fs::write(sub.join("b.PNG"), b"x").unwrap();
+        fs::write(sub.join("clip.mp4"), b"x").unwrap();
+
+        let listing = list_folder(dir.path()).unwrap();
+        assert_eq!(listing.paths.len(), 2);
+        assert_eq!(listing.skipped, 2);
+        assert!(listing.paths.iter().any(|p| p.ends_with("a.jpg")));
+        assert!(listing.paths.iter().any(|p| p.ends_with("b.PNG")));
+    }
+
+    #[test]
+    fn list_folder_on_an_empty_directory_finds_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let listing = list_folder(dir.path()).unwrap();
+        assert!(listing.paths.is_empty());
+        assert_eq!(listing.skipped, 0);
     }
 }

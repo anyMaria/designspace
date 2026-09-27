@@ -46,7 +46,7 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
           .then(() => {
             useToastStore.getState().show(
               selection.length > 1 ? `Moved ${selection.length} items to Trash` : 'Moved to Trash',
-              { onUndo: () => void useHistoryStore.getState().undo() },
+              { onAction: () => void useHistoryStore.getState().undo() },
             );
           });
         return;

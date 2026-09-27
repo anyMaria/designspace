@@ -18,6 +18,7 @@ const APP_COMMANDS: &[&str] = &[
     "media_import_finish",
     "media_reveal",
     "media_purge",
+    "media_list_folder",
     "cache_put",
     "cache_has",
     "cache_delete",

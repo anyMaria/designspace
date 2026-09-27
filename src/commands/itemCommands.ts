@@ -1,5 +1,6 @@
-import type { Platform } from '@/platform/types';
+import type { DbRow, Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
+import { rowToItem, rowToPlacement } from '@/db/rowMapping';
 import type { Command } from './types';
 
 /** Drags and resizes only update the engine while moving and commit one command on pointer-up
@@ -124,5 +125,45 @@ export function createTrashCommand(platform: Platform, ids: string[]): Command {
     label: ids.length > 1 ? `Move ${ids.length} items to Trash` : 'Move to Trash',
     do: () => setDeleted(new Date().toISOString()),
     undo: () => setDeleted(null),
+  };
+}
+
+/** Restores a single trashed item that isn't necessarily loaded into the store (§2.3's "Already
+ * in your library · Restore" toast for a duplicate found in the Trash). Re-reads the row from the
+ * DB rather than the store — unlike `createTrashCommand`, which only ever acts on items the owner
+ * already has selected, and so already loaded. */
+export function createRestoreItemCommand(platform: Platform, id: string): Command {
+  async function setDeleted(deletedAt: string | null): Promise<void> {
+    await platform.db.execute('UPDATE items SET deleted_at = ? WHERE id = ?', [deletedAt, id]);
+    if (deletedAt === null) {
+      const [itemRow] = await platform.db.select<DbRow>('SELECT * FROM items WHERE id = ?', [id]);
+      const [placementRow] = await platform.db.select<DbRow>(
+        'SELECT * FROM placements WHERE item_id = ?',
+        [id],
+      );
+      if (itemRow) useLibraryStore.getState().upsertItem(rowToItem(itemRow));
+      if (placementRow) useLibraryStore.getState().upsertPlacement(rowToPlacement(placementRow));
+    } else {
+      useLibraryStore.getState().removeItems([id]);
+    }
+  }
+
+  return {
+    label: 'Restore item',
+    do: () => setDeleted(null),
+    undo: () => setDeleted(new Date().toISOString()),
+  };
+}
+
+/** One undo step for a whole import batch (§2.3, §4.11). The rows already exist by the time this
+ * is pushed onto the history stack (import writes them as it goes, for the progress card); `do`
+ * just confirms they're not deleted (a no-op the first time, a restore on redo) and `undo` trashes
+ * them — the same soft-delete `createTrashCommand` already uses, just run in the other order. */
+export function createAddItemsCommand(platform: Platform, ids: string[]): Command {
+  const trash = createTrashCommand(platform, ids);
+  return {
+    label: ids.length > 1 ? `Add ${ids.length} items` : 'Add item',
+    do: () => trash.undo(),
+    undo: () => trash.do(),
   };
 }

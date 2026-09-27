@@ -24,6 +24,7 @@
     "allow-media-import-finish",
     "allow-media-reveal",
     "allow-media-purge",
+    "allow-media-list-folder",
     "allow-cache-put",
     "allow-cache-has",
     "allow-cache-delete",

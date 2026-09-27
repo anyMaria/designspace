@@ -34,6 +34,7 @@ function makePlatform(overrides: Partial<Platform> = {}): Platform {
       importUrl: vi.fn(),
       reveal: vi.fn(),
       purge: vi.fn(),
+      listFolder: vi.fn(),
     },
     db: {
       select: vi.fn().mockResolvedValue([]),

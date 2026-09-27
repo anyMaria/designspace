@@ -75,5 +75,33 @@ export const en = {
   },
   toasts: {
     undo: 'Undo',
+    show: 'Show',
+    restore: 'Restore',
+    alreadyInLibrary: 'Already in your library',
+    unsupportedFile: (ext: string) => `Designspace can't add .${ext} files yet.`,
+    addedOne: 'Added 1 item',
+    addedMany: (n: number) => `Added ${n} items`,
+  },
+  addMenu: {
+    files: 'Files…',
+    folder: 'Folder…',
+    paste: 'Paste',
+  },
+  dropOverlay: {
+    title: 'Drop to add',
+  },
+  importProgress: {
+    adding: (done: number, total: number) => `Adding ${done} of ${total}…`,
+    cancel: 'Cancel',
+  },
+  folderImport: {
+    title: 'Add folder',
+    confirm: (supported: number, skipped: number) =>
+      skipped > 0
+        ? `Add ${supported} files? (${skipped} unsupported files will be skipped)`
+        : `Add ${supported} files?`,
+    cancel: 'Cancel',
+    add: 'Add',
+    empty: "This folder doesn't have any files Designspace can add yet.",
   },
 } as const;

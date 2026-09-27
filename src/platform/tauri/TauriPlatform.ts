@@ -7,6 +7,7 @@ import type {
   DbRow,
   DbStatement,
   FileFilter,
+  FolderListing,
   ImportResult,
   LibraryInfo,
   LinkMeta,
@@ -66,6 +67,7 @@ export class TauriPlatform implements Platform {
     originalUrl: (relPath: string): string => convertFileSrc(`original/${relPath}`, 'media'),
     reveal: (relPath: string) => invoke<void>('media_reveal', { relPath }),
     purge: (relPaths: string[]) => invoke<void>('media_purge', { relPaths }),
+    listFolder: (path: string) => invoke<FolderListing>('media_list_folder', { path }),
   };
 
   cache = {
@@ -112,11 +114,22 @@ export class TauriPlatform implements Platform {
   };
 
   clipboard = {
+    // Returns PNG-encoded bytes (like BrowserPlatform's), not the plugin's raw RGBA buffer —
+    // callers (paste, §2.3) need a real image file, and only this method has the width/height
+    // needed to encode one.
     readImage: async (): Promise<Uint8Array | null> => {
       try {
         const img = await readImage();
+        const { width, height } = await img.size();
         const rgba = await img.rgba();
-        return new Uint8Array(rgba);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+        return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
       } catch {
         return null;
       }

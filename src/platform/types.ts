@@ -44,6 +44,11 @@ export interface BackupInfo {
   sizeBytes: number;
 }
 
+export interface FolderListing {
+  paths: string[];
+  skipped: number;
+}
+
 export interface FileFilter {
   name: string;
   extensions: string[];
@@ -73,6 +78,8 @@ export interface Platform {
     originalUrl(relPath: string): string;
     reveal(relPath: string): Promise<void>;
     purge(relPaths: string[]): Promise<void>;
+    /** Recursive folder listing for the Folder… entry point (§2.3) — Tauri only. */
+    listFolder(path: string): Promise<FolderListing>;
   };
 
   cache: {

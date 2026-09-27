@@ -1160,15 +1160,15 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 
 ### M1: Library & map (images)
 - [ ] Adding:
-  - [ ] Files… / Folder… (paths → Rust copies);
+  - [x] Files… / Folder… (paths → Rust copies);
   - [ ] drag and drop (files, browser images, URLs);
   - [ ] paste (image data, files, URLs; text → note arrives in M4).
-- [ ] The import progress card with Cancel, messages for unsupported types, confirmation for folder imports.
+- [x] The import progress card with Cancel, messages for unsupported types, confirmation for folder imports.
 - [ ] Duplicates: exact (hash) with "Show"/"Restore", and near (pHash) with the badge and the comparison.
-- [ ] Ingest workers for images (thumbnails, palette, color families, pHash), resumable.
+- [x] Ingest workers for images (thumbnails, palette, color families, pHash), resumable.
 - [ ] Canvas:
-  - [ ] item sprites with LOD and the texture manager;
-  - [ ] selecting (click, Shift, marquee, Ctrl+A), moving, resizing, stacking, hover;
+  - [x] item sprites with LOD and the texture manager;
+  - [x] selecting (click, Shift, marquee, Ctrl+A), moving, resizing, stacking, hover;
   - [ ] the context menu, minimap, zoom menu and fly-to.
 - [ ] Placement: drop point, cursor, free-space search, justified rows for several items; Tidy up.
 - [ ] Commands and undo/redo for all of the above; the Trash (soft delete, Trash view, restore, purge to the Recycle Bin, automatic purge after 30 days).

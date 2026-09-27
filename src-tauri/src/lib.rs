@@ -35,6 +35,7 @@ pub fn run() {
             media::media_import_finish,
             media::media_reveal,
             media::media_purge,
+            media::media_list_folder,
             media::cache_put,
             media::cache_has,
             media::cache_delete,

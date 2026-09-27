@@ -58,6 +58,7 @@ export class Engine {
   readonly camera = new Camera();
 
   private app: Application | null = null;
+  private container: HTMLElement | null = null;
   private world: Container | null = null;
   private itemsLayer: Container | null = null;
   private overlayLayer: Container | null = null; // screen-space: marquee, selection outline, handles
@@ -122,6 +123,7 @@ export class Engine {
     app.canvas.style.zIndex = '1';
 
     this.app = app;
+    this.container = container;
     this.world = new Container();
     this.itemsLayer = new Container();
     this.world.addChild(this.itemsLayer);
@@ -244,6 +246,21 @@ export class Engine {
 
   getSelection(): string[] {
     return [...this.selection];
+  }
+
+  /** Converts a `clientX`/`clientY` point (e.g. from a drop or paste event) into world
+   * coordinates — used by the import entry points to land new items at the cursor (§2.3). */
+  screenToWorld(clientX: number, clientY: number): { x: number; y: number } | null {
+    if (!this.app || !this.container) return null;
+    const rect = this.container.getBoundingClientRect();
+    const { width: vw, height: vh } = this.app.screen;
+    return this.camera.screenToWorld(clientX - rect.left, clientY - rect.top, vw, vh);
+  }
+
+  /** The world point at the viewport center — the fallback drop point when the cursor is
+   * outside the window (§2.3, paste). */
+  viewportCenter(): { x: number; y: number } {
+    return { x: this.camera.x, y: this.camera.y };
   }
 
   private attachSelectionInput(container: HTMLElement, opts: EngineOptions): () => void {

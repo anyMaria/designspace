@@ -176,4 +176,47 @@ ingest to settle, and fails on any console/page error — this is what caught th
 
 ---
 
+### Import entry points (Files…/Folder…/paste/drop): what landed and what's deferred
+Built Files…/Folder… (Ctrl+O, native dialogs on Tauri, `<input type="file">` on the browser dev
+build), drag-and-drop of files, and paste of image data/files onto the canvas, all going through
+one orchestrator (`src/features/import/importItems.ts`) that dedupes by SHA-256 before ever
+copying a file, writes the item + placement rows, places single drops at the cursor and several
+as a justified-row grid (reusing `lib/packing.ts` from M1-1), enqueues ingest, and lands the whole
+batch as one selected, one-undo-step addition (`createAddItemsCommand`, itself built from
+`createTrashCommand` run in the other direction). The import progress card, the folder-import
+confirmation ("Add N files? (M unsupported will be skipped)" — added `media_list_folder` to Rust,
+walking the folder recursively for supported extensions), and exact-duplicate detection with
+"Show"/"Restore" toasts (`createRestoreItemCommand`, which re-reads the row from the DB rather
+than the store, since a trashed item isn't loaded into it) are all wired and covered by both unit
+tests (`importItems.test.ts`) and a Playwright run against the real seeded app (drag-and-drop and
+the Files… dialog each produced a rendered, selected card with zero console errors).
+
+**Deferred, logged rather than guessed at:**
+- **Image URLs** (a website-dragged image, a pasted URL, a dropped link) — `TauriPlatform.media.importUrl`
+  and `.net.linkMeta` already call `net_download_image`/`net_link_meta`, but neither Rust command
+  exists yet (verified: no `net.rs`, nothing registered in `lib.rs`). Wiring the frontend for URLs
+  Rust can't yet fetch would just be dead code, so §2.3's drag/paste handlers only look at
+  `DataTransfer`/`ClipboardData` files for now. Real network import is its own milestone concern
+  (net access is owner-gated and offline-aware per the non-negotiables) — tracked as a gap, not
+  silently dropped.
+- **Near-duplicate detection** (pHash ≤ 6, the ⚠ badge and comparison view) — `lib/phash.ts` exists
+  and is unit-tested (M1-1), but nothing computes or compares it against existing items at import
+  time yet. Left for the same pass that builds the comparison UI, since a badge with no click
+  target isn't useful on its own.
+- **Tidy up** and the **near-duplicate** parts of the plan's "Placement"/"Duplicates" checklist
+  lines are why those boxes stay unchecked even though the rest of each line landed.
+
+`useToastStore`/`<Toast>` also changed shape this pass: `onUndo` (hardcoded "Undo" label) became
+`onAction`/`actionLabel`, since the duplicate-detection toasts need "Show"/"Restore" instead. The
+one existing caller (`useCanvasShortcuts`'s Trash toast) was updated; `<ToastHost>` (rendering the
+toast stack) didn't exist before this pass either — it's now mounted in `Shell.tsx`, ahead of its
+nominal M1-9 slot, since the import flow needed working toasts to verify against.
+
+Two more Playwright checks joined `smoke-m1.spec.ts`: `smoke-m1-import.spec.ts` (opens + Add →
+Files…, picks a fixture image, confirms it lands selected on the canvas) and `smoke-m1-drop.spec.ts`
+(synthesizes a `DragEvent`/`DataTransfer`, checks the "Drop to add" overlay appears, then confirms
+the drop imports). Both ran clean against the real seeded app with zero console errors.
+
+---
+
 *(Later milestones append below this line.)*

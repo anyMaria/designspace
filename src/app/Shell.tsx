@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Plus,
   Search,
   Share2,
   MousePointer2,
@@ -10,11 +9,17 @@ import {
 } from 'lucide-react';
 import type { Platform, LibraryInfo } from '@/platform';
 import { useUiStore } from '@/state/uiStore';
+import { useLibraryStore } from '@/state/libraryStore';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
 import type { Engine } from '@/canvas/Engine';
 import { useEngineBindings } from '@/canvas/useEngineBindings';
 import { useCanvasShortcuts } from '@/canvas/useCanvasShortcuts';
+import { useDropAndPaste } from '@/features/import/useDropAndPaste';
+import { AddMenu } from '@/features/import/AddMenu';
+import { DropOverlay } from '@/features/import/DropOverlay';
+import { ImportProgressCard } from '@/features/import/ImportProgressCard';
+import { ToastHost } from '@/features/toasts/ToastHost';
 import {
   Dock,
   DockDivider,
@@ -34,12 +39,7 @@ export interface ShellProps {
   benchCount: number | null;
 }
 
-export function Shell({
-  platform,
-  library,
-  libraryBoardId: _libraryBoardId,
-  benchCount,
-}: ShellProps) {
+export function Shell({ platform, library, libraryBoardId, benchCount }: ShellProps) {
   useGlobalShortcuts();
   const tool = useUiStore((s) => s.tool);
   const setTool = useUiStore((s) => s.setTool);
@@ -54,8 +54,13 @@ export function Shell({
   const [inboxCount] = useState(0);
   const [engine, setEngine] = useState<Engine | null>(null);
 
+  useEffect(() => {
+    useLibraryStore.getState().setLibraryBoardId(libraryBoardId);
+  }, [libraryBoardId]);
+
   useEngineBindings(engine, platform);
   useCanvasShortcuts(engine, platform);
+  const { dragOver } = useDropAndPaste(engine, platform);
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
@@ -130,7 +135,7 @@ export function Shell({
         }}
       >
         <Dock>
-          <IconButton icon={<Plus size={20} strokeWidth={1.75} />} label={en.dock.add} active />
+          <AddMenu platform={platform} engine={engine} />
           <IconButton icon={<Search size={20} strokeWidth={1.75} />} label={en.dock.search} />
           <IconButton icon={<Share2 size={20} strokeWidth={1.75} />} label={en.dock.connections} />
           <DockDivider />
@@ -204,6 +209,10 @@ export function Shell({
           onClose={() => setSettingsOpen(false)}
         />
       )}
+
+      {dragOver && <DropOverlay />}
+      <ImportProgressCard />
+      <ToastHost />
     </div>
   );
 }

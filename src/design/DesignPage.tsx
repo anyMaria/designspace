@@ -147,7 +147,7 @@ export function DesignPage() {
       </Section>
 
       <Section title="Toast">
-        <Toast message="Moved 3 items to Trash" onUndo={() => {}} />
+        <Toast message="Moved 3 items to Trash" onAction={() => {}} />
       </Section>
 
       <Section title="Slider, toggle, progress">
