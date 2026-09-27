@@ -10,7 +10,12 @@ import react from '@vitejs/plugin-react';
 // no nonce/hash option for it. `pnpm preview` serves the production build's static output,
 // which has no inline scripts, so it runs under the exact same policy the Tauri build enforces;
 // only the dev server relaxes `script-src`. `connect-src` — which is what actually guarantees no
-// background network access — stays identical in both.
+// background network access — is otherwise identical in both, plus one addition: `blob:`. The
+// browser dev backend has no `media://` protocol, so it serves originals as `blob:` URLs and the
+// ingest worker pipeline (`IngestQueue.dispatch`) fetches them by URL like it does the real
+// `http://media.localhost` one in Tauri. `blob:` URLs are local, in-memory, same-origin objects —
+// never network — so this doesn't reopen the "no background network" guarantee; the shipped
+// Windows app never carries this addition, since TauriPlatform never produces a `blob:` URL here.
 function csp(allowInlineScripts: boolean): string {
   const scriptSrc = allowInlineScripts
     ? "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'"
@@ -19,7 +24,7 @@ function csp(allowInlineScripts: boolean): string {
     `default-src 'self'; ${scriptSrc}; worker-src 'self' blob:; ` +
     "style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: media: http://media.localhost; " +
     "media-src 'self' blob: media: http://media.localhost; font-src 'self' blob: data: media: http://media.localhost; " +
-    "connect-src 'self' ipc: http://ipc.localhost media: http://media.localhost; " +
+    "connect-src 'self' blob: ipc: http://ipc.localhost media: http://media.localhost; " +
     "object-src 'none'; frame-src 'none'; base-uri 'none'"
   );
 }

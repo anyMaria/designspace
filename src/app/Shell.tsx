@@ -12,6 +12,9 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { useUiStore } from '@/state/uiStore';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
+import type { Engine } from '@/canvas/Engine';
+import { useEngineBindings } from '@/canvas/useEngineBindings';
+import { useCanvasShortcuts } from '@/canvas/useCanvasShortcuts';
 import {
   Dock,
   DockDivider,
@@ -49,10 +52,19 @@ export function Shell({
   const settingsOpen = useUiStore((s) => s.settingsOpen);
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
   const [inboxCount] = useState(0);
+  const [engine, setEngine] = useState<Engine | null>(null);
+
+  useEngineBindings(engine, platform);
+  useCanvasShortcuts(engine, platform);
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-      <CanvasView tool={tool} wheelMode={wheelMode} benchCount={benchCount} />
+      <CanvasView
+        tool={tool}
+        wheelMode={wheelMode}
+        benchCount={benchCount}
+        onEngineReady={setEngine}
+      />
 
       {/* Top-left: space switcher, Inbox chip, Rediscover — §2.1 */}
       <div

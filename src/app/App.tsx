@@ -3,6 +3,8 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { getPlatform } from '@/platform';
 import { ensureLibraryReady, readDevUrlFlags } from '@/platform/bootstrap';
 import { seedDemoLibrary } from '@/platform/seed/demo';
+import { loadLibraryItems } from '@/state/loadLibrary';
+import { resumePendingIngest } from '@/workers/ingestQueue';
 import { logger } from '@/lib/logger';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
@@ -36,6 +38,8 @@ export function App() {
           const libraryBoardId = await ensureLibraryReady(platform);
           const { seedDemo, bench } = readDevUrlFlags();
           if (seedDemo) await seedDemoLibrary(platform, libraryBoardId);
+          await loadLibraryItems(platform, libraryBoardId);
+          void resumePendingIngest(platform);
           if (!cancelled)
             setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: bench });
           return;
@@ -47,6 +51,8 @@ export function App() {
         }
         const library = await platform.library.open(recent[0].path);
         const libraryBoardId = await ensureLibraryReady(platform);
+        await loadLibraryItems(platform, libraryBoardId);
+        void resumePendingIngest(platform);
         if (!cancelled)
           setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: null });
       } catch (err) {

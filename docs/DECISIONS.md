@@ -155,4 +155,25 @@ touches the network in M5.
 
 ---
 
+### Browser dev CSP: `connect-src` needs `blob:` for ingest — real gap, caught by a Playwright smoke test
+`IngestQueue.dispatch` (§4.7) fetches an item's original bytes by URL and hands them to the ingest
+worker — the same code path for both backends. In Tauri that URL is `http://media.localhost/…`,
+already allowed by `connect-src`. In the browser dev backend (`BrowserPlatform`, no custom
+protocol handler) it's a `blob:` object URL, and `connect-src` didn't allow `blob:` — every
+`fetch()` of an original was silently rejected by the CSP, so ingest (thumbnails, palette, pHash)
+never ran for any imported/seeded image in the browser build. This was invisible to
+lint/typecheck/unit tests (jsdom doesn't enforce CSP) and only surfaced running the seeded demo
+library in real Chromium and reading the console.
+
+Fixed by adding `blob:` to `connect-src` in `vite.config.ts`'s `csp()` only — `src-tauri/tauri.conf.json`'s
+CSP (the one that ships) is untouched, since `TauriPlatform` never produces a `blob:` URL here.
+`blob:` objects are local, in-memory, same-origin — allowing `fetch()` on them doesn't reopen the
+"no background network" guarantee (§Non-negotiables), it only lets the page read data it already
+created via `URL.createObjectURL`.
+
+Added `tests/e2e/smoke-m1.spec.ts` as a standing regression check: loads `/?seed=demo`, waits for
+ingest to settle, and fails on any console/page error — this is what caught the bug above.
+
+---
+
 *(Later milestones append below this line.)*
