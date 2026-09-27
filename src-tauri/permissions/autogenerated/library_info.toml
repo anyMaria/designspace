@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-library-info"
+description = "Enables the library_info command without any pre-configured scope."
+commands.allow = ["library_info"]
+
+[[permission]]
+identifier = "deny-library-info"
+description = "Denies the library_info command without any pre-configured scope."
+commands.deny = ["library_info"]

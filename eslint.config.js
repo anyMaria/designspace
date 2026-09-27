@@ -49,4 +49,12 @@ export default tseslint.config(
       globals: globals.node,
     },
   },
+  {
+    // `expect(mockObj.method).toHaveBeenCalledWith(...)` is the standard vitest mock-assertion
+    // pattern and always safe here — the "method" is a `vi.fn()`, never a real bound method.
+    files: ['**/*.test.{ts,tsx}', 'src/test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );

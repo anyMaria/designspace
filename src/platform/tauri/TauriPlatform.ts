@@ -1,5 +1,5 @@
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
 import type {
@@ -47,10 +47,18 @@ export class TauriPlatform implements Platform {
 
   media = {
     importPaths: (paths: string[]) => invoke<ImportResult[]>('media_import_paths', { paths }),
-    importFile: (file: File, onProgress?: (p: number) => void): Promise<ImportResult> => {
-      // Chunked streaming (media_import_begin/chunk/finish, §4.4) lands with Adding in M1.
-      void onProgress;
-      return notYet(`media.importFile("${file.name}")`, 'M1');
+    importFile: async (file: File, onProgress?: (p: number) => void): Promise<ImportResult> => {
+      const CHUNK_SIZE = 8 * 1024 * 1024; // 8 MB, per §4.4
+      const token = await invoke<string>('media_import_begin', { name: file.name, size: file.size });
+      let sent = 0;
+      for (let offset = 0; offset < file.size; offset += CHUNK_SIZE) {
+        const slice = file.slice(offset, offset + CHUNK_SIZE);
+        const bytes = new Uint8Array(await slice.arrayBuffer());
+        await invoke<void>('media_import_chunk', { token, bytes: Array.from(bytes) });
+        sent += bytes.byteLength;
+        onProgress?.(file.size === 0 ? 1 : sent / file.size);
+      }
+      return invoke<ImportResult>('media_import_finish', { token });
     },
     importBytes: (name: string, bytes: Uint8Array) =>
       invoke<ImportResult>('media_import_bytes', { name, bytes: Array.from(bytes) }),
@@ -95,12 +103,8 @@ export class TauriPlatform implements Platform {
       const result = await openDialog({ directory: true });
       return typeof result === 'string' ? result : null;
     },
-    saveFile: async (defaultName: string, bytes: Uint8Array): Promise<boolean> => {
-      const path = await saveDialog({ defaultPath: defaultName });
-      if (!path) return false;
-      await invoke('app_write_file', { path, bytes: Array.from(bytes) });
-      return true;
-    },
+    saveFile: (defaultName: string, _bytes: Uint8Array): Promise<boolean> =>
+      notYet(`dialogs.saveFile("${defaultName}")`, 'M4'),
   };
 
   shell = {
