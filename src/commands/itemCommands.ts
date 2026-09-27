@@ -1,6 +1,8 @@
 import type { DbRow, Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { rowToItem, rowToPlacement } from '@/db/rowMapping';
+import { justifiedRows } from '@/lib/packing';
+import { unionRects } from '@/lib/geometry';
 import type { Command } from './types';
 import type { Item } from '@/state/types';
 
@@ -68,6 +70,48 @@ export function createResizeItemCommand(platform: Platform, update: ResizeUpdate
     label: 'Resize',
     do: () => applyResize(platform, update),
     undo: () => applyResize(platform, previous),
+  };
+}
+
+async function applyRects(platform: Platform, updates: ResizeUpdate[]): Promise<void> {
+  const statements = [];
+  for (const u of updates) {
+    const placement = useLibraryStore.getState().placements.get(u.id);
+    if (!placement) continue;
+    useLibraryStore.getState().upsertPlacement({ ...placement, x: u.x, y: u.y, w: u.w, h: u.h });
+    statements.push({
+      sql: 'UPDATE placements SET x = ?, y = ?, w = ?, h = ? WHERE board_id = ? AND item_id = ?',
+      params: [u.x, u.y, u.w, u.h, placement.boardId, u.id],
+    });
+  }
+  await platform.db.batch(statements);
+}
+
+/** Tidy up (§2.10, §4.9): re-lays the given items out as justified rows (target row height 240,
+ * 16px gaps, aspect ratios preserved) at the selection's own top-left corner, in whatever order
+ * the caller passes (the List panel's current sort, typically). One undo step regardless of
+ * selection size. */
+export function createTidyUpCommand(platform: Platform, orderedItemIds: string[]): Command {
+  const previous: ResizeUpdate[] = orderedItemIds.map((id) => {
+    const p = useLibraryStore.getState().placements.get(id);
+    return { id, x: p?.x ?? 0, y: p?.y ?? 0, w: p?.w ?? 0, h: p?.h ?? 0 };
+  });
+
+  const bounds = unionRects(previous.map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h })));
+  const origin = bounds ? { x: bounds.x, y: bounds.y } : { x: 0, y: 0 };
+  const packInput = previous.map((p) => ({ id: p.id, aspect: p.h > 0 ? p.w / p.h : 1 }));
+  const next: ResizeUpdate[] = justifiedRows(packInput, origin).map((r) => ({
+    id: r.id,
+    x: r.x,
+    y: r.y,
+    w: r.w,
+    h: r.h,
+  }));
+
+  return {
+    label: 'Tidy up',
+    do: () => applyRects(platform, next),
+    undo: () => applyRects(platform, previous),
   };
 }
 

@@ -821,4 +821,34 @@ Tagged `v0.1.0`.
 
 ---
 
+## M3: Connections & Constellations
+
+### Manual connections storage + Tidy up (M3-1)
+`manual_connections` was already scaffolded in `001_init.sql` back in M0 (`from_id`/`to_id`/
+`label`, `UNIQUE (from_id, to_id)`), so this task only added the application layer: a
+`ManualConnection` type, `rowToManualConnection`, and `useManualConnectionsStore` — library-wide
+like `termStore` (the plan: "connections are stored globally, so they show wherever both items
+are"), indexed by both endpoints for O(1) "every connection touching this item" lookups (the
+Details panel's "My connections" list and hover scoring in M3-2 both need exactly that). Loaded
+at startup alongside vocabulary, not in `Onboarding.tsx`'s fresh-library path — a brand-new
+library has zero connections by construction, so there's nothing to load there.
+
+**Tidy up** (§2.10/§4.9, listed as landing in "M1" in the plan's prose but never actually built —
+M2's DECISIONS entry for the Details panel already flagged this as a real gap) reuses
+`justifiedRows` from `lib/packing.ts`, unchanged since M1. `createTidyUpCommand` snapshots each
+selected item's full rect (not just position — the plan's "target row height 240... aspect ratios
+preserved" means Tidy up *resizes* items onto the grid, not just repositions them) and packs them
+at the selection's own bounding-box top-left corner, in whatever order the caller passes; the
+context menu passes the current List-panel sort order, reusing `sortItems` from M2-8 rather than
+inventing a second sort implementation. One `Command`, one undo step, regardless of selection
+size — the same pattern as the bulk Details commands.
+
+Verified with unit tests for the store (endpoint indexing, `connectionsFor`, `isConnected` in
+both directions) and `createTidyUpCommand` (packs at the selection's own origin, not the canvas
+origin; restores every item's own previous rect on undo), plus a Playwright check
+(`smoke-m3-tidyup.spec.ts`) confirming the context menu item is wired end-to-end against the
+seeded demo library — zero console errors.
+
+---
+
 *(Later milestones append below this line.)*

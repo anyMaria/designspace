@@ -70,3 +70,14 @@ export interface ItemTerm {
   via: TermVia;
   addedAt: string;
 }
+
+/** §2.10 "My connections" — manual, undirected in the UI but stored as an ordered pair so the
+ * `UNIQUE (from_id, to_id)` constraint can't be defeated by adding the same pair in reverse (the
+ * commands always normalize the order before writing — see `commands/connectionCommands.ts`). */
+export interface ManualConnection {
+  id: string;
+  fromId: string;
+  toId: string;
+  label: string | null;
+  createdAt: string;
+}

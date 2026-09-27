@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { rowToItem, rowToItemTerm, rowToPlacement, rowToTerm } from './rowMapping';
+import {
+  rowToItem,
+  rowToItemTerm,
+  rowToManualConnection,
+  rowToPlacement,
+  rowToTerm,
+} from './rowMapping';
 
 describe('rowToItem', () => {
   it('maps a full row', () => {
@@ -140,5 +146,35 @@ describe('rowToItemTerm', () => {
       via: 'user',
       addedAt: '2026-09-27T00:00:00.000Z',
     });
+  });
+});
+
+describe('rowToManualConnection', () => {
+  it('maps a manual_connections row', () => {
+    const connection = rowToManualConnection({
+      id: 'c1',
+      from_id: 'i1',
+      to_id: 'i2',
+      label: 'same typography',
+      created_at: '2026-09-27T00:00:00.000Z',
+    });
+    expect(connection).toEqual({
+      id: 'c1',
+      fromId: 'i1',
+      toId: 'i2',
+      label: 'same typography',
+      createdAt: '2026-09-27T00:00:00.000Z',
+    });
+  });
+
+  it('maps a null label', () => {
+    const connection = rowToManualConnection({
+      id: 'c1',
+      from_id: 'i1',
+      to_id: 'i2',
+      label: null,
+      created_at: '2026-09-27T00:00:00.000Z',
+    });
+    expect(connection.label).toBeNull();
   });
 });

@@ -4,16 +4,22 @@ import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useHistoryStore } from '@/commands/history';
 import { useToastStore } from '@/state/toastStore';
-import { createStackOrderCommand, createTrashCommand } from '@/commands/itemCommands';
+import {
+  createStackOrderCommand,
+  createTidyUpCommand,
+  createTrashCommand,
+} from '@/commands/itemCommands';
 import { createBackToInboxCommand } from '@/commands/itemTermCommands';
+import { useListStore } from '@/state/listStore';
+import { sortItems } from '@/features/list/listGrouping';
 import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
 import type { ContextMenuState } from './useContextMenu';
 
-/** Right-click menu for a canvas item — §2.4. Only the actions M1/M2 can actually back: the rest
- * (Open, Add to board, Connect to…, Find similar, Copy palette, Set cover) need Boards,
- * Connections or video/PDF support that land in later milestones — deferred and logged in
- * docs/DECISIONS.md rather than shown as dead buttons. */
+/** Right-click menu for a canvas item — §2.4. Only the actions M1/M2/M3 can actually back: the
+ * rest (Open, Add to board, Connect to…, Find similar, Copy palette, Set cover) need Boards or
+ * video/PDF support that land in later milestones — deferred and logged in docs/DECISIONS.md
+ * rather than shown as dead buttons. */
 export function ContextMenu({
   state,
   engine,
@@ -60,6 +66,13 @@ export function ContextMenu({
     const updates = engine.bringForward(ids, toFront);
     const label = toFront ? en.contextMenu.bringToFront : en.contextMenu.sendToBack;
     void useHistoryStore.getState().execute(createStackOrderCommand(platform, label, updates));
+  }
+
+  function tidyUp(): void {
+    onClose();
+    const sortBy = useListStore.getState().sortBy;
+    const ordered = sortItems(ids, sortBy, useLibraryStore.getState().items);
+    void useHistoryStore.getState().execute(createTidyUpCommand(platform, ordered));
   }
 
   function backToInbox(): void {
@@ -114,6 +127,11 @@ export function ContextMenu({
                 id: 'send-to-back',
                 label: en.contextMenu.sendToBack,
                 onSelect: () => stack(false),
+              },
+              {
+                id: 'tidy-up',
+                label: en.contextMenu.tidyUp,
+                onSelect: tidyUp,
               },
               {
                 id: 'back-to-inbox',

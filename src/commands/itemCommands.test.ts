@@ -5,6 +5,7 @@ import {
   createResizeItemCommand,
   createSetItemFieldCommand,
   createStackOrderCommand,
+  createTidyUpCommand,
   createTrashCommand,
 } from './itemCommands';
 import { useLibraryStore } from '@/state/libraryStore';
@@ -214,5 +215,55 @@ describe('createBulkSetItemFieldCommand', () => {
     await command.undo();
     expect(useLibraryStore.getState().items.get('a')?.artist).toBe('Alice');
     expect(useLibraryStore.getState().items.get('b')?.artist).toBe('Bob');
+  });
+});
+
+describe('createTidyUpCommand', () => {
+  it('packs the given items into justified rows at their own top-left corner', async () => {
+    useLibraryStore
+      .getState()
+      .upsertPlacement(makePlacement({ itemId: 'a', x: 50, y: 100, w: 320, h: 240 }));
+    useLibraryStore
+      .getState()
+      .upsertPlacement(makePlacement({ itemId: 'b', x: 500, y: 300, w: 160, h: 240 }));
+    const platform = makePlatform();
+
+    const command = createTidyUpCommand(platform, ['a', 'b']);
+    await command.do();
+
+    const a = useLibraryStore.getState().placements.get('a')!;
+    const b = useLibraryStore.getState().placements.get('b')!;
+    // Origin is the selection's own bounding-box top-left (50,100), not the canvas origin.
+    expect(a.x).toBe(50);
+    expect(a.y).toBe(100);
+    expect(a.h).toBe(240); // target row height, uncompressed single row
+    expect(b.x).toBeCloseTo(a.x + a.w + 16); // 16px gap, second item right after the first
+  });
+
+  it('is one undo step that restores every item to its own previous rect', async () => {
+    useLibraryStore
+      .getState()
+      .upsertPlacement(makePlacement({ itemId: 'a', x: 50, y: 100, w: 320, h: 240 }));
+    useLibraryStore
+      .getState()
+      .upsertPlacement(makePlacement({ itemId: 'b', x: 500, y: 300, w: 160, h: 480 }));
+    const platform = makePlatform();
+
+    const command = createTidyUpCommand(platform, ['a', 'b']);
+    await command.do();
+    await command.undo();
+
+    expect(useLibraryStore.getState().placements.get('a')).toMatchObject({
+      x: 50,
+      y: 100,
+      w: 320,
+      h: 240,
+    });
+    expect(useLibraryStore.getState().placements.get('b')).toMatchObject({
+      x: 500,
+      y: 300,
+      w: 160,
+      h: 480,
+    });
   });
 });

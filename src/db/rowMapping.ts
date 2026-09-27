@@ -5,6 +5,7 @@ import type {
   ItemKind,
   ItemStatus,
   ItemTerm,
+  ManualConnection,
   PaletteEntry,
   Placement,
   Term,
@@ -94,5 +95,16 @@ export function rowToItemTerm(row: DbRow): ItemTerm {
     termId: asString(row.term_id),
     via: asString(row.via) as TermVia,
     addedAt: asString(row.added_at),
+  };
+}
+
+/** Maps one row from `SELECT * FROM manual_connections`. */
+export function rowToManualConnection(row: DbRow): ManualConnection {
+  return {
+    id: asString(row.id),
+    fromId: asString(row.from_id),
+    toId: asString(row.to_id),
+    label: asNullableString(row.label),
+    createdAt: asString(row.created_at),
   };
 }

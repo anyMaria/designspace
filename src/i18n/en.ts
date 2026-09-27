@@ -279,6 +279,7 @@ export const en = {
     sendToBack: 'Send to back',
     moveToTrash: 'Move to Trash',
     backToInbox: 'Back to Inbox',
+    tidyUp: 'Tidy up',
     copyImageFailed: "Couldn't copy the image",
     copyImageSucceeded: 'Copied',
   },
