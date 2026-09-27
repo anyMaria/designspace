@@ -1,0 +1,127 @@
+/**
+ * Designspace design tokens. Source of truth for color, shadow, type, shape, spacing and
+ * motion — see docs/IMPLEMENTATION_PLAN.md §3.2. Never hard-code these values elsewhere;
+ * import this file once (src/design/global.css does) and reference the custom properties.
+ * Mirrored for PixiJS (which can't read CSS) in tokens.ts — keep the two in sync by hand.
+ */
+:root {
+  /* Canvas & surfaces */
+  --canvas: #1e1024;
+  --canvas-edge: #170b1c;
+  --dot: rgba(236, 222, 245, 0.16);
+  --surface-1: #2a1832;
+  --surface-2: #33203d;
+  --surface-3: #3d2847;
+  --hairline: rgba(255, 255, 255, 0.08);
+
+  /* Text */
+  --text-1: #f4eef6;
+  --text-2: #c9bcd0;
+  --text-3: #9a8ba3;
+
+  /* Accent & stones */
+  --accent: #e9a845;
+  --on-accent: #2a1832;
+  --sage: #93b89d;
+  --blush: #f0b7b3;
+  --cream: #efe6d6;
+  --lavender: #b7a6e8;
+  --sky: #8cc6e6;
+  --danger: #ee8a7c;
+
+  /* Criterion colors (connections, chips, list dots) */
+  --criterion-tags: var(--sage);
+  --criterion-vibe: var(--blush);
+  --criterion-type: var(--accent);
+  --criterion-movement: var(--cream);
+  --criterion-color: var(--lavender);
+  --criterion-similar: var(--sky);
+  --criterion-manual: rgba(255, 255, 255, 0.9);
+
+  /* Color-family swatches */
+  --family-red: #e05a5a;
+  --family-orange: #ee8e3a;
+  --family-yellow: #efd05a;
+  --family-green: #6dbe6a;
+  --family-teal: #4fb7a8;
+  --family-blue: #5a8fe0;
+  --family-purple: #9a6be0;
+  --family-pink: #e07ab8;
+  --family-brown: #9a6b4b;
+  --family-black: #1a1a1a;
+  --family-grey: #8c8c8c;
+  --family-white: #f2f2f2;
+
+  /* Shadows: soft UI on a dark background */
+  --shadow-raised: -4px -4px 10px rgba(255, 255, 255, 0.035), 6px 8px 18px rgba(8, 2, 12, 0.55);
+  --shadow-float: 0 12px 32px rgba(8, 2, 12, 0.55), 0 2px 6px rgba(8, 2, 12, 0.4);
+  --shadow-inset:
+    inset 3px 3px 6px rgba(8, 2, 12, 0.5), inset -2px -2px 5px rgba(255, 255, 255, 0.04);
+  --shadow-card: 0 6px 18px rgba(6, 1, 10, 0.5);
+
+  /* Typography */
+  --font-ui: 'Manrope Variable', 'Manrope', system-ui, sans-serif;
+  --font-display: 'Unbounded', var(--font-ui);
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+  --line-height: 1.4;
+
+  /* Shape */
+  --radius-sm: 8px;
+  --radius-input: 14px;
+  --radius-panel: 20px;
+  --radius-overlay: 28px;
+  --radius-pill: 999px;
+  --card-radius-world: 10; /* world units, canvas cards — see tokens.ts */
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Motion */
+  --duration-hover: 120ms;
+  --duration-panel: 200ms;
+  --duration-overlay: 320ms;
+  --duration-fly-to: 500ms;
+  --duration-constellations: 800ms;
+  --ease-enter: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Focus ring */
+  --focus-ring-color: var(--cream);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* Hit target */
+  --hit-target-min: 32px;
+
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-hover: 0ms;
+    --duration-panel: 0ms;
+    --duration-overlay: 0ms;
+    --duration-fly-to: 0ms;
+    --duration-constellations: 0ms;
+  }
+}
+
+/* The "reduce motion" app setting can force the same effect regardless of the OS setting. */
+:root[data-reduce-motion='true'] {
+  --duration-hover: 0ms;
+  --duration-panel: 0ms;
+  --duration-overlay: 0ms;
+  --duration-fly-to: 0ms;
+  --duration-constellations: 0ms;
+}

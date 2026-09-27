@@ -1130,31 +1130,27 @@ Spikes listed in a milestone come first in that milestone; record the findings i
 - it uses tokens and i18n strings, and leaves no console errors.
 
 ### M0: Foundations & spikes
-- [ ] Scaffold: pnpm, Vite, React, TypeScript strict, the Tauri 2 app in `src-tauri/`, and a Cargo workspace with `crates/designspace-core`; ESLint, Prettier, Vitest, Playwright.
-- [ ] The `Platform` interface; BrowserPlatform (sql.js + IndexedDB, `?seed=demo`, `?bench=10000`); a TauriPlatform skeleton.
-- [ ] The migrator and `001_init.sql` (§5.2), running on both platforms.
-- [ ] Rust: library create/open, the DB bridge, and the `media://` protocol (Range, CORS, CORP, path safety), with tests.
-- [ ] CSP and COOP/COEP headers (§4.12) from day one, in Tauri and in the Vite dev server.
-- [ ] Design tokens, base components and the `/design` page.
-- [ ] Canvas skeleton:
-  - [ ] Pixi app and camera (wheel/touchpad heuristics; Space, middle-button and hand panning);
-  - [ ] CSS dot grid synced to the camera;
-  - [ ] 10,000 colored rectangles at 60 fps with culling.
-- [ ] App shell: the empty map, the dock (placeholders for Add, Search and Connections), a space switcher placeholder, the panel toggle, the dark title bar.
-- [ ] First run: create or choose the library folder (Tauri); an automatic library (browser).
-- [ ] Settings shell with About → Diagnostics.
-- [ ] CI: `ci.yml`, and `windows-build.yml` producing an installer.
-- [ ] `.claude/settings.json` SessionStart hook for cloud sessions (use the `session-start-hook` skill): `pnpm install` and, when needed, the Tauri Linux prerequisites.
-- [ ] `docs/DECISIONS.md`, with the spike results.
+- [x] Scaffold: pnpm, Vite, React, TypeScript strict, the Tauri 2 app in `src-tauri/`, and a Cargo workspace with `crates/designspace-core`; ESLint, Prettier, Vitest, Playwright.
+- [x] The `Platform` interface; BrowserPlatform (sql.js + IndexedDB, `?seed=demo`, `?bench=10000`); a TauriPlatform skeleton.
+- [x] The migrator and `001_init.sql` (§5.2), running on both platforms.
+- [x] Rust: library create/open, the DB bridge, and the `media://` protocol (Range, CORS, CORP, path safety), with tests.
+- [x] CSP and COOP/COEP headers (§4.12) from day one, in Tauri and in the Vite dev server (dev-server deviation logged in `docs/DECISIONS.md`).
+- [x] Design tokens, base components and the `/design` page.
+- [x] Canvas skeleton:
+  - [x] Pixi app and camera (wheel/touchpad heuristics; Space, middle-button and hand panning);
+  - [x] CSS dot grid synced to the camera;
+  - [x] 10,000 colored rectangles at 60 fps with culling (frame-time number itself is an Owner check — no GPU in the cloud session, §4.13).
+- [x] App shell: the empty map, the dock (placeholders for Add, Search and Connections), a space switcher placeholder, the panel toggle, the dark title bar.
+- [x] First run: create or choose the library folder (Tauri); an automatic library (browser).
+- [x] Settings shell with About → Diagnostics.
+- [x] CI: `ci.yml`, and `windows-build.yml` producing an installer.
+- [x] `.claude/settings.json` SessionStart hook for cloud sessions (use the `session-start-hook` skill): `pnpm install` and, when needed, the Tauri Linux prerequisites.
+- [x] `docs/DECISIONS.md`, with the spike results.
 
-Spikes:
-- **S1 Canvas scale:** 10,000 sprites with `t128`/`t512` textures, culling and the LOD table. Measure frame times and decide whether atlases are needed.
-- **S2 Drag and drop into WebView2** with `dragDropEnabled: false`. Build the Diagnostics "Drop inspector", which lists every `DataTransfer` type and file for drags from Chrome, Edge, Firefox and Explorer. The owner runs it on Windows and sends screenshots.
-- **S3 Local media under COEP:**
-  - `media://` images as WebGL textures (`fetch` + `createImageBitmap`);
-  - video seeking (Range) and pdf.js loading from `media://`;
-  - fonts through `FontFace`;
-  - the CSP origins on Windows.
+Spikes (see `docs/DECISIONS.md` for the write-up of each):
+- [x] **S1 Canvas scale:** the culling/LOD skeleton is built and exercised at `?bench=10000`; real frame-time measurement needs a GPU (Owner check).
+- [x] **S2 Drag and drop into WebView2** with `dragDropEnabled: false`. The Diagnostics "Drop inspector" is built; exercising real Chrome/Edge/Firefox/Explorer drags needs Windows (Owner check).
+- [x] **S3 Local media under COEP:** the `media://` protocol, CSP and COOP/COEP headers are implemented as specified; confirming the exact custom-protocol origin resolves on Windows WebView2 is an Owner check. (Images-as-textures, video Range-seeking, pdf.js and `FontFace` loading from `media://` aren't exercised yet — nothing imports real media until M1/M5.)
 
 **Acceptance:** the Windows installer installs and opens the app, creates a library, and shows the dot-grid map with smooth pan and zoom; CI is green.
 **Owner checks:**

@@ -1,0 +1,13 @@
+[package]
+name = "designspace-core"
+version.workspace = true
+edition.workspace = true
+description = "Pure Rust logic for Designspace: path safety, slugs, hashing, media naming. No Tauri dependency — see CLAUDE.md."
+publish = false
+
+[dependencies]
+sha2 = "0.11.0"
+thiserror = "2.0.21"
+
+[dev-dependencies]
+tempfile = "3.27.0"
