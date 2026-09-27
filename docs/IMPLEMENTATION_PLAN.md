@@ -1188,7 +1188,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - Close and reopen the app, and look at the backups folder.
 
 ### M2: Classify, search, list, Inbox → v0.1.0
-- [ ] Vocabularies seeded from Appendix A (with AI hints), and the vocabulary manager (rename, merge, delete, reorder, hints).
+- [x] Vocabularies seeded from Appendix A (with AI hints), and the vocabulary manager (rename, merge, delete, reorder, hints).
 - [ ] The Details panel: single and bulk edit, every field of §2.5, copying palette colors, Show in Explorer.
 - [ ] The Inbox rule, the Inbox chip, and Triage with the full keyboard flow.
 - [ ] The search bar:

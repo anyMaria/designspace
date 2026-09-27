@@ -398,6 +398,41 @@ per-facet filtering), and `rowMapping.test.ts` additions for `rowToTerm`/`rowToI
 the full M1 Playwright suite again (all 6 still green) to confirm the new startup calls don't
 throw or slow anything down.
 
+### Vocabulary manager (Settings → Vocabularies)
+Added `src/commands/vocabularyCommands.ts`: rename, set-AI-hint, delete, merge and reorder, each
+an undoable `Command` following the same snapshot-then-apply shape as `itemCommands.ts`.
+
+**Merge** was the one with real undo complexity — "items move to the target value" (§2.5) has to
+handle an item that already carries *both* the source and target term (rare, but real: nothing
+stops the owner classifying an item as both "Dreamy" and "Reveur" before merging them). The
+command snapshots which items had the source (`S`) and which already had the target (`T`) before
+touching anything; only `S \ T` gets repointed to the target (an item already in `T` just loses
+its source row, since it's already tagged with the target). Undo removes exactly the repointed
+links (`S \ T` from the target), restores the source term row, and re-links `S` to the source —
+so an item that had both `S` and `T` before the merge still has both after an undo, not just one.
+Covered by a dedicated test case (`createMergeTermsCommand`, the "already has both" scenario).
+
+**Reorder** takes a full ordered id list for one facet and sets `sort` to each id's index — the
+vocabulary manager's own up/down buttons build that list (swap two adjacent ids), rather than a
+drag-and-drop library; simpler and fully keyboard-reachable, and this is what the plan actually
+requires ("reorder... sets the number keys in Triage" — order, not drag interaction specifically).
+
+`<VocabularySection>` (`src/features/settings/`) fills the Settings → Vocabularies nav item: a
+facet tab strip (Type/Vibe/Movement/Tags) and, per term, a two-line row (name + up/down + Delete,
+then AI hint + a same-facet "Merge into…" picker). The first layout attempt was a single flex row
+with fixed `minWidth`s per field, which overflowed the Settings dialog's `560px` max-width (a
+Playwright screenshot caught it — the row's own content pushed past the dialog edge into the
+canvas behind it). Fixed by stacking into two lines and switching every field to `minWidth: 0`
+(lets flex children actually shrink instead of forcing overflow) — a good reminder that a
+component that type-checks and renders in isolation can still break its container's own layout
+constraints, only visible by actually looking at it.
+
+Verified with 5 new unit tests for the commands (rename/hint round-trip, delete+undo, the merge
+edge case above, reorder+undo) and a new Playwright check (`smoke-m2-vocabulary.spec.ts`): opens
+Settings → Vocabularies, confirms the 21 starter Types and the AI-hinted Movement entries render,
+renames a value, reorders one, and deletes one — zero console errors, and the post-fix screenshot
+confirms the layout now stays inside the dialog.
+
 ---
 
 *(Later milestones append below this line.)*

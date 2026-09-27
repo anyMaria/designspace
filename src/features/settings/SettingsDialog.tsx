@@ -5,6 +5,7 @@ import { en } from '@/i18n/en';
 import { DropInspector } from '@/features/diagnostics/DropInspector';
 import { LibrarySection } from './LibrarySection';
 import { CanvasSection } from './CanvasSection';
+import { VocabularySection } from './VocabularySection';
 
 type Section = 'library' | 'canvas' | 'contentNetwork' | 'vocabularies' | 'ai' | 'about';
 
@@ -49,6 +50,8 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
             <LibrarySection platform={platform} library={library} />
           ) : section === 'canvas' ? (
             <CanvasSection />
+          ) : section === 'vocabularies' ? (
+            <VocabularySection platform={platform} />
           ) : (
             <p style={{ color: 'var(--text-2)' }}>{milestoneFor(section)}</p>
           )}
@@ -58,10 +61,11 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
   );
 }
 
-function milestoneFor(section: Exclude<Section, 'about' | 'library' | 'canvas'>): string {
-  const table: Record<Exclude<Section, 'about' | 'library' | 'canvas'>, string> = {
+function milestoneFor(
+  section: Exclude<Section, 'about' | 'library' | 'canvas' | 'vocabularies'>,
+): string {
+  const table: Record<Exclude<Section, 'about' | 'library' | 'canvas' | 'vocabularies'>, string> = {
     contentNetwork: 'Link previews, image downloads and Offline mode land in M5.',
-    vocabularies: 'The vocabulary manager lands in M2.',
     ai: 'Offline AI settings land in M6.',
   };
   return table[section];

@@ -126,6 +126,25 @@ export const en = {
   minimap: {
     label: 'Minimap',
   },
+  vocabulary: {
+    facets: {
+      type: 'Type',
+      vibe: 'Vibe',
+      movement: 'Movement',
+      tag: 'Tags',
+    },
+    empty: 'No values yet.',
+    aiHintPlaceholder: 'AI hint (optional)',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    mergeInto: 'Merge into…',
+    merge: 'Merge',
+    delete: 'Delete',
+    deleteConfirm: (name: string) =>
+      `Delete "${name}"? Items keep their other values. This can be undone.`,
+    mergeConfirm: (source: string, target: string) =>
+      `Merge "${source}" into "${target}"? Items tagged "${source}" will be tagged "${target}" instead. This can be undone.`,
+  },
   trash: {
     title: 'Trash',
     empty: 'Trash is empty.',
