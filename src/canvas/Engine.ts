@@ -15,9 +15,10 @@ import {
   resizeWithAspect,
   type ResizeHandle,
 } from './selection';
-import { canvasGeometry } from '@/design/tokens';
+import { canvasGeometry, criterionColors } from '@/design/tokens';
 import type { BenchRect } from '@/platform/seed/bench';
 import { unionRects } from '@/lib/geometry';
+import { CRITERION_ORDER, type Criterion, type ScoredCandidate } from '@/lib/connections';
 
 export interface EngineOptions {
   getTool: () => Tool;
@@ -45,7 +46,27 @@ interface EngineEvents {
   dblclick: (id: string | null) => void;
   contextmenu: (id: string | null, screen: { x: number; y: number }) => void;
   hover: (id: string | null) => void;
+  /** A connection line was hovered (or un-hovered, `null`) — §2.10's "Hovering a line shows what
+   * the two items share". */
+  connectionLineHover: (
+    info: { fromId: string; toId: string; shared: Partial<Record<Criterion, string[]>> } | null,
+  ) => void;
 }
+
+const CRITERION_COLOR: Record<Criterion, number> = {
+  type: criterionColors.type,
+  vibe: criterionColors.vibe,
+  movement: criterionColors.movement,
+  tag: criterionColors.tags,
+  color: criterionColors.color,
+  manual: criterionColors.manual,
+  similar: criterionColors.similar,
+};
+const LINE_WIDTH_PX = 1.5;
+const LINE_WIDTH_HOVERED_PX = 2.5;
+const LINE_OPACITY = 0.7;
+const LINE_OFFSET_PX = 4; // spacing between up to 3 parallel lines for the same pair
+const CONNECTIONS_DIM_ALPHA = 0.35;
 
 const HANDLE_SCREEN_PX = 10;
 const DRAG_THRESHOLD_PX = 3;
@@ -84,6 +105,11 @@ export class Engine {
   private hoverHighlight: Set<string> | null = null;
   // Rediscover's pulse (§2.15) — cancels the running ticker callback, if any.
   private pulseStop: (() => void) | null = null;
+  // On-hover/selection connections (§2.10) — the "from" item(s) plus scored candidates to draw
+  // lines to; unset (empty array) means no connections are showing right now.
+  private connectionSources: { fromId: string; candidates: ScoredCandidate[] }[] = [];
+  private connectionLineGraphics: Graphics[] = [];
+  private hoveredConnectionLine: { fromId: string; toId: string } | null = null;
 
   private selection = new Set<string>();
   private hoveredId: string | null = null;
@@ -103,6 +129,7 @@ export class Engine {
     dblclick: new Set(),
     contextmenu: new Set(),
     hover: new Set(),
+    connectionLineHover: new Set(),
   };
 
   on<K extends keyof EngineEvents>(event: K, handler: EngineEvents[K]): () => void {
@@ -259,6 +286,16 @@ export class Engine {
     this.scheduleFrame();
   }
 
+  /** On-hover/selection connection lines (§2.10). `sources` is usually one entry (the hovered
+   * item) or several (every selected item, each already restricted to its co-selected
+   * candidates by the caller — `restrictToSelection` in `lib/connections.ts`). An empty array
+   * clears the lines and the connections-dim alpha. */
+  setConnections(sources: { fromId: string; candidates: ScoredCandidate[] }[]): void {
+    this.connectionSources = sources;
+    this.refreshAlpha();
+    this.scheduleFrame();
+  }
+
   private refreshAlpha(): void {
     for (const [id, sprite] of this.sprites) sprite.alpha = this.alphaFor(id);
   }
@@ -296,6 +333,14 @@ export class Engine {
 
   private alphaFor(id: string): number {
     if (this.hoverHighlight) return this.hoverHighlight.has(id) ? 1 : 0.12;
+    if (this.connectionSources.length > 0) {
+      const related = new Set<string>();
+      for (const { fromId, candidates } of this.connectionSources) {
+        related.add(fromId);
+        for (const c of candidates) related.add(c.id);
+      }
+      return related.has(id) ? 1 : CONNECTIONS_DIM_ALPHA;
+    }
     const isMatch = !this.searchMatches || this.searchMatches.has(id);
     return isMatch || this.searchMode === 'hide' ? 1 : 0.12;
   }
@@ -628,6 +673,93 @@ export class Engine {
     }
   }
 
+  /** Up to 3 parallel, slightly offset lines per related pair (§2.10), colored by criterion.
+   * Screen-space, redrawn every scheduled frame alongside the selection overlay so panning/
+   * zooming keeps them attached to their items without a separate camera subscription.
+   * Deviation logged in docs/DECISIONS.md: Pixi's core `Graphics` has no dashed-stroke primitive,
+   * so `criterionLineStyle`'s dotted/dashed distinction isn't drawn — every line is solid,
+   * distinguished by its criterion color only. */
+  private drawConnectionLines(): void {
+    if (!this.overlayLayer || !this.app) return;
+    for (const g of this.connectionLineGraphics) g.destroy();
+    this.connectionLineGraphics = [];
+    if (this.connectionSources.length === 0) return;
+
+    const { width: vw, height: vh } = this.app.screen;
+    const centerScreen = (card: ItemCard) => {
+      const cx = card.x + card.w / 2;
+      const cy = card.y + card.h / 2;
+      return this.camera.worldToScreen(cx, cy, vw, vh);
+    };
+
+    const seenPairs = new Set<string>();
+    for (const { fromId, candidates } of this.connectionSources) {
+      const fromCard = this.cards.get(fromId);
+      if (!fromCard) continue;
+      const fromScreen = centerScreen(fromCard);
+
+      for (const candidate of candidates) {
+        const pairKey = [fromId, candidate.id].sort().join('|');
+        if (seenPairs.has(pairKey)) continue;
+        seenPairs.add(pairKey);
+
+        const toCard = this.cards.get(candidate.id);
+        if (!toCard) continue;
+        const toScreen = centerScreen(toCard);
+
+        const criteria = (Object.keys(candidate.shared) as Criterion[])
+          .filter((c) => (candidate.shared[c]?.length ?? 0) > 0)
+          .sort((a, b) => CRITERION_ORDER.indexOf(a) - CRITERION_ORDER.indexOf(b))
+          .slice(0, 3);
+        if (criteria.length === 0) continue;
+
+        const dx = toScreen.x - fromScreen.x;
+        const dy = toScreen.y - fromScreen.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+        const isHoveredPair =
+          this.hoveredConnectionLine?.fromId === fromId &&
+          this.hoveredConnectionLine?.toId === candidate.id;
+
+        criteria.forEach((criterion, i) => {
+          const offset = (i - (criteria.length - 1) / 2) * LINE_OFFSET_PX;
+          const ox = nx * offset;
+          const oy = ny * offset;
+
+          const line = new Graphics();
+          line
+            .moveTo(fromScreen.x + ox, fromScreen.y + oy)
+            .lineTo(toScreen.x + ox, toScreen.y + oy)
+            .stroke({
+              color: CRITERION_COLOR[criterion],
+              width: isHoveredPair ? LINE_WIDTH_HOVERED_PX : LINE_WIDTH_PX,
+              alpha: LINE_OPACITY,
+            });
+          line.eventMode = 'static';
+          line.cursor = 'pointer';
+          line.on('pointerover', () => {
+            this.hoveredConnectionLine = { fromId, toId: candidate.id };
+            this.emit('connectionLineHover', {
+              fromId,
+              toId: candidate.id,
+              shared: candidate.shared,
+            });
+            this.scheduleFrame();
+          });
+          line.on('pointerout', () => {
+            this.hoveredConnectionLine = null;
+            this.emit('connectionLineHover', null);
+            this.scheduleFrame();
+          });
+
+          this.overlayLayer!.addChild(line);
+          this.connectionLineGraphics.push(line);
+        });
+      }
+    }
+  }
+
   // ----------------------------------------------------------------------------- Camera / fly-to
 
   flyTo(rect: { x: number; y: number; w: number; h: number }, reduceMotion = false): void {
@@ -676,6 +808,7 @@ export class Engine {
       this.cullBench();
       this.cullItems();
       this.drawSelectionOverlay();
+      this.drawConnectionLines();
     });
   }
 
@@ -779,6 +912,7 @@ export class Engine {
     this.clearMarquee();
     this.selectionOutline?.destroy();
     for (const h of this.handles) h.destroy();
+    for (const g of this.connectionLineGraphics) g.destroy();
     this.rectContext?.destroy();
     this.app?.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     this.app = null;

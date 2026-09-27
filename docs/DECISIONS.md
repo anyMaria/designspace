@@ -849,6 +849,51 @@ origin; restores every item's own previous rect on undo), plus a Playwright chec
 (`smoke-m3-tidyup.spec.ts`) confirming the context menu item is wired end-to-end against the
 seeded demo library — zero console errors.
 
+### Hover/selection connection scoring + rendering (M3-2)
+`src/lib/connections.ts` mirrors M2-6's search engine: a `buildConnectionIndex` step builds a
+per-criterion inverted index (value -> item ids) once per data change (items, classification or
+manual connections), and a cheap `scoreCandidates` reads it per hover, implementing §4.9's
+`score(j) = Σ_c |V_c(i) ∩ V_c(j)|` across up to 3 active criteria, sorted by score descending
+(ties broken by newest), capped to the top 40. A dedicated benchmark
+(`connections.bench.test.ts`) confirms this clears the plan's "<16ms" hover budget with real
+margin at 10,000 items (asserts <100ms, the same generous CI-safe ceiling used for the search
+engine's own bench test, to catch a real regression rather than chase CI hardware).
+
+One real bug, caught by a failing unit test before it ever reached the UI: the first draft
+treated `manual` like every other criterion, looking up the hovered item's own id in the
+`manual` inverted index and filtering out `itemId` — but a manual connection's "value" *is* the
+neighbor's own item id, not an attribute other items could also hold, so that lookup returned
+nothing (the only holder of "my own id as a manual value" is the neighbor itself, which the
+self-filter then threw away). Fixed by special-casing `manual` in `scoreCandidates`: each of the
+item's own connected-neighbor ids is a candidate directly, contributing score 1.
+
+`Engine.ts` renders the scored candidates as screen-space lines in the existing overlay layer,
+colored per criterion via `criterionColors` (already tokenized since M0) and dims everything else
+to 0.35 alpha through the same `alphaFor(id)` priority chain that already arbitrates hover-highlight
+vs. search Dim/Hide — connections dimming slots in between the two, so nothing fights over
+`sprite.alpha`. Hovering a line itself shows a tooltip (`ConnectionTooltip.tsx`) built by
+`formatSharedTooltip` ("Vibe: Dreamy · Tags: serif, grain"). Deviation logged: `criterionLineStyle`'s
+dotted/dashed distinction (tokenized since M0) isn't drawn — Pixi 8's core `Graphics` API has no
+dashed-stroke primitive, so every connection line is solid, distinguished by color only; revisit
+if a custom dash-stroke helper is worth the effort later.
+
+`useConnectionsBinding.ts` wires stores to the engine: hovering an item scores it 300ms after the
+pointer settles (debounced, matching the plan's mention of a brief hover delay before lines
+appear); selecting one item shows its full ranked candidates immediately (a deliberate action
+doesn't need the delay); selecting several restricts each one's candidates to the rest of the
+selection via `restrictToSelection`, so "only the connections among them show" (§2.10). This hook
+only drives Hover mode — "Show all" (M3-4) will own the lines/dim itself once the popover (M3-3)
+can switch modes.
+
+Verified with 18 unit tests for the scoring module (including the manual-connection bug above,
+color scoring, `minStrength` filtering, sort/tie order, the top-40 cap, soft-delete exclusion,
+and `similar` correctly contributing nothing since it's deferred to M6), 4 for the new
+`connectionsUiStore` (the "up to 3 active criteria, 4th sets `limitHitAt` instead of replacing
+one" behavior), and a Playwright test (`smoke-m3-connections-hover.spec.ts`) that bulk-tags every
+seeded item with the same Vibe, hovers the canvas, and screenshots the result — the screenshot
+showed correctly colored, correctly positioned lines fanning out from the hovered item to its 59
+now-related neighbors, with zero console errors.
+
 ---
 
 *(Later milestones append below this line.)*

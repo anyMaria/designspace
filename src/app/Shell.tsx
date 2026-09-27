@@ -36,6 +36,8 @@ import { triggerRediscover } from '@/features/rediscover/triggerRediscover';
 import { ShortcutListOverlay } from '@/features/shortcuts/ShortcutListOverlay';
 import { SearchBar } from '@/features/search/SearchBar';
 import { useSearchBinding } from '@/canvas/useSearchBinding';
+import { useConnectionsBinding } from '@/canvas/useConnectionsBinding';
+import { ConnectionTooltip } from '@/features/connections/ConnectionTooltip';
 import { useSearchStore, isFilterActive } from '@/state/searchStore';
 import { ListPanel } from '@/features/list/ListPanel';
 import { useListStore } from '@/state/listStore';
@@ -102,6 +104,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
   useFocusViewBinding(engine);
   useSearchBinding(engine);
+  useConnectionsBinding(engine);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
   const listExpanded = useListStore((s) => s.expanded);
 
@@ -366,6 +369,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       <TriageView platform={platform} />
       <SearchBar engine={engine} />
       <ShortcutListOverlay />
+      <ConnectionTooltip engine={engine} />
     </div>
   );
 }

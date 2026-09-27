@@ -219,6 +219,18 @@ export const en = {
     settings: 'Settings',
     shortcutList: 'Shortcut list',
   },
+  connections: {
+    criterionType: 'Type',
+    criterionVibe: 'Vibe',
+    criterionMovement: 'Movement',
+    criterionTag: 'Tags',
+    criterionColor: 'Color',
+    criterionManual: 'My connections',
+    criterionSimilar: 'Similar look',
+    sharedPrefix: 'Shared',
+    connectedManually: 'Connected manually',
+    dock: 'Connections',
+  },
   list: {
     groupBy: 'Group by',
     groupNone: 'None',
