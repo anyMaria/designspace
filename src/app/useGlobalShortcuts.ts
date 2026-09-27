@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useUiStore } from '@/state/uiStore';
 import { useSearchStore } from '@/state/searchStore';
 import { useShortcutsStore } from '@/state/shortcutsStore';
+import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -9,7 +10,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 /** The single-key shortcuts from §2.15 that M0's shell already has UI for. The rest (search,
- * add, undo/redo, zoom-to-*, connections…) land with the features that back them. */
+ * add, undo/redo, zoom-to-*…) land with the features that back them. */
 export function useGlobalShortcuts() {
   const setTool = useUiStore((s) => s.setTool);
   const togglePanel = useUiStore((s) => s.togglePanel);
@@ -45,6 +46,9 @@ export function useGlobalShortcuts() {
         case '/':
           e.preventDefault();
           useSearchStore.getState().open();
+          break;
+        case 'c':
+          useConnectionsUiStore.getState().toggle();
           break;
         case '?':
           e.preventDefault();

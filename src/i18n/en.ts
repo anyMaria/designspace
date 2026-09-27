@@ -218,6 +218,7 @@ export const en = {
     nudge: 'Nudge (Shift = ×10)',
     settings: 'Settings',
     shortcutList: 'Shortcut list',
+    connections: 'Connections',
   },
   connections: {
     criterionType: 'Type',
@@ -230,6 +231,12 @@ export const en = {
     sharedPrefix: 'Shared',
     connectedManually: 'Connected manually',
     dock: 'Connections',
+    display: 'Display',
+    onHover: 'On hover',
+    showAll: 'Show all',
+    strength: (n: number) => `Link items that share at least ${n} thing${n === 1 ? '' : 's'}`,
+    limitHit: 'Up to 3 at a time. Turn one off first.',
+    constellations: '✦ Constellations',
   },
   list: {
     groupBy: 'Group by',

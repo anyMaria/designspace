@@ -894,6 +894,37 @@ seeded item with the same Vibe, hovers the canvas, and screenshots the result �
 showed correctly colored, correctly positioned lines fanning out from the hovered item to its 59
 now-related neighbors, with zero console errors.
 
+### Connections popover UI (M3-3)
+`ConnectionsPopover.tsx` follows `ZoomMenu.tsx`'s exact anchored-popover pattern (a `position:
+relative` wrapper around the dock button, a fixed click-away overlay, and the popover itself
+anchored `bottom: calc(100% + space-2)`), opened by the dock's Connections button or the "C"
+shortcut, and closed by Escape, the click-away overlay, or "C" again. It's a thin view over the
+`connectionsUiStore` built in M3-2 — no new store logic, since the toggle-with-a-cap behavior and
+mode/strength/constellations state were already there and unit-tested.
+
+Criteria toggles show only the 6 real criteria (Type, Vibe, Movement, Tags, Color, My
+connections) — `similar` ("Similar look") is left out of the popover entirely rather than shown
+as a toggle that visibly does nothing, since `lib/connections.ts` always scores it as zero
+candidates until the AI pipeline lands in M6. Each toggle's color dot resolves `Criterion` to a
+hex color the same way `Engine.ts`'s own `CRITERION_COLOR` map does (`criterionColors.tags` for
+the `'tag'` criterion, the one facet whose token key doesn't match its criterion id), so the
+popover's legend and the canvas's line colors can never drift apart by editing one and not the
+other.
+
+The **✦ Constellations** switch and the **Show all** display-mode tab are both wired into the
+store here, as the plan's popover spec asks for, but neither one changes the canvas yet — hub
+rendering for Show all is M3-4, and the Constellations layout itself is M3-6/M3-7. The "C"
+shortcut is added to `useGlobalShortcuts.ts` and the shortcut list overlay; **Shift+C**
+(Constellations' own toggle) is deliberately left out of both until M3-7 gives it something to
+do, matching the same "don't document a dead key" call the shortcut list already makes for
+Boards, Notes and the Frame tool.
+
+Verified with a Playwright test (`smoke-m3-connections-popover.spec.ts`) that opens the popover
+via "C", confirms the 3-active cap rejects a 4th criterion with the "Up to 3 at a time" message,
+confirms turning one off then on succeeds, and exercises the mode/strength/constellations
+controls and Escape-to-close — zero console errors. No new unit tests were needed: the store
+logic they'd cover was already exercised by `connectionsUiStore.test.ts` in M3-2.
+
 ---
 
 *(Later milestones append below this line.)*

@@ -38,6 +38,8 @@ import { SearchBar } from '@/features/search/SearchBar';
 import { useSearchBinding } from '@/canvas/useSearchBinding';
 import { useConnectionsBinding } from '@/canvas/useConnectionsBinding';
 import { ConnectionTooltip } from '@/features/connections/ConnectionTooltip';
+import { ConnectionsPopover } from '@/features/connections/ConnectionsPopover';
+import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import { useSearchStore, isFilterActive } from '@/state/searchStore';
 import { ListPanel } from '@/features/list/ListPanel';
 import { useListStore } from '@/state/listStore';
@@ -245,7 +247,15 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
               />
             )}
           </span>
-          <IconButton icon={<Share2 size={20} strokeWidth={1.75} />} label={en.dock.connections} />
+          <span style={{ position: 'relative' }}>
+            <IconButton
+              icon={<Share2 size={20} strokeWidth={1.75} />}
+              label={en.dock.connections}
+              active={useConnectionsUiStore((s) => s.isOpen)}
+              onClick={() => useConnectionsUiStore.getState().toggle()}
+            />
+            <ConnectionsPopover />
+          </span>
           <DockDivider />
           <IconButton
             icon={<MousePointer2 size={20} strokeWidth={1.75} />}

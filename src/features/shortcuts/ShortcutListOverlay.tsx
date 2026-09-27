@@ -8,9 +8,10 @@ interface ShortcutRow {
 }
 
 /** §2.15's table, restricted to shortcuts the app actually has wired up right now — Boards,
- * Connections, notes, links and the Frame tool don't exist before M3–M5, so their entries
- * (Ctrl+O/Ctrl+L/N, C/Shift+C, F, Shift+Delete) are left out rather than documented as dead
- * keys, matching the same call `ContextMenu.tsx` makes for its own deferred actions. */
+ * notes, links and the Frame tool don't exist before M4–M5, so their entries (Ctrl+O/N, F,
+ * Shift+Delete) are left out rather than documented as dead keys, matching the same call
+ * `ContextMenu.tsx` makes for its own deferred actions. Shift+C (Constellations) is left out
+ * too, since the layout it toggles doesn't exist until M3-6/M3-7. */
 const ROWS: ShortcutRow[] = [
   { action: en.shortcuts.search, keys: ['Ctrl', 'K'] },
   { action: '', keys: ['/'] },
@@ -32,6 +33,7 @@ const ROWS: ShortcutRow[] = [
   { action: en.shortcuts.favorite, keys: ['S'] },
   { action: en.shortcuts.rediscover, keys: ['R'] },
   { action: en.shortcuts.inboxTriage, keys: ['I'] },
+  { action: en.shortcuts.connections, keys: ['C'] },
   { action: en.shortcuts.stackFront, keys: [']'] },
   { action: en.shortcuts.stackBack, keys: ['['] },
   { action: en.shortcuts.nudge, keys: ['↑↓←→'] },

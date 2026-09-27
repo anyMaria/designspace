@@ -1212,7 +1212,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - Group the list by Vibe and hover the groups.
 
 ### M3: Connections & Constellations
-- [ ] The criteria model and popover (at most 3, colors and line styles, strength, On hover / Show all), remembered per space.
+- [x] The criteria model and popover (at most 3, colors and line styles, strength, On hover / Show all), remembered per space.
 - [x] Hover and selection connections: parallel lines, dimming, line tooltips.
 - [ ] Show all with hubs, the line cap and the hint.
 - [ ] My connections: the connect handle, "Connect to…", labels, deleting, and the list in Details.
