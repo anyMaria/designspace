@@ -623,4 +623,53 @@ facet filter — plus the two-part performance benchmark above.
 
 ---
 
+### Search bar UI + canvas Dim/Hide (M2-7)
+`useSearchStore` (`src/state/`) holds the `Filter` from M2-6 plus bar-open state and the Dim/Hide
+mode, with `toggleTerm(facet, id, exclude)` implementing §2.8's "click includes (OR within the
+facet), Alt+click excludes" as one action — excluding a term removes it from `include` first
+(and vice versa) so a value can't be both included and excluded at once. `useSearchResults()`
+(`src/features/search/`) reruns `buildSearchIndex`/`search` from M2-6 through a `useMemo` keyed on
+the live stores and the filter, shared by the search bar (for the "N of M" count and Frame
+results) and `useSearchBinding` (feeds the same match set into the canvas), so the two never
+disagree about which items matched.
+
+**Dim/Hide required touching the canvas engine**, not just the UI: `Engine.setSearchFilter(matches,
+mode)` sets per-sprite alpha (Dim: 12%) and, for Hide, folds the hidden set into `cullItems()`'s
+existing visible/renderable toggle rather than setting `sprite.visible` directly from outside —
+`cullItems()` runs every frame doing its own viewport-based visibility, and driving `visible`
+from two places would just have them fight each other every frame. Excluded items also had to
+stop being selectable: the engine's hit-testing (`hitTest`/`rectSelect`, five call sites — click,
+hover, marquee, dblclick, right-click) doesn't go through Pixi's own event system at all, it's a
+manual `[...cards.values()]` scan, so "dimmed items can't be clicked" (§2.8) needed a real
+`interactableCards()` filter threaded through every one of those sites, not just an opacity
+change.
+
+**Filters menu** covers Type/Vibe/Movement/Tags (from the live vocabulary, click/Alt+click same as
+above), Kind, Color family (swatches using the existing `--family-*` tokens), Artist (built from
+the distinct `item.artist` values actually in the library, not a fixed list) and Date (quick
+presets — today/7d/30d/this year — rather than a custom range picker, which the plan mentions but
+doesn't specify a UI for). **Board filtering is left out of the UI entirely** — the `Filter` type
+still carries `boards` from M2-6, but there's exactly one board (the Library map) until M3, so a
+board picker would have nothing to pick.
+
+**Deferred, and why**: saved filters (★) are explicitly meant to also show "at the top of the List
+panel" (§2.8), which doesn't exist until M2-8 — building the save mechanism now and bolting the
+List-panel half on later risked two half-features instead of one real one, so this waits. "Create
+board from results" is M4 in the plan itself. Both are logged here rather than silently skipped.
+
+Ctrl+K and `/` open the bar (added to `useGlobalShortcuts`, guarded by the same
+`isTypingTarget` check already used there); Esc clears the text first and closes on a second
+press, handled locally in `<SearchBar>` rather than the global handler since it only applies while
+the bar is open and shouldn't compete with Triage's own Esc.
+
+Verified with unit tests for `searchStore` (include/exclude toggling, `isFilterActive`) and a new
+Playwright check (`smoke-m2-search.spec.ts`): opens with Ctrl+K, narrows the count with free text,
+opens Filters and toggles the Kind chips (proving the facet path and the OR-within-a-field logic,
+not just text), confirms the dock's Search button dot while a filter is active, Clear all, and Esc
+closing the bar — zero console errors. A layout bug — the Filters panel had no height cap and grew
+past the vocabulary's ~96 seeded values with nothing below `Kind` reachable — was caught by
+looking at the screenshot, not by the check's assertions; fixed with `maxHeight`/`overflowY`.
+
+---
+
 *(Later milestones append below this line.)*

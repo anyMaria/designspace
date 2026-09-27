@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useUiStore } from '@/state/uiStore';
+import { useSearchStore } from '@/state/searchStore';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -21,6 +22,9 @@ export function useGlobalShortcuts() {
         if ((e.ctrlKey || e.metaKey) && e.key === ',') {
           e.preventDefault();
           setSettingsOpen(true);
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          useSearchStore.getState().open();
         }
         return;
       }
@@ -36,6 +40,10 @@ export function useGlobalShortcuts() {
           break;
         case 'm':
           toggleMinimap();
+          break;
+        case '/':
+          e.preventDefault();
+          useSearchStore.getState().open();
           break;
       }
     }

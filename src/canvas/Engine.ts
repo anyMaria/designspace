@@ -77,6 +77,10 @@ export class Engine {
   private itemVisible = new Set<string>();
   private textureManager: TextureManager<Texture> | null = null;
 
+  // Search Dim/Hide (§2.8) — a null set means "no active filter, everything matches".
+  private searchMatches: Set<string> | null = null;
+  private searchMode: 'dim' | 'hide' = 'dim';
+
   private selection = new Set<string>();
   private hoveredId: string | null = null;
   private marquee: Graphics | null = null;
@@ -227,7 +231,32 @@ export class Engine {
     this.itemsLayer.sortableChildren = true;
     this.cards = next;
     this.itemIndex.load(cards);
+    this.applySearchAlpha();
     this.scheduleFrame();
+  }
+
+  /** Search Dim/Hide (§2.8): `matches` null clears the filter (everything normal again); a Set
+   * restricts both what's paintable (Dim: 12% alpha; Hide: not rendered, handled in `cullItems`
+   * alongside viewport culling so the two don't fight over `visible`/`renderable`) and what's
+   * clickable/selectable (`interactableCards`, used by every hit-test call site below). */
+  setSearchFilter(matches: Set<string> | null, mode: 'dim' | 'hide' = 'dim'): void {
+    this.searchMatches = matches;
+    this.searchMode = mode;
+    this.applySearchAlpha();
+    this.scheduleFrame();
+  }
+
+  private applySearchAlpha(): void {
+    for (const [id, sprite] of this.sprites) {
+      const isMatch = !this.searchMatches || this.searchMatches.has(id);
+      sprite.alpha = isMatch || this.searchMode === 'hide' ? 1 : 0.12;
+    }
+  }
+
+  private interactableCards(): ItemCard[] {
+    const all = [...this.cards.values()];
+    if (!this.searchMatches) return all;
+    return all.filter((c) => this.searchMatches!.has(c.id));
   }
 
   private clearItems(): void {
@@ -314,7 +343,7 @@ export class Engine {
         }
       }
 
-      const hit = hitTest([...this.cards.values()], world);
+      const hit = hitTest(this.interactableCards(), world);
       if (hit) {
         if (!this.selection.has(hit.id)) {
           const additive = e.shiftKey;
@@ -346,7 +375,7 @@ export class Engine {
     const onPointerMove = (e: PointerEvent) => {
       if (mode === 'idle') {
         const world = toWorld(e);
-        const hit = hitTest([...this.cards.values()], world);
+        const hit = hitTest(this.interactableCards(), world);
         if (hit?.id !== this.hoveredId) {
           this.hoveredId = hit?.id ?? null;
           this.emit('hover', this.hoveredId);
@@ -395,7 +424,7 @@ export class Engine {
       if (mode === 'marquee' && moved) {
         const world = toWorld(e);
         const rect = normalizeRect(startWorld, world);
-        const hits = rectSelect([...this.cards.values()], rect);
+        const hits = rectSelect(this.interactableCards(), rect);
         this.setSelection(hits.map((h) => h.id));
         this.emit('select', this.getSelection());
         this.clearMarquee();
@@ -420,7 +449,7 @@ export class Engine {
       const rect = container.getBoundingClientRect();
       const { w, h } = viewport();
       const world = this.camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top, w, h);
-      const hit = hitTest([...this.cards.values()], world);
+      const hit = hitTest(this.interactableCards(), world);
       this.emit('dblclick', hit?.id ?? null);
     };
 
@@ -429,7 +458,7 @@ export class Engine {
       const rect = container.getBoundingClientRect();
       const { w, h } = viewport();
       const world = this.camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top, w, h);
-      const hit = hitTest([...this.cards.values()], world);
+      const hit = hitTest(this.interactableCards(), world);
       if (hit && !this.selection.has(hit.id)) {
         this.setSelection([hit.id]);
         this.emit('select', this.getSelection());
@@ -568,7 +597,12 @@ export class Engine {
   }
 
   zoomToSelection(reduceMotion = false): void {
-    const rects = [...this.selection]
+    this.zoomToIds([...this.selection], reduceMotion);
+  }
+
+  /** "Frame results" (§2.8) — zooms to fit an arbitrary id list, not just the selection. */
+  zoomToIds(ids: string[], reduceMotion = false): void {
+    const rects = ids
       .map((id) => this.cards.get(id))
       .filter((c): c is ItemCard => c !== undefined)
       .map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h }));
@@ -649,13 +683,16 @@ export class Engine {
         }
       }
     }
+    const hiddenBySearch = (id: string) =>
+      this.searchMode === 'hide' && !!this.searchMatches && !this.searchMatches.has(id);
     for (const id of nextVisible) {
       const sprite = this.sprites.get(id);
       const card = this.cards.get(id);
       if (!sprite || !card) continue;
-      sprite.visible = true;
-      sprite.renderable = true;
-      if (!this.itemVisible.has(id)) this.requestLod(card, sprite);
+      const hidden = hiddenBySearch(id);
+      sprite.visible = !hidden;
+      sprite.renderable = !hidden;
+      if (!hidden && !this.itemVisible.has(id)) this.requestLod(card, sprite);
     }
     this.itemVisible = nextVisible;
   }

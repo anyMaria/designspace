@@ -1192,8 +1192,8 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] The Details panel: single and bulk edit, every field of §2.5, copying palette colors, Show in Explorer.
 - [x] The Inbox rule, the Inbox chip, and Triage with the full keyboard flow.
 - [ ] The search bar:
-  - [ ] text, field chips (include/exclude), colors, dates, favorites, Inbox;
-  - [ ] Dim/Hide, counts, Frame results;
+  - [x] text, field chips (include/exclude), colors, dates, favorites, Inbox;
+  - [x] Dim/Hide, counts, Frame results;
   - [ ] saved filters ("Create board from results" is switched on in M4).
 - [ ] The List panel: grouping, sorting, sizes, collapsing, hover highlight, click to fly, gallery mode, virtualization, saved filters.
 - [ ] Rediscover (R): fly to a random item not viewed for 30+ days (favoring older ones) and make it pulse.

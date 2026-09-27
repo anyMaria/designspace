@@ -31,6 +31,9 @@ import { DetailsPanel } from '@/features/details/DetailsPanel';
 import { BulkDetailsPanel } from '@/features/details/BulkDetailsPanel';
 import { TriageView } from '@/features/triage/TriageView';
 import { useTriageStore } from '@/state/triageStore';
+import { SearchBar } from '@/features/search/SearchBar';
+import { useSearchBinding } from '@/canvas/useSearchBinding';
+import { useSearchStore, isFilterActive } from '@/state/searchStore';
 import {
   Dock,
   DockDivider,
@@ -99,6 +102,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const { dragOver } = useDropAndPaste(engine, platform);
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
   useFocusViewBinding(engine);
+  useSearchBinding(engine);
+  const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
@@ -211,7 +216,28 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       >
         <Dock>
           <AddMenu platform={platform} engine={engine} />
-          <IconButton icon={<Search size={20} strokeWidth={1.75} />} label={en.dock.search} />
+          <span style={{ position: 'relative' }}>
+            <IconButton
+              icon={<Search size={20} strokeWidth={1.75} />}
+              label={en.dock.search}
+              onClick={() => useSearchStore.getState().open()}
+            />
+            {searchFilterActive && (
+              <span
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  top: 2,
+                  right: 2,
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: 'var(--accent)',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+          </span>
           <IconButton icon={<Share2 size={20} strokeWidth={1.75} />} label={en.dock.connections} />
           <DockDivider />
           <IconButton
@@ -308,6 +334,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       )}
       <FocusView platform={platform} />
       <TriageView platform={platform} />
+      <SearchBar engine={engine} />
     </div>
   );
 }
