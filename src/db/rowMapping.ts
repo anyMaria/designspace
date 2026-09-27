@@ -43,6 +43,7 @@ export function rowToItem(row: DbRow): Item {
     width: asNullableNumber(row.width),
     height: asNullableNumber(row.height),
     artist: asNullableString(row.artist),
+    sourceUrl: asNullableString(row.source_url),
     why: asNullableString(row.why),
     palette: asJson<PaletteEntry[]>(row.palette),
     colorFamilies: asJson<string[]>(row.color_families),

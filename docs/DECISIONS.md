@@ -435,4 +435,55 @@ confirms the layout now stays inside the dialog.
 
 ---
 
+### Details panel — single item (M2-3)
+Added `src/commands/itemTermCommands.ts` for the item↔term side of classification:
+`createSetItemTypeCommand` (single-choice, replaces any existing Type link),
+`createAddItemTermCommand`/`createRemoveItemTermCommand` (multi-select, for Vibe/Movement/Tags),
+built on `findOrCreateTerm` (case/accent-insensitive reuse via the existing `normalize()` helper,
+so typing "dreamy" when "Dreamy" already exists reuses it rather than creating a duplicate) and
+`removeTermIfOrphaned` (undoing a just-created term only deletes it if no other item picked it up
+in the meantime — undo shouldn't destroy a term another edit started depending on).
+
+**Inbox rule** (§2.5, "setting a Type or a Vibe marks it sorted") is folded directly into these
+two commands' `do`/`undo` rather than run as a separate pass: `markSortedIfNeeded` records whether
+the item was already sorted before touching `sorted_at`, so undo only clears it if this command is
+what set it.
+
+**Real gap found via `pnpm typecheck`**: `Item` had no field at all backing §2.5's editable
+"Source" URL — `rowToItem` never mapped `source_url`, and nothing referenced it. Added
+`sourceUrl: string | null` to `Item`, mapped it in `rowToItem`, and fixed the four call sites that
+build `Item` objects by hand (`importItems.ts`'s `createRow`, two test fixtures, `rowMapping.test.ts`).
+
+`<DetailsPanel>` (`src/features/details/`) covers every §2.5/§2.6 field for a single selected
+item: inline title edit, up-to-8 most-used Type chips (usage counted across all items) with a
+"More…" toggle for the rest, `<ChipInput>` for Vibe/Movement/Tags with autocomplete from the
+vocabulary, palette swatches, Artist/Source/Why fields, a Favorite toggle, and an Info section
+(kind, date, dimensions, file size, path, "Show in Explorer"). `Shell.tsx` now switches the right
+panel to Details automatically on a single-item canvas selection (§2.9) and renders it in place of
+the List panel's "coming soon" placeholder.
+
+**Real bug caught by the Playwright check, not by lint/typecheck/unit tests**: `usageCounts` was
+computed with `useTermStore((s) => { ...build a new Map...; return counts })` — a fresh `Map`
+object on every call. Zustand's selector equality is `Object.is`, so a new object every render
+looks like a change every render, which re-renders, which calls the selector again — an infinite
+loop that crashed React (minified error #185) the instant an item got selected. Fixed by pulling
+the stable `itemTerms` map out with a plain selector and doing the counting in a `useMemo` keyed
+on it. None of `lint`/`typecheck`/`vitest` catch this class of bug (the component renders fine in
+a unit test with a single render pass) — only running the real app and driving a selection turned
+it up, which is why the Playwright check against the seeded demo library stays part of every
+milestone's verification, not just a visual smoke test.
+
+**Deferred, per the plan's own milestone split**: AI suggestion ghost chips (needs the AI worker,
+M6), "Search this color" from a swatch (needs the search bar, M2-7), and Boards/My
+connections/Find similar (M3–M4/M6). The combined plan checklist line for the Details panel stays
+unchecked until bulk edit (M2-4) also lands, since it's one line covering both.
+
+Verified with unit tests for `itemTermCommands.ts` (type set/replace, add/remove with orphan
+cleanup, Inbox-rule marking) and `formatBytes.ts`, plus a new Playwright check
+(`smoke-m2-details.spec.ts`): selects a seeded item, confirms the panel auto-switches to Details,
+sets a Type via chip click, adds a Vibe via the chip input, toggles Favorite — zero console errors,
+screenshots confirm the layout.
+
+---
+
 *(Later milestones append below this line.)*

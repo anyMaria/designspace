@@ -2,6 +2,7 @@ import type { DbRow, Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { rowToItem, rowToPlacement } from '@/db/rowMapping';
 import type { Command } from './types';
+import type { Item } from '@/state/types';
 
 /** Drags and resizes only update the engine while moving and commit one command on pointer-up
  * — §4.11. All three commands below follow the same do/undo shape: snapshot the previous
@@ -155,6 +156,47 @@ export function createRestoreItemCommand(platform: Platform, id: string): Comman
     label: 'Restore item',
     do: () => setDeleted(null),
     undo: () => setDeleted(new Date().toISOString()),
+  };
+}
+
+/** The simple text/boolean fields on the Details panel (§2.6): title, artist, source, "why I
+ * saved this", favorite. Each save is immediate and undoable (§2.6 "every change saves
+ * immediately and can be undone"). */
+const FIELD_COLUMNS = {
+  title: 'title',
+  artist: 'artist',
+  sourceUrl: 'source_url',
+  why: 'why',
+  favorite: 'favorite',
+} as const;
+
+type ItemFieldKey = keyof typeof FIELD_COLUMNS;
+type ItemFieldValue<K extends ItemFieldKey> = K extends 'favorite' ? boolean : string | null;
+
+export function createSetItemFieldCommand<K extends ItemFieldKey>(
+  platform: Platform,
+  itemId: string,
+  field: K,
+  value: ItemFieldValue<K>,
+): Command {
+  const item = useLibraryStore.getState().items.get(itemId);
+  const previousValue = item ? (item[field as keyof Item] as ItemFieldValue<K>) : value;
+
+  async function apply(next: ItemFieldValue<K>): Promise<void> {
+    const current = useLibraryStore.getState().items.get(itemId);
+    if (!current) return;
+    useLibraryStore.getState().upsertItem({ ...current, [field]: next });
+    const dbValue = field === 'favorite' ? (next ? 1 : 0) : next;
+    await platform.db.execute(`UPDATE items SET ${FIELD_COLUMNS[field]} = ? WHERE id = ?`, [
+      dbValue,
+      itemId,
+    ]);
+  }
+
+  return {
+    label: `Set ${field}`,
+    do: () => apply(value),
+    undo: () => apply(previousValue),
   };
 }
 

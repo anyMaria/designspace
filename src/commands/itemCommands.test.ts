@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createMoveItemsCommand,
   createResizeItemCommand,
+  createSetItemFieldCommand,
   createStackOrderCommand,
   createTrashCommand,
 } from './itemCommands';
@@ -22,6 +23,7 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     width: 320,
     height: 240,
     artist: null,
+    sourceUrl: null,
     why: null,
     palette: null,
     colorFamilies: null,
@@ -161,5 +163,37 @@ describe('createTrashCommand', () => {
     const platform = makePlatform();
     const command = createTrashCommand(platform, ['a', 'b', 'c']);
     expect(command.label).toBe('Move 3 items to Trash');
+  });
+});
+
+describe('createSetItemFieldCommand', () => {
+  it('do()/undo() round-trip a text field', async () => {
+    useLibraryStore.getState().upsertItem(makeItem({ artist: 'Original' }));
+    const platform = makePlatform();
+    const command = createSetItemFieldCommand(platform, 'item1', 'artist', 'New Artist');
+
+    await command.do();
+    expect(useLibraryStore.getState().items.get('item1')?.artist).toBe('New Artist');
+    const calls = vi.mocked(platform.db.execute).mock.calls;
+    expect(calls[0][0]).toContain('UPDATE items SET artist');
+    expect(calls[0][1]).toEqual(['New Artist', 'item1']);
+
+    await command.undo();
+    expect(useLibraryStore.getState().items.get('item1')?.artist).toBe('Original');
+  });
+
+  it('converts the favorite boolean to 0/1 for the DB', async () => {
+    useLibraryStore.getState().upsertItem(makeItem({ favorite: false }));
+    const platform = makePlatform();
+    const command = createSetItemFieldCommand(platform, 'item1', 'favorite', true);
+
+    await command.do();
+    expect(useLibraryStore.getState().items.get('item1')?.favorite).toBe(true);
+    const calls = vi.mocked(platform.db.execute).mock.calls;
+    expect(calls[0][1]).toEqual([1, 'item1']);
+
+    await command.undo();
+    expect(useLibraryStore.getState().items.get('item1')?.favorite).toBe(false);
+    expect(vi.mocked(platform.db.execute).mock.calls[1][1]).toEqual([0, 'item1']);
   });
 });

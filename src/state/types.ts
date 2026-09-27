@@ -22,6 +22,7 @@ export interface Item {
   width: number | null;
   height: number | null;
   artist: string | null;
+  sourceUrl: string | null;
   why: string | null;
   palette: PaletteEntry[] | null;
   colorFamilies: string[] | null;

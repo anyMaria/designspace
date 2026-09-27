@@ -152,6 +152,7 @@ async function createRow(
     width: null,
     height: null,
     artist: null,
+    sourceUrl: null,
     why: null,
     palette: null,
     colorFamilies: null,
