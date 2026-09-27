@@ -1181,6 +1181,23 @@ Two scoping decisions, both deliberate rather than oversights:
   ahead of that, rather than blocking the whole gallery on it, matches the plan's own bullet
   split (space switcher + gallery is one line; the board canvas is a separate one below it).
 
+### M4-2: Create a board from a selection or search results
+Added `createBoardFromItemsCommand`, reusing "Tidy up"'s existing `justifiedRows` packer (§4.9)
+rather than writing a second layout algorithm — the plan explicitly calls out the same justified-
+row layout for both. Two entry points: the canvas context menu's new "Create board from selection"
+(reusing the same multi-select `ids` the other bulk actions already compute) and the search bar's
+new "Create board from results" (reads `useSearchResults().matches` and saves the active
+`searchStore` filter onto the board's `source_filter` column for a later "sync with source
+filter"/suggestions-tray feature to re-run). Both switch `boardStore.currentBoardId` to the new
+board and toast its name, same as M4-1's "+ New board".
+
+Deliberately out of scope here (both already logged in M4-1's entry, still true): the created
+board's placements are written straight to the DB and aren't yet visible on any canvas, since "the
+board canvas" is the plan's next bullet, not this one. Verified via the placement rows/`sourceFilter`
+a unit test asserts on, and via `boardStore.currentBoardId` + the switcher's own displayed name in
+an e2e test — not by looking at the board's contents rendered anywhere, because nothing renders
+them yet.
+
 ---
 
 *(Later milestones append below this line.)*

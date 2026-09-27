@@ -10,16 +10,18 @@ import {
   createTrashCommand,
 } from '@/commands/itemCommands';
 import { createBackToInboxCommand } from '@/commands/itemTermCommands';
+import { createBoardFromItemsCommand } from '@/commands/boardCommands';
+import { useBoardStore } from '@/state/boardStore';
 import { useListStore } from '@/state/listStore';
 import { sortItems } from '@/features/list/listGrouping';
 import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
 import type { ContextMenuState } from './useContextMenu';
 
-/** Right-click menu for a canvas item — §2.4. Only the actions M1/M2/M3 can actually back: the
- * rest (Open, Add to board, Find similar, Copy palette, Set cover) need Boards or video/PDF
- * support that land in later milestones — deferred and logged in docs/DECISIONS.md rather than
- * shown as dead buttons. */
+/** Right-click menu for a canvas item — §2.4. "Create board from selection" landed in M4-2 now
+ * that Boards exist; the rest (Open, Add to an *existing* board, Find similar, Copy palette, Set
+ * cover) still need the board canvas or video/PDF support from later milestones — deferred and
+ * logged in docs/DECISIONS.md rather than shown as dead buttons. */
 export function ContextMenu({
   state,
   engine,
@@ -87,6 +89,18 @@ export function ContextMenu({
     useToastStore.getState().show(en.connections.pickTarget);
   }
 
+  function createBoard(): void {
+    onClose();
+    const { command, board } = createBoardFromItemsCommand(platform, ids, en.boards.untitled, null);
+    void useHistoryStore
+      .getState()
+      .execute(command)
+      .then(() => {
+        useBoardStore.getState().setCurrentBoardId(board.id);
+        useToastStore.getState().show(en.boards.createdBoard(board.name));
+      });
+  }
+
   function moveToTrash(): void {
     onClose();
     void useHistoryStore
@@ -149,6 +163,11 @@ export function ContextMenu({
                 id: 'back-to-inbox',
                 label: en.contextMenu.backToInbox,
                 onSelect: backToInbox,
+              },
+              {
+                id: 'create-board',
+                label: en.boards.createFromSelection,
+                onSelect: createBoard,
               },
               { id: 'move-to-trash', label: en.contextMenu.moveToTrash, onSelect: moveToTrash },
             ]}

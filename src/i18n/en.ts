@@ -31,6 +31,8 @@ export const en = {
     deletedBoard: (name: string) => `Deleted “${name}”`,
     restoredBoard: (name: string) => `Restored “${name}”`,
     duplicatedBoard: (name: string) => `Duplicated “${name}”`,
+    createFromSelection: 'Create board from selection',
+    createFromResults: 'Create board from results',
   },
   inbox: {
     chip: (count: number) => `Inbox ${count}`,

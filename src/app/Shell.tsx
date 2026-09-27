@@ -413,7 +413,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       <FocusView platform={platform} />
       <TriageView platform={platform} />
       {useBoardUiStore((s) => s.galleryOpen) && <BoardsGallery platform={platform} />}
-      <SearchBar engine={engine} />
+      <SearchBar engine={engine} platform={platform} />
       <ShortcutListOverlay />
       <ConnectionTooltip engine={engine} />
       <ConnectionLabelDialog platform={platform} />

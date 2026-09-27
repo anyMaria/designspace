@@ -1,7 +1,9 @@
 import type { Platform } from '@/platform/types';
 import type { DbStatement } from '@/platform/types';
 import { useBoardStore } from '@/state/boardStore';
+import { useLibraryStore } from '@/state/libraryStore';
 import { newId } from '@/lib/ids';
+import { justifiedRows } from '@/lib/packing';
 import type { Command } from './types';
 import type { Board } from '@/state/types';
 
@@ -36,6 +38,73 @@ export function createCreateBoardCommand(
         "INSERT INTO boards (id, kind, name, created_at, updated_at) VALUES (?, 'board', ?, ?, ?)",
         [board.id, board.name, board.createdAt, board.updatedAt],
       );
+    },
+    undo: async () => {
+      useBoardStore.getState().removeBoard(board.id);
+      await platform.db.execute('DELETE FROM boards WHERE id = ?', [board.id]);
+    },
+  };
+
+  return { command, board };
+}
+
+/** "Create a board from a selection, from search results, or empty" (§2.11) — the selection/
+ * search-results paths. Lays the given items out in justified rows (§4.9, the same algorithm
+ * "Tidy up" uses) starting at world origin (0,0) — the board canvas's own camera, once it exists,
+ * frames the board on open rather than this needing to know where "empty space" is. `sourceFilter`
+ * is saved on the board row so a later "sync with source filter"/suggestions-tray feature can
+ * re-run it; it's `null` for an ad hoc selection (nothing to re-run). */
+export function createBoardFromItemsCommand(
+  platform: Platform,
+  itemIds: string[],
+  name: string,
+  sourceFilter: unknown,
+): { command: Command; board: Board } {
+  const board: Board = {
+    id: newId(),
+    kind: 'board',
+    name,
+    sourceFilter: sourceFilter ?? null,
+    settings: null,
+    camera: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deletedAt: null,
+  };
+
+  const command: Command = {
+    label: 'Create board',
+    do: async () => {
+      useBoardStore.getState().upsertBoard(board);
+      const statements: DbStatement[] = [
+        {
+          sql: "INSERT INTO boards (id, kind, name, source_filter, created_at, updated_at) VALUES (?, 'board', ?, ?, ?, ?)",
+          params: [
+            board.id,
+            board.name,
+            board.sourceFilter !== null ? JSON.stringify(board.sourceFilter) : null,
+            board.createdAt,
+            board.updatedAt,
+          ],
+        },
+      ];
+
+      const items = useLibraryStore.getState().items;
+      const layoutInputs = itemIds.map((id) => {
+        const item = items.get(id);
+        const aspect = item?.width && item?.height ? item.width / item.height : 1;
+        return { id, aspect };
+      });
+      const rects = justifiedRows(layoutInputs, { x: 0, y: 0 });
+      const addedAt = new Date().toISOString();
+      for (const rect of rects) {
+        statements.push({
+          sql: 'INSERT INTO placements (board_id, item_id, x, y, w, h, z, added_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
+          params: [board.id, rect.id, rect.x, rect.y, rect.w, rect.h, addedAt],
+        });
+      }
+
+      await platform.db.batch(statements);
     },
     undo: async () => {
       useBoardStore.getState().removeBoard(board.id);

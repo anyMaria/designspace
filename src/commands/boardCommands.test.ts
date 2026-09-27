@@ -5,9 +5,41 @@ import {
   createDuplicateBoardCommand,
   createDeleteBoardCommand,
   createRestoreBoardCommand,
+  createBoardFromItemsCommand,
 } from './boardCommands';
 import { useBoardStore } from '@/state/boardStore';
+import { useLibraryStore } from '@/state/libraryStore';
 import type { Platform } from '@/platform/types';
+import type { Item } from '@/state/types';
+
+function makeItem(id: string, width: number, height: number): Item {
+  return {
+    id,
+    kind: 'image',
+    title: id,
+    filePath: null,
+    fileName: null,
+    fileHash: null,
+    fileSize: null,
+    mime: null,
+    width,
+    height,
+    artist: null,
+    sourceUrl: null,
+    why: null,
+    palette: null,
+    colorFamilies: null,
+    phash: null,
+    favorite: false,
+    sortedAt: null,
+    viewedAt: null,
+    status: 'ok',
+    derivedV: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    deletedAt: null,
+  };
+}
 
 function makePlatform(): Platform {
   return {
@@ -21,6 +53,53 @@ function makePlatform(): Platform {
 
 beforeEach(() => {
   useBoardStore.setState({ boards: new Map(), currentBoardId: null });
+  useLibraryStore.setState({
+    items: new Map([
+      ['a', makeItem('a', 1600, 800)],
+      ['b', makeItem('b', 800, 800)],
+    ]),
+  });
+});
+
+describe('createBoardFromItemsCommand', () => {
+  it('lays out the given items in justified rows and saves the source filter', async () => {
+    const platform = makePlatform();
+    const filter = { text: 'autumn' };
+    const { command, board } = createBoardFromItemsCommand(
+      platform,
+      ['a', 'b'],
+      'From search',
+      filter,
+    );
+
+    await command.do();
+    expect(useBoardStore.getState().boards.get(board.id)?.name).toBe('From search');
+    expect(platform.db.batch).toHaveBeenCalledTimes(1);
+    const statements = (platform.db.batch as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
+      sql: string;
+      params?: unknown[];
+    }[];
+    const boardInsert = statements[0];
+    expect(boardInsert.sql).toContain('INSERT INTO boards');
+    expect(boardInsert.params).toContain(JSON.stringify(filter));
+    const placementInserts = statements.slice(1);
+    expect(placementInserts).toHaveLength(2);
+    for (const stmt of placementInserts) {
+      expect(stmt.sql).toContain('INSERT INTO placements');
+      expect(stmt.params?.[0]).toBe(board.id);
+    }
+
+    await command.undo();
+    expect(useBoardStore.getState().boards.has(board.id)).toBe(false);
+  });
+
+  it('treats an item with no known dimensions as a square', async () => {
+    const platform = makePlatform();
+    useLibraryStore.setState({ items: new Map([['c', makeItem('c', 0, 0)]]) });
+    const { command } = createBoardFromItemsCommand(platform, ['c'], 'Untitled board', null);
+
+    await expect(command.do()).resolves.not.toThrow();
+  });
 });
 
 describe('createCreateBoardCommand', () => {

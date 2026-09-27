@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Frame, SlidersHorizontal, X } from 'lucide-react';
 import type { Engine } from '@/canvas/Engine';
+import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useTermStore } from '@/state/termStore';
 import { useSearchStore, isFilterActive } from '@/state/searchStore';
+import { useHistoryStore } from '@/commands/history';
+import { createBoardFromItemsCommand } from '@/commands/boardCommands';
+import { useBoardStore } from '@/state/boardStore';
+import { useToastStore } from '@/state/toastStore';
 import type { ColorFamily } from '@/lib/color';
 import type { Facet, ItemKind } from '@/state/types';
 import { useSearchResults } from './useSearchResults';
@@ -40,7 +45,7 @@ function isoStartOfYear(): string {
  * filter chips (included and struck-through excluded) always visible underneath. Board filtering
  * and saved filters are deferred (see docs/DECISIONS.md): Boards don't exist before M3, and saved
  * filters are meant to also surface at the top of the List panel, which lands in M2-8. */
-export function SearchBar({ engine }: { engine: Engine | null }) {
+export function SearchBar({ engine, platform }: { engine: Engine | null; platform: Platform }) {
   const isOpen = useSearchStore((s) => s.isOpen);
   const filter = useSearchStore((s) => s.filter);
   const dimHideMode = useSearchStore((s) => s.dimHideMode);
@@ -78,6 +83,23 @@ export function SearchBar({ engine }: { engine: Engine | null }) {
 
   function frameResults(): void {
     if (matches) engine?.zoomToIds([...matches]);
+  }
+
+  function createBoardFromResults(): void {
+    if (!matches) return;
+    const { command, board } = createBoardFromItemsCommand(
+      platform,
+      [...matches],
+      en.boards.untitled,
+      filter,
+    );
+    void useHistoryStore
+      .getState()
+      .execute(command)
+      .then(() => {
+        useBoardStore.getState().setCurrentBoardId(board.id);
+        useToastStore.getState().show(en.boards.createdBoard(board.name));
+      });
   }
 
   return (
@@ -142,6 +164,13 @@ export function SearchBar({ engine }: { engine: Engine | null }) {
                 <Button variant="ghost" onClick={frameResults}>
                   <Frame size={14} strokeWidth={1.75} style={{ marginRight: 4 }} />
                   {en.search.frameResults}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={matchedCount === 0}
+                  onClick={createBoardFromResults}
+                >
+                  {en.boards.createFromResults}
                 </Button>
                 <Tabs
                   aria-label="Dim or hide"
