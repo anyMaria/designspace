@@ -1014,6 +1014,45 @@ panel's "My connections" list shows it → remove via its × button) and
 line to label it, confirm the label in Details, then select the line and press Delete) — the
 second test is what caught the pointer-capture bug above before it ever reached a real user.
 
+### Constellations layout worker (M3-6)
+`lib/constellations.ts` implements §4.9's algorithm as a pure, synchronous function
+(`computeConstellationLayout`) so it's unit-testable without a worker, the same split
+`lib/search.ts` and `lib/connections.ts` already use — `workers/layout.worker.ts` is a thin
+wrapper that rebuilds a `ConnectionIndex` from the raw arrays it's sent (mirroring how
+`ingest.worker.ts` takes raw bytes rather than a pre-decoded image) and calls it.
+
+Step 1 (hubs) reuses M3-4's `computeHubs` unchanged. Step 2 lays out the hub graph with d3-force
+(`forceManyBody` for charge ∝ −√size, `forceLink` with distance decreasing with shared-item
+weight, `forceCollide` with radius ∝ √size, `forceCenter` to keep it from drifting), run
+synchronously via `simulation.stop().tick(300)` rather than the default async ticker. Step 3
+places every item at the plain average of its hubs' resulting positions (the plan says "weighted
+average" without specifying the weighting scheme; equal weight per hub is the natural default and
+is what "in between" for a multi-hub item means geometrically) plus seeded jitter — a ring around
+the hub for single-hub items, a smaller jitter for multi-hub ones, and a separate outer ring
+(radius = the layout's own extent plus a fixed padding) for items with no hub for the active
+criteria at all, which are also returned as `unclassifiedIds` for the "Unclassified" label
+(M3-7). Step 4 relaxes the full item set — fixed hub positions, `forceCollide` at a uniform
+radius derived from the plan's "long side 160" card size, plus a weak `forceX`/`forceY` pull back
+toward the step-3 targets — for 120 ticks.
+
+Determinism (§4.9: "same inputs always give the same layout") comes from `hashSeed` (FNV-1a over
+the active criteria and sorted visible item ids) feeding a `mulberry32` PRNG, passed to every
+`d3-force` simulation via `.randomSource()` and used directly for the jitter angles — nothing in
+the algorithm calls `Math.random()`. `similar` ("Similar look") stays deferred to M6 like
+everywhere else in M3: the plan calls for item-to-item link forces instead of hubs for that one
+criterion specifically, which isn't worth building against an index that's always empty until the
+AI pipeline exists.
+
+Only the algorithm and the worker plumbing land here — the Shift+C toggle, the 800ms morph tween,
+hub dragging, and the Unclassified ring's actual on-canvas rendering are M3-7's job, so the
+plan's "Constellations" checklist entries stay unchecked until that's done too.
+
+Verified with 12 unit tests (determinism across repeated calls and across a different
+criteria/seed, the 2+-item hub threshold, unclassified placement past every hub's own distance
+from the origin, the zero-hub edge case, and a manual-connection hub's label resolving to the
+target item's title), a performance test confirming 3,000 items lay out well within §4.9's 1.5s
+budget, and 2 tests for the worker's request/response wrapper against a fake `Worker`.
+
 ---
 
 *(Later milestones append below this line.)*
