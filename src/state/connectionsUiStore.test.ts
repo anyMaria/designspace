@@ -9,6 +9,7 @@ beforeEach(() => {
     minStrength: 1,
     constellationsOn: false,
     limitHitAt: null,
+    showAllOverLimit: false,
   });
 });
 
@@ -34,5 +35,12 @@ describe('useConnectionsUiStore', () => {
     useConnectionsUiStore.getState().toggleCriterion('vibe'); // off -> 2 active
     useConnectionsUiStore.getState().toggleCriterion('color'); // on -> 3 active
     expect(useConnectionsUiStore.getState().activeCriteria).toEqual(['tag', 'manual', 'color']);
+  });
+
+  it('setShowAllOverLimit toggles the "too many links" flag', () => {
+    useConnectionsUiStore.getState().setShowAllOverLimit(true);
+    expect(useConnectionsUiStore.getState().showAllOverLimit).toBe(true);
+    useConnectionsUiStore.getState().setShowAllOverLimit(false);
+    expect(useConnectionsUiStore.getState().showAllOverLimit).toBe(false);
   });
 });

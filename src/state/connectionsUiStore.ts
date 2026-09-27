@@ -15,6 +15,10 @@ interface ConnectionsUiState {
   /** Set once a criterion toggle is blocked by the 3-active cap, so the popover can show
    * "Up to 3 at a time. Turn one off first." and clear it itself after a moment. */
   limitHitAt: number | null;
+  /** §2.10: "Beyond that, the popover says 'Too many links. Filter first or use Constellations.'"
+   * Set by `useConnectionsBinding` whenever Show all's edge count would exceed the 5,000-line
+   * cap, so no lines are drawn until the owner filters down or turns on Constellations. */
+  showAllOverLimit: boolean;
 
   open: () => void;
   close: () => void;
@@ -23,6 +27,7 @@ interface ConnectionsUiState {
   setMode: (mode: ConnectionsMode) => void;
   setMinStrength: (n: number) => void;
   setConstellationsOn: (v: boolean) => void;
+  setShowAllOverLimit: (v: boolean) => void;
 }
 
 /** Connections popover state (§2.10) — "remembered per space" in the plan, but there's only one
@@ -36,6 +41,7 @@ export const useConnectionsUiStore = create<ConnectionsUiState>((set) => ({
   minStrength: 1,
   constellationsOn: false,
   limitHitAt: null,
+  showAllOverLimit: false,
 
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
@@ -55,4 +61,5 @@ export const useConnectionsUiStore = create<ConnectionsUiState>((set) => ({
   setMode: (mode) => set({ mode }),
   setMinStrength: (n) => set({ minStrength: n }),
   setConstellationsOn: (v) => set({ constellationsOn: v }),
+  setShowAllOverLimit: (v) => set({ showAllOverLimit: v }),
 }));

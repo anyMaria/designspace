@@ -40,10 +40,10 @@ function hexToCss(hex: number): string {
 }
 
 /** Dock → Connections (or "C"): criteria toggles, hover/show-all mode, strength, and the
- * Constellations switch (§2.10). Only the popover UI and `connectionsUiStore` wiring land here —
- * "Show all" mode's hub rendering (M3-4) and the Constellations layout itself (M3-6/M3-7) read
- * this same store but aren't built yet, so toggling them here doesn't change the canvas until
- * those tasks land. */
+ * Constellations switch (§2.10). Show all's hub rendering is wired up (M3-4, via
+ * `useConnectionsBinding`), including the 5,000-line cap message here; the Constellations layout
+ * itself (M3-6/M3-7) reads the same store's switch but isn't built yet, so toggling it here
+ * doesn't change the canvas until that task lands. */
 export function ConnectionsPopover() {
   const isOpen = useConnectionsUiStore((s) => s.isOpen);
   const activeCriteria = useConnectionsUiStore((s) => s.activeCriteria);
@@ -51,6 +51,7 @@ export function ConnectionsPopover() {
   const minStrength = useConnectionsUiStore((s) => s.minStrength);
   const constellationsOn = useConnectionsUiStore((s) => s.constellationsOn);
   const limitHitAt = useConnectionsUiStore((s) => s.limitHitAt);
+  const showAllOverLimit = useConnectionsUiStore((s) => s.showAllOverLimit);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -151,6 +152,11 @@ export function ConnectionsPopover() {
                 value={mode}
                 onChange={(v) => useConnectionsUiStore.getState().setMode(v)}
               />
+              {mode === 'showAll' && showAllOverLimit && (
+                <span style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>
+                  {en.connections.tooManyLinks}
+                </span>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>

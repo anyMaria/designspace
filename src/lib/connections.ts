@@ -180,3 +180,61 @@ export function formatSharedTooltip(
   }
   return parts.join(' · ');
 }
+
+/** §2.10/§4.9's "Show all": a value shared by 2+ visible items becomes a hub, placed (by the
+ * caller, which owns item positions) at the centroid of its member items. `manual` reuses the
+ * same inverted index as every other criterion without special-casing: `itemsByValue['manual']`
+ * already maps an item id to everyone connected to it (`buildConnectionIndex` adds both
+ * directions), so a hub for that "value" is exactly "the items manually connected to this one" —
+ * the natural Show-all reading of My connections, and it falls out of the existing structure for
+ * free. `similar` never produces hubs before M6, since its index is always empty. */
+export interface Hub {
+  criterion: Criterion;
+  /** The term id (facets), color family (`color`), or connected item id (`manual`). */
+  value: string;
+  itemIds: string[];
+}
+
+/** §2.10: "At most 5,000 lines are drawn." One line per item-to-hub edge. */
+export const MAX_SHOW_ALL_LINES = 5000;
+
+export interface ShowAllResult {
+  hubs: Hub[];
+  edgeCount: number;
+  overLimit: boolean;
+}
+
+export function computeHubs(
+  visibleIds: Iterable<string>,
+  activeCriteria: Criterion[],
+  index: ConnectionIndex,
+): ShowAllResult {
+  const visible = visibleIds instanceof Set ? visibleIds : new Set(visibleIds);
+  const hubs: Hub[] = [];
+  let edgeCount = 0;
+
+  for (const criterion of activeCriteria) {
+    const byValue = index.itemsByValue.get(criterion);
+    if (!byValue) continue;
+    for (const [value, itemSet] of byValue) {
+      const itemIds = [...itemSet].filter((id) => visible.has(id));
+      if (itemIds.length < 2) continue;
+      hubs.push({ criterion, value, itemIds });
+      edgeCount += itemIds.length;
+    }
+  }
+
+  return { hubs, edgeCount, overLimit: edgeCount > MAX_SHOW_ALL_LINES };
+}
+
+/** The hub's display label — a term name, a color family name, or (for `manual`) the connected
+ * item's own title, since that "value" is an item id rather than a shared attribute. */
+export function formatHubLabel(
+  hub: Hub,
+  terms: Map<string, Term>,
+  itemTitles: Map<string, string>,
+): string {
+  if (hub.criterion === 'manual') return itemTitles.get(hub.value) ?? hub.value;
+  if (hub.criterion === 'color') return hub.value;
+  return terms.get(hub.value)?.name ?? hub.value;
+}

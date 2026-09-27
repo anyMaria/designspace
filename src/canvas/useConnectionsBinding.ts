@@ -1,19 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Engine } from './Engine';
+import type { Engine, ShowAllHub } from './Engine';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useTermStore } from '@/state/termStore';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
-import { buildConnectionIndex, restrictToSelection, scoreCandidates } from '@/lib/connections';
+import { useSearchResults } from '@/features/search/useSearchResults';
+import {
+  buildConnectionIndex,
+  computeHubs,
+  formatHubLabel,
+  restrictToSelection,
+  scoreCandidates,
+} from '@/lib/connections';
 
 const HOVER_DELAY_MS = 300;
 
-/** Wires §2.10's "On hover (and on selection)" into the canvas: 300ms after hovering an item (or
- * immediately on selection — selection takes priority, since it's a deliberate action), scores
- * candidates via `lib/connections.ts` and hands them to `Engine.setConnections`. With several
- * items selected, each one's candidates are restricted to the rest of the selection ("only the
- * connections among them show"); with exactly one selected (or just hovered), the full ranked
- * list shows. "Show all" mode is handled separately (M3-4) — this only drives Hover mode. */
+/** Wires §2.10's Connections modes into the canvas. **Hover** (and on selection): 300ms after
+ * hovering an item (or immediately on selection — a deliberate action doesn't need the delay),
+ * scores candidates via `lib/connections.ts` and hands them to `Engine.setConnections`. With
+ * several items selected, each one's candidates are restricted to the rest of the selection
+ * ("only the connections among them show"); with exactly one selected (or just hovered), the
+ * full ranked list shows. **Show all**: every value shared by 2+ *visible* items (soft-deleted
+ * items excluded, and restricted to the active search filter's matches, same as Constellations
+ * "respects the active filter") becomes a hub via `computeHubs`, handed to
+ * `Engine.setShowAllHubs`; past the 5,000-line cap, no hubs are drawn and
+ * `connectionsUiStore.showAllOverLimit` is set instead, for the popover's "Too many links" message. */
 export function useConnectionsBinding(engine: Engine | null): void {
   const items = useLibraryStore((s) => s.items);
   const selection = useLibraryStore((s) => s.selection);
@@ -23,6 +34,7 @@ export function useConnectionsBinding(engine: Engine | null): void {
   const activeCriteria = useConnectionsUiStore((s) => s.activeCriteria);
   const minStrength = useConnectionsUiStore((s) => s.minStrength);
   const mode = useConnectionsUiStore((s) => s.mode);
+  const { matches } = useSearchResults();
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const hoverTimer = useRef<number | null>(null);
@@ -46,7 +58,38 @@ export function useConnectionsBinding(engine: Engine | null): void {
 
   useEffect(() => {
     if (!engine) return;
-    if (mode !== 'hover') return; // Show all (M3-4) owns the lines/dim itself while active
+
+    if (mode === 'showAll') {
+      engine.setConnections([]); // Hover's lines/dim don't apply while Show all owns the canvas
+
+      const visible: string[] = [];
+      for (const item of items.values()) {
+        if (item.deletedAt) continue;
+        if (matches && !matches.has(item.id)) continue;
+        visible.push(item.id);
+      }
+      const { hubs, overLimit } = computeHubs(visible, activeCriteria, index);
+      useConnectionsUiStore.getState().setShowAllOverLimit(overLimit);
+
+      if (overLimit) {
+        engine.setShowAllHubs([]);
+        return;
+      }
+      const itemTitles = new Map<string, string>();
+      for (const id of visible) {
+        const title = items.get(id)?.title;
+        if (title) itemTitles.set(id, title);
+      }
+      const labeled: ShowAllHub[] = hubs.map((h) => ({
+        ...h,
+        label: formatHubLabel(h, terms, itemTitles),
+      }));
+      engine.setShowAllHubs(labeled);
+      return;
+    }
+
+    engine.setShowAllHubs([]);
+    useConnectionsUiStore.getState().setShowAllOverLimit(false);
 
     if (selection.size === 1) {
       const fromId = [...selection][0];
@@ -77,5 +120,16 @@ export function useConnectionsBinding(engine: Engine | null): void {
       return;
     }
     engine.setConnections([]);
-  }, [engine, mode, selection, hoveredId, index, activeCriteria, minStrength]);
+  }, [
+    engine,
+    mode,
+    selection,
+    hoveredId,
+    index,
+    activeCriteria,
+    minStrength,
+    items,
+    matches,
+    terms,
+  ]);
 }

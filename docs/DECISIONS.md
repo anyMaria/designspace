@@ -925,6 +925,44 @@ confirms turning one off then on succeeds, and exercises the mode/strength/const
 controls and Escape-to-close — zero console errors. No new unit tests were needed: the store
 logic they'd cover was already exercised by `connectionsUiStore.test.ts` in M3-2.
 
+### Show all mode with hubs (M3-4)
+`computeHubs` (in `lib/connections.ts`) reuses `buildConnectionIndex`'s `itemsByValue` inverted
+index without any new special-casing: a hub is just a value whose item set, intersected with the
+current "visible" set, has 2+ members. That reuse extends cleanly to `manual`: since
+`buildConnectionIndex` already adds both directions of every manual connection,
+`itemsByValue['manual'][X]` is exactly "everyone connected to item X" — so a manual hub forms
+wherever 2+ items independently connect to the same one, with the target item's own title as the
+hub's label (via the new `formatHubLabel`, resolved by the caller the same way
+`formatSharedTooltip`'s labels are, keeping `lib/connections.ts` free of item/DOM concerns).
+"Visible" means not soft-deleted and, if a search filter is active, restricted to its matches —
+the same "respects the active filter" rule the plan states explicitly for Constellations, applied
+here too since Show all is the same kind of space-wide view.
+
+The 5,000-line cap (§2.10) is enforced by `computeHubs` itself (`edgeCount`/`overLimit` in its
+return value) rather than truncating the hub list silently — past the cap, `useConnectionsBinding`
+draws nothing and sets `connectionsUiStore.showAllOverLimit`, which the popover reads to show
+"Too many links. Filter first or use Constellations." right under the mode switch.
+
+`Engine.ts`'s `drawHubs()` computes each hub's screen position as the centroid of its *current*
+member screen positions (recomputed every scheduled frame, so panning/zooming keeps hubs attached
+without a separate camera subscription — the same approach `drawConnectionLines` already uses),
+draws a faint edge from every member to its hub, and renders the hub itself with Pixi's native
+`Graphics.star()` — unlike the earlier dashed-line case, there's no missing-primitive deviation to
+log here. The label uses Pixi's `Text` (a first for this canvas; existing code was Graphics/Sprite
+only), rebuilt alongside the rest of the overlay on every scheduled frame rather than updated
+in-place — an accepted cost already established for `drawConnectionLines`, not a new regression.
+Hovering a hub star reuses `setHoverHighlight` — the exact mechanism the List panel's own group
+hover already added — so "hovering a hub makes its items glow" falls out of an existing code path
+instead of a new alpha rule. Show all itself doesn't dim unrelated items (the plan only describes
+that dimming for Hover), so `alphaFor`'s connections-dim branch is untouched by this task.
+
+Verified with unit tests for `computeHubs` (2+-item threshold, visible-set filtering, the manual
+hub case, and the 5,000-edge cap) and `formatHubLabel`, plus a Playwright test
+(`smoke-m3-connections-showall.spec.ts`) that bulk-tags all 60 seeded items with the same Vibe,
+switches to Show all, confirms the cap message stays hidden, and screenshots the result — the
+screenshot shows a correctly labeled star at the cluster's centroid with all 60 fan lines
+converging on it, zero console errors.
+
 ---
 
 *(Later milestones append below this line.)*

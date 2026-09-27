@@ -2,7 +2,7 @@
 // shader/uniform sync. This polyfill installs the static fallback and must load before any
 // renderer initializes — see node_modules/pixi.js/skills/pixijs-environments/SKILL.md.
 import 'pixi.js/unsafe-eval';
-import { Application, Container, Graphics, GraphicsContext, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Graphics, GraphicsContext, Sprite, Text, Texture } from 'pixi.js';
 import { Camera } from './Camera';
 import { SpatialIndex } from './spatialIndex';
 import { TextureManager } from './TextureManager';
@@ -18,7 +18,7 @@ import {
 import { canvasGeometry, criterionColors } from '@/design/tokens';
 import type { BenchRect } from '@/platform/seed/bench';
 import { unionRects } from '@/lib/geometry';
-import { CRITERION_ORDER, type Criterion, type ScoredCandidate } from '@/lib/connections';
+import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
 
 export interface EngineOptions {
   getTool: () => Tool;
@@ -68,6 +68,19 @@ const LINE_OPACITY = 0.7;
 const LINE_OFFSET_PX = 4; // spacing between up to 3 parallel lines for the same pair
 const CONNECTIONS_DIM_ALPHA = 0.35;
 
+/** A `Hub` (from `lib/connections.ts`) plus the display label the caller already resolved via
+ * `formatHubLabel` — Engine stays free of term/item lookups, matching how `ScoredCandidate`'s
+ * tooltip text is resolved by the caller rather than here. */
+export interface ShowAllHub extends Hub {
+  label: string;
+}
+const HUB_STAR_POINTS = 5;
+const HUB_STAR_RADIUS_PX = 9;
+const HUB_STAR_INNER_RADIUS_PX = 4;
+const HUB_LINE_OPACITY = 0.35; // §4.6: "0.7 on hover and 0.35 in Show all"
+const HUB_LINE_WIDTH_PX = 1.5; // §4.6: "Lines are 1.5px on screen at every zoom level"
+const HUB_LABEL_FONT_SIZE = 11;
+
 const HANDLE_SCREEN_PX = 10;
 const DRAG_THRESHOLD_PX = 3;
 
@@ -110,6 +123,10 @@ export class Engine {
   private connectionSources: { fromId: string; candidates: ScoredCandidate[] }[] = [];
   private connectionLineGraphics: Graphics[] = [];
   private hoveredConnectionLine: { fromId: string; toId: string } | null = null;
+  // "Show all" mode (§2.10) — hubs plus their item-to-hub edges; unset (empty array) means
+  // Show all isn't active right now (Hover mode owns `connectionSources` instead).
+  private showAllHubs: ShowAllHub[] = [];
+  private hubDisplayObjects: (Graphics | Text)[] = [];
 
   private selection = new Set<string>();
   private hoveredId: string | null = null;
@@ -293,6 +310,14 @@ export class Engine {
   setConnections(sources: { fromId: string; candidates: ScoredCandidate[] }[]): void {
     this.connectionSources = sources;
     this.refreshAlpha();
+    this.scheduleFrame();
+  }
+
+  /** "Show all" mode (§2.10). Unlike Hover, Show all doesn't dim unrelated items — the plan only
+   * describes dimming for Hover, and hub hover already reuses `setHoverHighlight` (below) for its
+   * own "makes its items glow" moment, the same mechanism the List panel's group hover uses. */
+  setShowAllHubs(hubs: ShowAllHub[]): void {
+    this.showAllHubs = hubs;
     this.scheduleFrame();
   }
 
@@ -760,6 +785,66 @@ export class Engine {
     }
   }
 
+  /** §2.10/§4.9 Show all: a labeled star per hub at the centroid of its member items' current
+   * world positions, with a faint line from each member to its hub (n lines, not n²). Uses Pixi's
+   * native `Graphics.star()` — unlike the dashed-line case, there's no missing-primitive
+   * deviation to log here. Hovering a hub reuses `setHoverHighlight` for the "its items glow"
+   * moment, the same mechanism the List panel's own group hover already uses. */
+  private drawHubs(): void {
+    if (!this.overlayLayer || !this.app) return;
+    for (const g of this.hubDisplayObjects) g.destroy();
+    this.hubDisplayObjects = [];
+    if (this.showAllHubs.length === 0) return;
+
+    const { width: vw, height: vh } = this.app.screen;
+    const screenCenterOf = (id: string) => {
+      const card = this.cards.get(id);
+      if (!card) return null;
+      return this.camera.worldToScreen(card.x + card.w / 2, card.y + card.h / 2, vw, vh);
+    };
+
+    for (const hub of this.showAllHubs) {
+      const memberScreens = hub.itemIds
+        .map((id) => screenCenterOf(id))
+        .filter((p): p is { x: number; y: number } => p !== null);
+      if (memberScreens.length < 2) continue;
+
+      const hx = memberScreens.reduce((sum, p) => sum + p.x, 0) / memberScreens.length;
+      const hy = memberScreens.reduce((sum, p) => sum + p.y, 0) / memberScreens.length;
+      const color = CRITERION_COLOR[hub.criterion];
+
+      for (const p of memberScreens) {
+        const edge = new Graphics()
+          .moveTo(p.x, p.y)
+          .lineTo(hx, hy)
+          .stroke({ color, width: HUB_LINE_WIDTH_PX, alpha: HUB_LINE_OPACITY });
+        this.overlayLayer.addChild(edge);
+        this.hubDisplayObjects.push(edge);
+      }
+
+      const star = new Graphics()
+        .star(hx, hy, HUB_STAR_POINTS, HUB_STAR_RADIUS_PX, HUB_STAR_INNER_RADIUS_PX)
+        .fill({ color, alpha: 0.9 });
+      star.eventMode = 'static';
+      star.cursor = 'pointer';
+      const memberSet = new Set(hub.itemIds);
+      star.on('pointerover', () => this.setHoverHighlight(memberSet));
+      star.on('pointerout', () => this.setHoverHighlight(null));
+      this.overlayLayer.addChild(star);
+      this.hubDisplayObjects.push(star);
+
+      const label = new Text({
+        text: hub.label,
+        style: { fontSize: HUB_LABEL_FONT_SIZE, fill: 0xffffff },
+      });
+      label.anchor.set(0.5, 0);
+      label.x = hx;
+      label.y = hy + HUB_STAR_RADIUS_PX + 2;
+      this.overlayLayer.addChild(label);
+      this.hubDisplayObjects.push(label);
+    }
+  }
+
   // ----------------------------------------------------------------------------- Camera / fly-to
 
   flyTo(rect: { x: number; y: number; w: number; h: number }, reduceMotion = false): void {
@@ -809,6 +894,7 @@ export class Engine {
       this.cullItems();
       this.drawSelectionOverlay();
       this.drawConnectionLines();
+      this.drawHubs();
     });
   }
 
@@ -913,6 +999,7 @@ export class Engine {
     this.selectionOutline?.destroy();
     for (const h of this.handles) h.destroy();
     for (const g of this.connectionLineGraphics) g.destroy();
+    for (const g of this.hubDisplayObjects) g.destroy();
     this.rectContext?.destroy();
     this.app?.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     this.app = null;

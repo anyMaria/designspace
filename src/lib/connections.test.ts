@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildConnectionIndex,
+  computeHubs,
+  formatHubLabel,
   formatSharedTooltip,
   scoreCandidates,
   restrictToSelection,
@@ -215,5 +217,90 @@ describe('formatSharedTooltip', () => {
   it('shows just the label for a manual connection, no values', () => {
     const text = formatSharedTooltip({ manual: ['other-item-id'] }, new Map(), labels);
     expect(text).toBe('My connections');
+  });
+});
+
+describe('computeHubs', () => {
+  it('makes a hub for a value shared by 2+ visible items, not for a value only one item has', () => {
+    const terms = new Map([['v1', makeTerm({ id: 'v1', facet: 'vibe', name: 'Dreamy' })]]);
+    const itemTerms = new Map([
+      ['a', new Set(['v1'])],
+      ['b', new Set(['v1'])],
+      ['c', new Set<string>()], // no vibe -> never a hub member
+    ]);
+    const items = [makeItem({ id: 'a' }), makeItem({ id: 'b' }), makeItem({ id: 'c' })];
+    const index = buildConnectionIndex(items, itemTerms, terms, []);
+
+    const { hubs, edgeCount, overLimit } = computeHubs(['a', 'b', 'c'], ['vibe'], index);
+    expect(hubs).toHaveLength(1);
+    expect(hubs[0].criterion).toBe('vibe');
+    expect(hubs[0].value).toBe('v1');
+    expect(hubs[0].itemIds.sort()).toEqual(['a', 'b']);
+    expect(edgeCount).toBe(2);
+    expect(overLimit).toBe(false);
+  });
+
+  it('excludes items outside the visible set from hub membership', () => {
+    const terms = new Map([['v1', makeTerm({ id: 'v1' })]]);
+    const itemTerms = new Map([
+      ['a', new Set(['v1'])],
+      ['b', new Set(['v1'])],
+      ['c', new Set(['v1'])],
+    ]);
+    const items = [makeItem({ id: 'a' }), makeItem({ id: 'b' }), makeItem({ id: 'c' })];
+    const index = buildConnectionIndex(items, itemTerms, terms, []);
+
+    // Only 'a' and 'c' are visible (e.g. a search filter excludes 'b') -> still a hub, of 2.
+    const { hubs } = computeHubs(['a', 'c'], ['vibe'], index);
+    expect(hubs[0].itemIds.sort()).toEqual(['a', 'c']);
+  });
+
+  it('a manual "value" (the connected item id) forms a hub when 2+ items connect to the same one', () => {
+    const items = [makeItem({ id: 'a' }), makeItem({ id: 'b' }), makeItem({ id: 'c' })];
+    const index = buildConnectionIndex(items, new Map(), new Map(), [
+      makeConnection({ id: 'c1', fromId: 'a', toId: 'c' }),
+      makeConnection({ id: 'c2', fromId: 'b', toId: 'c' }),
+    ]);
+    const { hubs } = computeHubs(['a', 'b', 'c'], ['manual'], index);
+    expect(hubs).toHaveLength(1);
+    expect(hubs[0].criterion).toBe('manual');
+    expect(hubs[0].value).toBe('c');
+    expect(hubs[0].itemIds.sort()).toEqual(['a', 'b']);
+  });
+
+  it('reports overLimit once total edges exceed the 5,000-line cap', () => {
+    const terms = new Map([['v1', makeTerm({ id: 'v1' })]]);
+    const itemTerms = new Map<string, Set<string>>();
+    const items: Item[] = [];
+    const ids: string[] = [];
+    for (let i = 0; i < 5001; i++) {
+      const id = `i${i}`;
+      ids.push(id);
+      itemTerms.set(id, new Set(['v1']));
+      items.push(makeItem({ id }));
+    }
+    const index = buildConnectionIndex(items, itemTerms, terms, []);
+    const { overLimit, edgeCount } = computeHubs(ids, ['vibe'], index);
+    expect(edgeCount).toBe(5001);
+    expect(overLimit).toBe(true);
+  });
+});
+
+describe('formatHubLabel', () => {
+  it('resolves a facet hub to its term name', () => {
+    const terms = new Map([['v1', makeTerm({ id: 'v1', facet: 'vibe', name: 'Dreamy' })]]);
+    const hub = { criterion: 'vibe' as const, value: 'v1', itemIds: ['a', 'b'] };
+    expect(formatHubLabel(hub, terms, new Map())).toBe('Dreamy');
+  });
+
+  it('uses the color family name directly', () => {
+    const hub = { criterion: 'color' as const, value: 'orange', itemIds: ['a', 'b'] };
+    expect(formatHubLabel(hub, new Map(), new Map())).toBe('orange');
+  });
+
+  it("resolves a manual hub to the connected item's own title", () => {
+    const hub = { criterion: 'manual' as const, value: 'c', itemIds: ['a', 'b'] };
+    const itemTitles = new Map([['c', 'Poster study']]);
+    expect(formatHubLabel(hub, new Map(), itemTitles)).toBe('Poster study');
   });
 });

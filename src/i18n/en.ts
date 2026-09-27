@@ -236,6 +236,7 @@ export const en = {
     showAll: 'Show all',
     strength: (n: number) => `Link items that share at least ${n} thing${n === 1 ? '' : 's'}`,
     limitHit: 'Up to 3 at a time. Turn one off first.',
+    tooManyLinks: 'Too many links. Filter first or use Constellations.',
     constellations: '✦ Constellations',
   },
   list: {
