@@ -1121,6 +1121,38 @@ after confirmed convergence, so it reads as a headless-Chromium canvas screensho
 this sandboxed environment rather than a real rendering bug — not worth the owner's time chasing
 further here, but worth knowing about before assuming a regression from a future screenshot.)
 
+### M3 wrap-up
+Everything in the milestone shipped: the criteria model and popover, Hover and Show all
+connections, My connections (drag handle, "Connect to…", labels, delete, the Details list), and
+Constellations (worker, morph, glowing draggable hubs, the Unclassified ring, deterministic
+filtered layouts). "(If time allows) Arrange by…" is the one line left unchecked — the plan marks
+it optional, and building it properly (labeled clusters permanently written to My layout, an
+undo step, a 50-item confirmation) would mean a fifth sub-task on top of seven already-substantial
+ones; better spent as a clearly-scoped follow-up than squeezed in at lower quality here.
+
+Real bugs found and fixed while building this milestone, beyond the ones already logged above:
+the `usageCounts`-style Zustand infinite-render pattern never recurred (M2's fix generalized),
+but two new categories of bug showed up that are worth knowing about for future canvas work: (1)
+Pixi's own click/tap handling on an interactive overlay object can be silently swallowed by an
+*unrelated* `setPointerCapture()` call earlier in the same native event's dispatch — any future
+overlay interaction (a new kind of handle, a new clickable graphic) should take the same
+"defer capture to the first real move" precaution `attachSelectionInput` now uses, not capture
+eagerly on every miss. (2) A `useLibraryStore.subscribe()` with no selector re-running on *any*
+store write is fine for code that always wants the latest full state (like the canvas's normal
+card sync), but it's a trap for any feature that needs the canvas to temporarily diverge from
+what's stored (Constellations is the first; a future one should check `engine.isConstellationsOn()`
+or an equivalent mode flag the same way `setLibraryItems` now does).
+
+Acceptance criteria (plan): hover links compute in the low single-digit milliseconds at 10,000
+items (`connections.bench.test.ts`, asserting well under the plan's own 16ms budget with a
+generous CI ceiling); Constellations lays out 3,000 items well under 1.5s
+(`constellations.bench.test.ts`), and `computeConstellationLayout`'s determinism (same inputs →
+byte-identical output, verified by calling it twice and deep-equal) is unit-tested directly rather
+than only implied by the seeded PRNG.
+
+No tag for M3 — the plan only calls for tagging at the end of M2 (`v0.1.0`); M4 continues on the
+same branch.
+
 ---
 
 *(Later milestones append below this line.)*
