@@ -1198,7 +1198,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [ ] The List panel: grouping, sorting, sizes, collapsing, hover highlight, click to fly, gallery mode, virtualization, saved filters.
 - [x] Rediscover (R): fly to a random item not viewed for 30+ days (favoring older ones) and make it pulse.
 - [x] The shortcut list (?).
-- [ ] Tag `v0.1.0`.
+- [x] Tag `v0.1.0`.
 
 **Acceptance:**
 - ≤ 50 ms per keystroke at 10,000 items.

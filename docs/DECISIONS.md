@@ -786,4 +786,39 @@ Favorite toggle (the other fixed bug) — zero console errors.
 
 ---
 
+### M2 wrap-up → v0.1.0
+Final verification matching CI exactly: `pnpm lint`, `pnpm typecheck`, `pnpm format:check`,
+`pnpm test` (180 unit tests across 29 files), `pnpm build`, `pnpm e2e` (19 Playwright checks
+against the seeded demo library, one per M1/M2 feature), and on the Rust side `cargo fmt --check`,
+`cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` — all green.
+
+**What shipped this milestone**: seeded vocabularies + the vocabulary manager; the single-item and
+bulk Details panel covering every §2.5 field; the Inbox rule, Inbox chip and Triage with its full
+keyboard flow; a MiniSearch-backed search engine with facet filters, wired into a search bar and
+the canvas's Dim/Hide; a virtualized, groupable, sortable List panel with a full-window gallery
+mode; and Rediscover plus the shortcut list overlay. Two real, previously-shipped bugs were also
+found and fixed along the way (logged under M2-3 and M2-9): a Zustand-selector infinite-render
+crash in the Details panel, and — more significantly — keyboard undo/redo having silently never
+worked since M1-2, and every `<Dialog>`'s Escape-to-close never having worked via a real keypress
+since it shipped.
+
+**Deliberately still open, logged rather than silently dropped**: saved filters (★, meant to also
+surface at the top of the List panel — both search and list deferred their half of this for the
+same reason), the `[This board | Library]` switch and drag-to-board (Boards land in M3), "by
+meaning" visual search results and AI suggestion ghost chips (M6), and "Create board from results"
+(explicitly M4 in the plan itself). None of these are wired to dead buttons in the shipped UI —
+each is either absent from the interface entirely or, where the interface exists (search's ★
+button doesn't exist yet at all), simply not built.
+
+**Milestone acceptance** (plan §8, M2): the search-facet-filter logic has unit test coverage
+(`search.test.ts`, `searchStore.test.ts`); a bulk edit is one undo step regardless of item count,
+by construction (`createBulkSetTypeCommand` et al. are each a single `Command`, not N commands);
+Triage's full keyboard flow is exercised end-to-end by `smoke-m2-triage.spec.ts`; and the search
+engine's own benchmark (`search.bench.test.ts`) clears the performance budget with real margin at
+10,000 items.
+
+Tagged `v0.1.0`.
+
+---
+
 *(Later milestones append below this line.)*
