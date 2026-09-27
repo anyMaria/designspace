@@ -45,6 +45,7 @@ function makePlatform(overrides: Partial<Platform> = {}): Platform {
       put: vi.fn().mockResolvedValue(undefined),
       has: vi.fn(),
       url: vi.fn(),
+      delete: vi.fn(),
     },
   };
   return { ...base, ...overrides } as Platform;

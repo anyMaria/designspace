@@ -254,6 +254,49 @@ clicks "Zoom to fit" against the 60-item seeded library and confirms the percent
 changed, confirms the minimap renders, and right-clicks an item to confirm the context menu opens
 with "Show in Explorer" correctly disabled — all with zero console errors.
 
+### Trash and Focus view for images
+**Trash.** Soft delete already existed (`createTrashCommand`, M1-2/M1-5). This pass added the
+rest: `deleteForever`/`purgeExpiredTrash` (`features/trash/trashActions.ts`) — permanently remove
+the original file, its cached `t128`/`t512` derivatives, and the item/placement rows, with no
+undo (the Recycle Bin is the safety net, per CLAUDE.md's non-negotiables), and an automatic sweep
+of anything trashed more than 30 days ago, run once at startup. A `<TrashSection>` (list, Restore,
+Delete forever, Empty now) now fills Settings → Library — ahead of that section's nominal M1-9
+slot, same reasoning as `<ToastHost>` in M1-6: Trash needed a way to actually look at what it did.
+`createRestoreItemCommand` (added in M1-6 for the duplicate-detection "Restore" toast) is reused
+here unchanged.
+
+Two platform gaps got fixed along the way, both real (not just needed for this feature):
+- `Platform.cache` had no `delete`. The Rust `cache_delete` command has existed since M1-3 but was
+  never wired into the TS interface — nothing had needed to purge a cache entry yet. Added
+  `cache.delete(keys)` to the interface and both platforms (Tauri: one `cache_delete` invoke per
+  key, since the Rust command takes a single prefix, not a list; browser: `idbDelete`, new in
+  `idbStore.ts`, since the store never had a delete path either).
+- `BrowserPlatform.media.purge` was `notSupported('media.purge')` — meaning "Delete forever" and
+  "Empty now" would throw in the browser dev build with no way to develop or screenshot-test them.
+  There's no Recycle Bin in a browser tab, so it just deletes the IndexedDB blob outright
+  (permanent, unlike the real Windows build's `trash::delete_all`) — acceptable since it's a dev
+  build and the Trash UI already warns "This can't be undone" before calling it.
+
+**Focus view.** `Engine`'s `dblclick` event already existed (M1-5) but nothing listened to it.
+Added `useFocusStore` (which item, if any), `useFocusViewBinding` (wires the engine event to it),
+Enter as the keyboard trigger alongside double-click, and `<FocusView>`: a full-window scrim with
+the original image centered, ←/→ through the currently loaded items, Esc/× to close, and a
+`viewed_at` write on open (Rediscover, M2, will use it).
+
+Deferred, per §2.12's full spec:
+- **Zoom/pan and fit-vs-1:1** — the image is always letterboxed to fit the window. A real deep-zoom
+  view needs `t1600`-on-demand generation, which M1-5's Engine decision log already deferred.
+- **The collapsible Details column** — those fields (Type, Vibe, palette, Why I saved this…) don't
+  exist anywhere yet; the whole classification panel is M2.
+- **"List order, otherwise current results, newest first"** for ←/→ — there's no List panel or
+  sort yet (M2), so navigation just walks the loaded item order. Revisit once sorting exists.
+
+Verified with new `trashActions.test.ts` (6 cases: the query shape, purging files+cache+rows
+together, the empty-list and missing-file_path no-ops, and the 30-day cutoff) and a new Playwright
+check (`smoke-m1-trash-focus.spec.ts`): double-click opens Focus view and Esc closes it, Delete
+shows the Trash toast, Settings → Library → Trash lists the item with a thumbnail, and Restore
+empties it again — zero console errors throughout.
+
 ---
 
 *(Later milestones append below this line.)*

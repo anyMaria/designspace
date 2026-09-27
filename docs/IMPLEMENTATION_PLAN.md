@@ -1171,8 +1171,8 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
   - [x] selecting (click, Shift, marquee, Ctrl+A), moving, resizing, stacking, hover;
   - [x] the context menu, minimap, zoom menu and fly-to.
 - [ ] Placement: drop point, cursor, free-space search, justified rows for several items; Tidy up.
-- [ ] Commands and undo/redo for all of the above; the Trash (soft delete, Trash view, restore, purge to the Recycle Bin, automatic purge after 30 days).
-- [ ] Focus view for images.
+- [x] Commands and undo/redo for all of the above; the Trash (soft delete, Trash view, restore, purge to the Recycle Bin, automatic purge after 30 days).
+- [x] Focus view for images.
 - [ ] Automatic backups with rotation.
 - [ ] The empty state; toasts with Undo; the Library and Canvas sections of Settings.
 

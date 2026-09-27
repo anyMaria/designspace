@@ -5,6 +5,7 @@ import { ensureLibraryReady, readDevUrlFlags } from '@/platform/bootstrap';
 import { seedDemoLibrary } from '@/platform/seed/demo';
 import { loadLibraryItems } from '@/state/loadLibrary';
 import { resumePendingIngest } from '@/workers/ingestQueue';
+import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { logger } from '@/lib/logger';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
@@ -40,6 +41,7 @@ export function App() {
           if (seedDemo) await seedDemoLibrary(platform, libraryBoardId);
           await loadLibraryItems(platform, libraryBoardId);
           void resumePendingIngest(platform);
+          void purgeExpiredTrash(platform);
           if (!cancelled)
             setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: bench });
           return;
@@ -53,6 +55,7 @@ export function App() {
         const libraryBoardId = await ensureLibraryReady(platform);
         await loadLibraryItems(platform, libraryBoardId);
         void resumePendingIngest(platform);
+        void purgeExpiredTrash(platform);
         if (!cancelled)
           setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: null });
       } catch (err) {

@@ -3,6 +3,7 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { Dialog } from '@/design/components';
 import { en } from '@/i18n/en';
 import { DropInspector } from '@/features/diagnostics/DropInspector';
+import { TrashSection } from '@/features/trash/TrashSection';
 
 type Section = 'library' | 'canvas' | 'contentNetwork' | 'vocabularies' | 'ai' | 'about';
 
@@ -43,6 +44,8 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
         <div style={{ flex: 1 }}>
           {section === 'about' ? (
             <AboutSection platform={platform} library={library} />
+          ) : section === 'library' ? (
+            <LibrarySection platform={platform} />
           ) : (
             <p style={{ color: 'var(--text-2)' }}>{milestoneFor(section)}</p>
           )}
@@ -52,16 +55,27 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
   );
 }
 
-function milestoneFor(section: Section): string {
-  const table: Record<Exclude<Section, 'about'>, string> = {
-    library: 'Backups, Trash and recent libraries land in M1/M7.',
+function milestoneFor(section: Exclude<Section, 'about' | 'library'>): string {
+  const table: Record<Exclude<Section, 'about' | 'library'>, string> = {
     canvas:
       'Wheel mode, dot grid density and reduced motion land alongside the canvas engine, M0–M1.',
     contentNetwork: 'Link previews, image downloads and Offline mode land in M5.',
     vocabularies: 'The vocabulary manager lands in M2.',
     ai: 'Offline AI settings land in M6.',
   };
-  return table[section as Exclude<Section, 'about'>];
+  return table[section];
+}
+
+function LibrarySection({ platform }: { platform: Platform }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      <TrashSection platform={platform} />
+      <p style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>
+        Location, recent libraries and the backups UI land alongside this section's remaining
+        checklist items.
+      </p>
+    </div>
+  );
 }
 
 function AboutSection({ platform, library }: { platform: Platform; library: LibraryInfo }) {

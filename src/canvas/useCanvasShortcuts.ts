@@ -7,6 +7,7 @@ import { useToastStore } from '@/state/toastStore';
 import { createMoveItemsCommand, createStackOrderCommand, createTrashCommand } from '@/commands/itemCommands';
 import { prefersReducedMotion } from '@/lib/motion';
 import { zoomRange } from '@/design/tokens';
+import { useFocusStore } from '@/state/focusStore';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -64,6 +65,12 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
 
       if (e.key === 'Escape') {
         useLibraryStore.getState().clearSelection();
+        return;
+      }
+
+      if (e.key === 'Enter' && selection.length === 1) {
+        e.preventDefault();
+        useFocusStore.getState().open(selection[0]);
         return;
       }
 

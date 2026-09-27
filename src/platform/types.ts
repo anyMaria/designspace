@@ -86,6 +86,7 @@ export interface Platform {
     put(key: string, bytes: Uint8Array): Promise<void>;
     has(keys: string[]): Promise<boolean[]>;
     url(key: string): string;
+    delete(keys: string[]): Promise<void>;
   };
 
   net: {

@@ -8,7 +8,7 @@ import type {
   Platform,
 } from '@/platform/types';
 import { SqlJsDb } from './sqljsDb';
-import { idbGet, idbHas, idbSet, STORE_CACHE, STORE_MEDIA } from './idbStore';
+import { idbDelete, idbGet, idbHas, idbSet, STORE_CACHE, STORE_MEDIA } from './idbStore';
 import { newId } from '@/lib/ids';
 import { logger } from '@/lib/logger';
 
@@ -111,7 +111,15 @@ export class BrowserPlatform implements Platform {
     importUrl: (_url: string): Promise<ImportResult> => notSupported('media.importUrl'),
     originalUrl: (relPath: string): string => this.objectUrlFor(STORE_MEDIA, relPath),
     reveal: (): Promise<void> => notSupported('media.reveal'),
-    purge: (): Promise<void> => notSupported('media.purge'),
+    // No Recycle Bin in a browser tab — this is the closest equivalent (permanent, unlike the
+    // real Windows build's trash::delete_all), and only ever reachable via "Delete forever" in
+    // the Trash section, which already warns the owner it's permanent.
+    purge: async (relPaths: string[]): Promise<void> => {
+      for (const relPath of relPaths) {
+        await idbDelete(STORE_MEDIA, relPath);
+        this.objectUrls.delete(`${STORE_MEDIA}:${relPath}`);
+      }
+    },
     listFolder: (): Promise<FolderListing> => notSupported('media.listFolder'),
   };
 
@@ -124,6 +132,12 @@ export class BrowserPlatform implements Platform {
     has: async (keys: string[]): Promise<boolean[]> =>
       Promise.all(keys.map((k) => idbHas(STORE_CACHE, k))),
     url: (key: string): string => this.objectUrlFor(STORE_CACHE, key),
+    delete: async (keys: string[]): Promise<void> => {
+      for (const key of keys) {
+        await idbDelete(STORE_CACHE, key);
+        this.objectUrls.delete(`${STORE_CACHE}:${key}`);
+      }
+    },
   };
 
   net = {

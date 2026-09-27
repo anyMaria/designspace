@@ -19,6 +19,8 @@ import { useContextMenu } from '@/canvas/useContextMenu';
 import { ContextMenu } from '@/canvas/ContextMenu';
 import { ZoomMenu } from '@/canvas/ZoomMenu';
 import { Minimap } from '@/canvas/Minimap';
+import { useFocusViewBinding } from '@/canvas/useFocusViewBinding';
+import { FocusView } from '@/features/focus/FocusView';
 import { useDropAndPaste } from '@/features/import/useDropAndPaste';
 import { AddMenu } from '@/features/import/AddMenu';
 import { DropOverlay } from '@/features/import/DropOverlay';
@@ -66,6 +68,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   useCanvasShortcuts(engine, platform);
   const { dragOver } = useDropAndPaste(engine, platform);
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
+  useFocusViewBinding(engine);
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
@@ -229,6 +232,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           onClose={closeContextMenu}
         />
       )}
+      <FocusView platform={platform} />
     </div>
   );
 }

@@ -98,6 +98,24 @@ export const en = {
   minimap: {
     label: 'Minimap',
   },
+  trash: {
+    title: 'Trash',
+    empty: 'Trash is empty.',
+    emptyNow: 'Empty now',
+    emptyNowConfirm: (count: number) =>
+      `Permanently delete ${count} item${count === 1 ? '' : 's'}? This can't be undone.`,
+    deleteForever: 'Delete forever',
+    deleteForeverConfirm: "Permanently delete this item? This can't be undone.",
+    restore: 'Restore',
+    deletedOn: (date: string) => `Deleted ${date}`,
+    autoPurgeNote: 'Items are deleted forever automatically 30 days after being trashed.',
+  },
+  focusView: {
+    close: 'Close',
+    previous: 'Previous',
+    next: 'Next',
+    showOriginal: 'Show original',
+  },
   contextMenu: {
     copyImage: 'Copy image',
     showInExplorer: 'Show in Explorer',
