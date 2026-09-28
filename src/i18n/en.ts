@@ -7,6 +7,18 @@ export const en = {
     title: 'Designspace',
     titleWithLibrary: (library: string) => `Designspace — ${library}`,
   },
+  /** Display names for `ItemKind` (§2.4/§5.2) — used anywhere a kind renders as text: the
+   * Kind filter chips/buttons, the List panel's "Group by Kind" headers, and the Details panel's
+   * Info row, so an item's kind never shows as its raw lowercase DB value. */
+  kind: {
+    image: 'Image',
+    video: 'Video',
+    pdf: 'PDF',
+    font: 'Font',
+    link: 'Link',
+    note: 'Note',
+    swatch: 'Swatch',
+  },
   spaceSwitcher: {
     library: 'Library',
     newBoard: '+ New board',
@@ -264,6 +276,8 @@ export const en = {
     infoAdded: 'Date added',
     infoDimensions: 'Dimensions',
     infoSize: 'File size',
+    infoDuration: 'Duration',
+    infoPages: 'Pages',
     infoLocation: 'File location',
     showInExplorer: 'Show in Explorer',
     colors: 'Colors',

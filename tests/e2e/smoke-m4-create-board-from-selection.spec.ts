@@ -37,7 +37,7 @@ test('"Create board from selection" (context menu) and "Create board from result
   const searchInput = page.getByPlaceholder('Search your library…');
   await expect(searchInput).toBeVisible();
   await page.getByRole('button', { name: 'Filters' }).click();
-  await page.getByRole('button', { name: 'image', exact: true }).click();
+  await page.getByRole('button', { name: 'Image', exact: true }).click();
   await page.waitForTimeout(300);
   await expect(page.getByText('60 of 60', { exact: true })).toBeVisible();
   const createFromResults = page.getByRole('button', { name: 'Create board from results' });

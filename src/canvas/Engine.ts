@@ -35,6 +35,7 @@ import { en } from '@/i18n/en';
 import type { ItemKind, Frame } from '@/state/types';
 import { noteTextColor } from '@/design/tokens';
 import { exportRectForCards, type ExportBackground, type ExportScale } from '@/lib/exportGeometry';
+import { formatDuration } from '@/lib/formatDuration';
 
 export interface EngineOptions {
   getTool: () => Tool;
@@ -154,13 +155,6 @@ const NOTE_TEXT_FONT_SIZE_WORLD = 18;
 const VIDEO_BADGE_PADDING_WORLD = 10;
 // §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview" — the plan's own threshold.
 const VIDEO_HOVER_ZOOM_THRESHOLD = 0.6;
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
 
 // §2.11 frames — a dashed outline + a title label sitting just above the top-left corner (so it
 // never overlaps whatever's placed inside), drawn in world units like the note/swatch labels.

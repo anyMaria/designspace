@@ -81,10 +81,15 @@ describe('groupItems', () => {
     expect(groups[0].key).toBe('__none__');
   });
 
-  it('groups by kind', () => {
-    const items = [makeItem({ id: 'a', kind: 'image' }), makeItem({ id: 'b', kind: 'video' })];
+  it('groups by kind, with a friendly display label', () => {
+    const items = [
+      makeItem({ id: 'a', kind: 'image' }),
+      makeItem({ id: 'b', kind: 'video' }),
+      makeItem({ id: 'c', kind: 'pdf' }),
+    ];
     const groups = groupItems(items, 'kind', new Map(), new Map());
-    expect(groups.map((g) => g.key).sort()).toEqual(['image', 'video']);
+    expect(groups.map((g) => g.key).sort()).toEqual(['image', 'pdf', 'video']);
+    expect(groups.map((g) => g.label).sort()).toEqual(['Image', 'PDF', 'Video']);
   });
 
   it('groups by color using the precomputed colorFamilies list', () => {

@@ -16,6 +16,7 @@ import {
 import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
 import { ChipInput, Swatch, Toggle, Button, IconButton } from '@/design/components';
 import { formatBytes } from '@/lib/formatBytes';
+import { formatDuration } from '@/lib/formatDuration';
 import { en } from '@/i18n/en';
 
 const MOST_USED_TYPE_COUNT = 8;
@@ -334,7 +335,7 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
 
       <Field label={en.details.info}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-          <InfoRow label={en.details.infoKind} value={item.kind} />
+          <InfoRow label={en.details.infoKind} value={en.kind[item.kind]} />
           <InfoRow
             label={en.details.infoAdded}
             value={new Date(item.createdAt).toLocaleDateString()}
@@ -344,6 +345,12 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
           )}
           {item.fileSize != null && (
             <InfoRow label={en.details.infoSize} value={formatBytes(item.fileSize)} />
+          )}
+          {item.durationMs != null && (
+            <InfoRow label={en.details.infoDuration} value={formatDuration(item.durationMs)} />
+          )}
+          {item.pageCount != null && (
+            <InfoRow label={en.details.infoPages} value={String(item.pageCount)} />
           )}
           {item.filePath && <InfoRow label={en.details.infoLocation} value={item.filePath} />}
         </div>

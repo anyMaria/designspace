@@ -24,18 +24,18 @@ test('the search bar opens with Ctrl+K, filters by text and a facet, shows a liv
   await expect(page.getByText(/^\d+ of 60$/)).toBeVisible();
   await page.screenshot({ path: 'test-results/search-text.png' });
 
-  // Clear text, open Filters, toggle the "image" Kind chip — every seeded item is an image, so
+  // Clear text, open Filters, toggle the "Image" Kind chip — every seeded item is an image, so
   // the count should cover the whole library (proves the facet path, not just free text).
   await input.fill('');
   await page.waitForTimeout(200);
   await page.getByRole('button', { name: 'Filters' }).click();
-  await page.getByRole('button', { name: 'image', exact: true }).click();
+  await page.getByRole('button', { name: 'Image', exact: true }).click();
   await page.waitForTimeout(300);
   await expect(page.getByText('60 of 60', { exact: true })).toBeVisible();
 
-  // Toggling "video" too (OR within the Kind field) shouldn't add any matches — nothing seeded
+  // Toggling "Video" too (OR within the Kind field) shouldn't add any matches — nothing seeded
   // is that kind — proving the union-within-a-field logic actually runs, not just a pass-through.
-  await page.getByRole('button', { name: 'video', exact: true }).click();
+  await page.getByRole('button', { name: 'Video', exact: true }).click();
   await page.waitForTimeout(300);
   await expect(page.getByText('60 of 60', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/search-filters.png' });

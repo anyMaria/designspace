@@ -1839,6 +1839,36 @@ pasting/dropping an image onto its existing card) was not built.** Following the
 whole line unchecked rather than being counted as done), the plan's Links checklist line stays
 `[ ]` even though everything else it names shipped — a clearly scoped follow-up, not a silent gap.
 
+### M5-6: Kind filter and Kind grouping everywhere
+The Kind facet filter (Search's Filters menu) and Kind grouping (List panel's "Group by") were
+both already built generically back in M2-6/M2-8, before every kind existed — `SearchBar.tsx`'s
+`KINDS` array and `listGrouping.ts`'s `kind` branch already covered `video`/`pdf`/`font`/`link`,
+so nothing was structurally missing. What this pass actually found and fixed:
+
+**Every kind rendered as its raw lowercase DB value, everywhere.** The Kind filter chips/buttons
+showed "pdf", "font", the List panel's group headers showed "pdf" as a section title, and the
+Details panel's Info row showed `item.kind` unformatted. Added `en.kind` (a display-name map,
+`pdf` → "PDF", etc. — kept in `i18n/en.ts` per CLAUDE.md's "strings in one place") and used it in
+all three places (`SearchBar.tsx`, `listGrouping.ts`, `DetailsPanel.tsx`).
+
+**Triage's preview only ever worked for images — a real, not cosmetic, gap.** `TriageView.tsx`
+rendered `<img src={platform.media.originalUrl(item.filePath)}>` unconditionally: fine for an
+image, but a browser can't display a video or PDF file through `<img>`, and a link has no
+`filePath` at all (its "original" is a webpage, not a local file — see M5-5's decision on why),
+so three of the seven kinds that can land in the Inbox would show a broken image icon or nothing.
+Since every media kind now has a cached `t128`/`t512` thumbnail once ingest finishes (images,
+video posters, PDF cover pages, font specimens, and a link's downloaded cover all go through that
+same cache), switched Triage's preview to `platform.cache.url('t512/…')` gated on `status ===
+'ok'` — the exact same pattern the List panel's gallery tiles already use — rather than the
+original file. The stale doc comment claiming this was deferred "until [video/PDF/link]
+importers land in later milestones" was itself the tell: those milestones had already landed.
+
+**Added `duration`/`pages` to the Details panel's Info row** (§2.4's spec table: "Kind, date
+added, dimensions, file size, duration, pages, file location") — these existed on the `Item` type
+since M5-2/M5-3 but were never surfaced there. Extracted `formatDuration` out of `Engine.ts` (it
+already had one, for the canvas duration badge) into `lib/formatDuration.ts` so the canvas badge
+and the Details panel format a clip's length identically rather than drifting.
+
 ---
 
 *(Later milestones append below this line.)*

@@ -19,11 +19,11 @@ test('the List panel groups, sorts, virtualizes, and clicking a tile selects+fli
   // Group by Kind — every seeded item is 'image', so exactly one group header should appear.
   await page.getByLabel('Group by').selectOption('kind');
   await page.waitForTimeout(300);
-  await expect(page.getByText('image', { exact: true })).toBeVisible();
+  await expect(page.getByText('Image', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/list-grouped.png' });
 
   // Collapsing the group hides its tiles (the header stays).
-  await page.getByText('image', { exact: true }).click();
+  await page.getByText('Image', { exact: true }).click();
   await page.waitForTimeout(200);
 
   // Back to no grouping for the click/dblclick checks below.

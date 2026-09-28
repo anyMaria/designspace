@@ -219,7 +219,7 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
             ])}
             {filter.kinds?.map((k) => (
               <Chip key={`kind-${k}`} onRemove={() => useSearchStore.getState().toggleKind(k)}>
-                {en.search.kind}: {k}
+                {en.search.kind}: {en.kind[k]}
               </Chip>
             ))}
             {filter.colors?.map((c) => (
@@ -305,7 +305,7 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
                   }
                   onClick={() => useSearchStore.getState().toggleKind(k)}
                 >
-                  {k}
+                  {en.kind[k]}
                 </button>
               ))}
             </FilterSection>

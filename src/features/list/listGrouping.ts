@@ -1,4 +1,5 @@
 import type { Item, Term, Facet } from '@/state/types';
+import { en } from '@/i18n/en';
 
 export type GroupBy = 'none' | Facet | 'color' | 'kind' | 'artist' | 'month';
 export type SortBy = 'newest' | 'oldest' | 'title';
@@ -73,7 +74,7 @@ export function groupItems(
       if (families.length === 0) none.push(item.id);
       else for (const family of families) add(family, family, FACET_DOT.color!, item.id);
     } else if (groupBy === 'kind') {
-      add(item.kind, item.kind, null, item.id);
+      add(item.kind, en.kind[item.kind], null, item.id);
     } else if (groupBy === 'artist') {
       if (!item.artist) none.push(item.id);
       else add(item.artist, item.artist, null, item.id);

@@ -18,9 +18,10 @@ const NUMBER_KEY_COUNT = 9;
 
 /** Full-screen Triage overlay (§2.7): works through the Inbox chip's snapshot one item at a
  * time with a keyboard-first flow. AI suggestion ghost chips ("A accepts all") land with the AI
- * worker in M6 — the `A` key is a documented no-op until then, not wired to anything. Video/PDF/
- * link previews (muted autoplay, page picker, cover+title) don't apply yet either: every seeded
- * and imported item is `kind: 'image'` until those importers land in later milestones. */
+ * worker in M6 — the `A` key is a documented no-op until then, not wired to anything. The preview
+ * shows the same cached thumbnail every other card-shaped surface (List tiles, canvas cards)
+ * uses, rather than each kind's own rich Focus-view treatment (muted autoplay, page nav, the type
+ * tester) — those exist elsewhere; Triage's job is fast classification, not a second Focus view. */
 export function TriageView({ platform }: { platform: Platform }) {
   const isOpen = useTriageStore((s) => s.isOpen);
   const order = useTriageStore((s) => s.order);
@@ -215,9 +216,9 @@ export function TriageView({ platform }: { platform: Platform }) {
               padding: 'var(--space-6)',
             }}
           >
-            {item.filePath && (
+            {item.status === 'ok' && (
               <img
-                src={platform.media.originalUrl(item.filePath)}
+                src={platform.cache.url(`t512/${item.id}`)}
                 alt={item.title}
                 style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
               />
