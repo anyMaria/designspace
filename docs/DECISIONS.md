@@ -1869,6 +1869,68 @@ since M5-2/M5-3 but were never surfaced there. Extracted `formatDuration` out of
 already had one, for the canvas duration badge) into `lib/formatDuration.ts` so the canvas badge
 and the Details panel format a clip's length identically rather than drifting.
 
+### M5 wrap-up
+Every checklist item shipped except the two individually-logged, deliberate exceptions: Videos'
+"chosen" cover frame (the scrubber UI, M5-2) and Links' "custom cover" (replacing a cover after
+the fact, M5-5) — both named deliverables that didn't land, so both checklist lines stay unticked
+rather than counted as done, following the same rule this project has used since M3's "(If time
+allows) Arrange by…". Every other line, including both spikes, all four new kinds' full ingest→
+canvas→Focus pipelines, and the Kind filter/grouping sweep, is checked and real.
+
+**The milestone's throughline: one ingest architecture, reused four times.** M5-2 (Videos)
+established the pattern every later kind followed almost unchanged: parsing/rendering that needs
+the DOM (a `<video>` element, a PDF page canvas, a registered `FontFace`, a downloaded cover
+image) can't run in a Worker, so it runs on the main thread, one main-thread `*IngestQueue` class
+processes items sequentially rather than pooled (bounding how much main-thread time a big batch
+claims at once), a failure marks `status: 'unsupported'` rather than retrying forever, and the
+same `t128`/`t512` cache + palette-extraction math derived for images gives every new kind a
+consistent thumbnail and searchable color for free. M5-3 (PDFs) and M5-4 (Fonts) both reused this
+shape directly; M5-5 (Links) reused it differently but just as directly — a link's downloaded
+cover is *literally just an image* at that point, so its ingest is the existing `IngestQueue`
+(the image one), not a fifth queue class.
+
+**Two real, load-bearing bugs found through testing, not code review — both logged where they
+happened, worth repeating here because of what they say about verification depth.** pdf.js 6.3's
+default build calls a JS engine built-in (`Map.prototype.getOrInsertComputed`) that, checked
+empirically, isn't shipped in *any* browser yet — every single PDF import would have silently
+landed as `status: 'unsupported'` had the M5-3 e2e test not actually exercised a real PDF end to
+end rather than stopping at unit tests of the parsing logic. Rust's naive file-extension guesser
+(M5-5) returned the whole filename instead of `None` for a URL with no extension, because
+`str::rsplit` doesn't signal "not found" — caught by a unit test written specifically to cover
+that edge, and only findable that way, not by reading the code. Both fixes ended up nontrivial
+(switching pdf.js's import entrypoint; `httpmock` for real local HTTP round-trips) precisely
+because the bugs were real integration failures, not typos — the kind pure-mock tests structurally
+cannot catch.
+
+**Two real, pre-existing bugs fixed in passing, both predating M5 and unrelated to what each
+sub-task set out to build.** `media.rs`'s Rust-side `SUPPORTED_EXTENSIONS` (Folder import's own
+allowlist) still only listed images long after M5-2/M5-3/M5-4 gave Designspace real video/PDF/
+font ingest — Folder-importing a directory with any of those file types on the actual Tauri build
+would have silently skipped them. `TriageView.tsx`'s preview only ever worked for images, with a
+doc comment explicitly (and, by M5, wrongly) claiming that was still deferred. Both were caught by
+auditing "does this surface actually support every kind" rather than by symptom reports, which is
+the same lens M5-6 applied everywhere else.
+
+Verification for the whole milestone (not just the last sub-task): `tsc -b --noEmit`, `eslint .`,
+`prettier --check .`, `vitest run` (316 tests across 49 files), `vite build`, `cargo fmt --check`,
+`cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` (40 tests)
+are all clean; the full Playwright suite (40 specs, including four new M5 ones) passes end to end
+against the real browser build. No tag for M5 — same as M3/M4, the plan only calls for tagging at
+the end of M2 (`v0.1.0`).
+
+**Owner checks:**
+- Import a real video, PDF and font (or the ones this session generated: `tests/e2e/fixtures/
+  sample.webm`/`sample.pdf`/`sample.woff2`) on your actual Windows/WebView2 install — this sandbox
+  can't play MP4/H.264 or `.mov` at all (S5's finding), so that's real verification this session
+  couldn't do itself. Does the video actually play? Does the PDF page render correctly? Does the
+  font specimen look right?
+- Paste or drop a real URL (a news article, a product page) with Offline mode off. Does the
+  preview card sharpen with a real title and cover image within a few seconds? Turn Offline mode
+  on in Settings → Content & network and try again — does it land as a clean domain card with no
+  network attempt at all?
+- Open the List panel, group by Kind, and confirm every kind you've added shows up with a real
+  label (not a raw lowercase word) and its own thumbnail.
+
 ---
 
 *(Later milestones append below this line.)*
