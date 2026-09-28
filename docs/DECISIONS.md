@@ -1391,6 +1391,57 @@ e2e test's own `page.on('console')` listener treats as a real console error, so
 button, which never logged in the first place — clipboard permission being denied isn't something
 the owner can act on, so it was never worth surfacing as an error to begin with.
 
+### M4-7: Export (PNG/PDF)
+The plan's §4.9 sketches export as manual `RenderTexture` tiling at 4096px chunks, stitched
+together, because a naive single `RenderTexture` can exceed a GPU's max texture size on a very
+large board. PixiJS v8's `renderer.extract.canvas({ target, frame, resolution })` already does the
+equivalent internally — `frame` selects a sub-rect of the target's own local space (verified by
+reading `GenerateTextureSystem`'s source: it renders `target` with an explicit root transform,
+ignoring `target`'s ancestors, so `itemsLayer`'s children — which are already positioned in world
+coordinates — need no camera-relative math at all) and `resolution` is the scale multiplier. Using
+it directly instead of hand-rolling the tiling loop is the simpler alternative the CLAUDE.md
+non-negotiables call for when the plan's own approach isn't the easiest path to the same UX; a
+60-item board's export rect is nowhere near a GPU's real texture-size ceiling, so tiling would have
+added real complexity for a case this app doesn't hit in practice.
+
+The plan also mentions loading `t1600` (or originals) for exported items first. This codebase's
+image ingest worker (M1) only ever generates `t128`/`t512` — there's no `t1600` size and no
+existing path from an `Item` to its original file's URL at the canvas layer. Building that whole
+size tier (Rust ingest changes, a new cache key, a new LOD rung) was out of scope for an already
+large milestone item; export instead upgrades every card within the export rect to `t512` (the
+largest thumbnail this app has) before capturing, same as the live canvas's own zoomed-in LOD.
+Logged here as a known gap rather than silently doing less than the plan describes — worth
+revisiting if the owner finds 512px insufficient for a printed PDF.
+
+Export reuses `itemsLayer` directly as the `extract` target (rather than building a separate
+scene), which for free excludes `overlayLayer` (marquee, selection outline, resize handles) — those
+are screen-space UI chrome, never meant to appear in an export. What it doesn't get for free:
+`itemsLayer`'s children outside the *current camera viewport* are `renderable = false` (§4.6
+culling only keeps what's on screen paintable), so exporting "the whole board" needed a temporary
+force-visible pass over every card the export rect covers (respecting an active search Hide filter,
+so a hidden-by-search item stays out of the export too), undone afterwards via the same `cullItems()`
+the live canvas already calls on every camera move — no new culling logic, just an extra call.
+
+The "dots" background option is drawn as real `Graphics` circles at the dot grid's base world
+spacing (`canvasGeometry.dotGridWorldSpacing`), not a re-implementation of the on-screen CSS
+grid's zoom-based density switching (`DotGrid.tsx`'s dense/sparse thresholds) — an export always
+renders at "real" scale, so there's no zoom level for that switching logic to key off of.
+
+PNG export offers the plan's 1×/2× scale choice; PDF export doesn't expose a scale (the plan
+doesn't ask for one there) but renders at a fixed 2× internally for print-quality pixels regardless
+of the owner's on-screen zoom. "One page per frame" only appears in the dialog when exporting the
+whole space (not a single already-selected frame) and the space actually has frames — exporting a
+single frame is inherently already "one page," so the toggle would be meaningless there.
+
+`Platform.dialogs.saveFile` was a stub explicitly marked "lands in M4" since M0
+(`TauriPlatform.ts`'s `notYet(...)`) — implemented for real here via a new small `dialog_save_file`
+Rust command (`src-tauri/src/dialogs.rs`) using `tauri-plugin-dialog`'s native Save As picker plus
+`std::fs::write`. It's its own module rather than folded into `media.rs`, since it's a generic
+"write these bytes somewhere the owner picks" operation with nothing to do with media import/purge.
+`BrowserPlatform`'s existing implementation (an anchor-click download) already worked and needed no
+changes; the two together mean an owner can save on both the browser dev build and the real
+Windows app.
+
 ---
 
 *(Later milestones append below this line.)*

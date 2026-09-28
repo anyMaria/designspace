@@ -1,6 +1,7 @@
 mod app_info;
 mod backups;
 mod db;
+mod dialogs;
 mod error;
 mod library;
 mod media;
@@ -44,6 +45,7 @@ pub fn run() {
             backups::backup_restore,
             app_info::app_paths,
             app_info::open_logs,
+            dialogs::dialog_save_file,
         ]);
 
     let builder = media_protocol::register(builder);

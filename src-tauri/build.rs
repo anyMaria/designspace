@@ -27,6 +27,7 @@ const APP_COMMANDS: &[&str] = &[
     "backup_restore",
     "app_paths",
     "open_logs",
+    "dialog_save_file",
 ];
 
 fn main() {

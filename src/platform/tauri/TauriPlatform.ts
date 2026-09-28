@@ -112,8 +112,8 @@ export class TauriPlatform implements Platform {
       const result = await openDialog({ directory: true });
       return typeof result === 'string' ? result : null;
     },
-    saveFile: (defaultName: string, _bytes: Uint8Array): Promise<boolean> =>
-      notYet(`dialogs.saveFile("${defaultName}")`, 'M4'),
+    saveFile: (defaultName: string, bytes: Uint8Array): Promise<boolean> =>
+      invoke<boolean>('dialog_save_file', { defaultName, bytes: Array.from(bytes) }),
   };
 
   shell = {

@@ -6,6 +6,7 @@ import {
   Hand,
   Settings as SettingsIcon,
   PanelRight,
+  Download,
 } from 'lucide-react';
 import type { Platform, LibraryInfo } from '@/platform';
 import { useUiStore } from '@/state/uiStore';
@@ -53,6 +54,8 @@ import { useNoteCanvasBinding } from '@/canvas/useNoteCanvasBinding';
 import { NoteEditor } from '@/features/notes/NoteEditor';
 import { useFrameCanvasBinding } from '@/canvas/useFrameCanvasBinding';
 import { FrameRenameDialog } from '@/features/frames/FrameRenameDialog';
+import { ExportDialog } from '@/features/export/ExportDialog';
+import { useExportUiStore } from '@/state/exportUiStore';
 import {
   Dock,
   DockDivider,
@@ -207,6 +210,11 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           gap: 'var(--space-2)',
         }}
       >
+        <IconButton
+          icon={<Download size={20} strokeWidth={1.75} />}
+          label={en.export.action}
+          onClick={() => useExportUiStore.getState().setOpen(true)}
+        />
         <IconButton
           icon={<SettingsIcon size={20} strokeWidth={1.75} />}
           label={en.settings.title}
@@ -425,6 +433,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       <ConnectionTooltip engine={engine} />
       <ConnectionLabelDialog platform={platform} />
       <FrameRenameDialog platform={platform} />
+      {engine && <ExportDialog platform={platform} engine={engine} />}
     </div>
   );
 }

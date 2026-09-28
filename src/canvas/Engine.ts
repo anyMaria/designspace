@@ -2,7 +2,16 @@
 // shader/uniform sync. This polyfill installs the static fallback and must load before any
 // renderer initializes — see node_modules/pixi.js/skills/pixijs-environments/SKILL.md.
 import 'pixi.js/unsafe-eval';
-import { Application, Container, Graphics, GraphicsContext, Sprite, Text, Texture } from 'pixi.js';
+import {
+  Application,
+  Container,
+  Graphics,
+  GraphicsContext,
+  Rectangle,
+  Sprite,
+  Text,
+  Texture,
+} from 'pixi.js';
 import { Camera } from './Camera';
 import { SpatialIndex } from './spatialIndex';
 import { TextureManager } from './TextureManager';
@@ -15,15 +24,16 @@ import {
   resizeWithAspect,
   type ResizeHandle,
 } from './selection';
-import { canvasGeometry, criterionColors, motion } from '@/design/tokens';
+import { canvasGeometry, colors, criterionColors, motion } from '@/design/tokens';
 import type { BenchRect } from '@/platform/seed/bench';
-import { unionRects } from '@/lib/geometry';
+import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
 import type { ConstellationHub } from '@/lib/constellations';
 import { easeInOut } from '@/lib/motion';
 import { en } from '@/i18n/en';
 import type { ItemKind, Frame } from '@/state/types';
 import { noteTextColor } from '@/design/tokens';
+import { exportRectForCards, type ExportBackground, type ExportScale } from '@/lib/exportGeometry';
 
 export interface EngineOptions {
   getTool: () => Tool;
@@ -1903,6 +1913,115 @@ export class Engine {
       w: card.w * this.camera.zoom,
       h: card.h * this.camera.zoom,
     };
+  }
+
+  // ------------------------------------------------------------------------------- §2.11 Export
+
+  /** The world-space rect a PNG/PDF export renders: a single frame's own rect, or the padded
+   * bounding box of every card in the current space. `null` when there's nothing to export. */
+  getExportRect(frameId: string | null): Rect | null {
+    if (frameId) {
+      const frame = this.frames.get(frameId);
+      return frame ? { x: frame.x, y: frame.y, w: frame.w, h: frame.h } : null;
+    }
+    return exportRectForCards([...this.cards.values()]);
+  }
+
+  /** Renders `rect` (world space) to an off-screen canvas at `scale`× — the shared step behind
+   * both PNG export and each page of a PDF export. Temporarily un-culls every card in `rect`
+   * (culling only keeps what's on *screen* renderable — §4.6 — which the export rect usually
+   * exceeds) and upgrades their textures to the largest one this app caches (t512 — there's no
+   * t1600/original path yet, see DECISIONS.md), then restores normal culling afterwards so the
+   * live canvas is unaffected. */
+  async renderExportCanvas(
+    rect: Rect,
+    opts: { scale: ExportScale; background: ExportBackground },
+  ): Promise<HTMLCanvasElement> {
+    if (!this.app || !this.itemsLayer) throw new Error('Engine not mounted');
+    this.forceVisibleForExport(rect);
+    await this.upgradeTexturesForExport(rect);
+    const background = this.buildExportBackground(rect, opts.background);
+    if (background) {
+      background.zIndex = -Infinity;
+      this.itemsLayer.addChild(background);
+      this.itemsLayer.sortChildren();
+    }
+    try {
+      return this.app.renderer.extract.canvas({
+        target: this.itemsLayer,
+        frame: new Rectangle(rect.x, rect.y, rect.w, rect.h),
+        resolution: opts.scale,
+        antialias: true,
+      }) as HTMLCanvasElement;
+    } finally {
+      if (background) {
+        this.itemsLayer.removeChild(background);
+        background.destroy();
+      }
+      this.cullItems(); // recomputes real on-screen visibility from the current viewport
+    }
+  }
+
+  /** Cards outside the current viewport are `renderable = false` (§4.6 culling) — make every
+   * card the export rect covers paintable again, respecting an active search Hide filter (a
+   * hidden-by-search item should stay out of the export too). `cullItems()` undoes this. */
+  private forceVisibleForExport(rect: Rect): void {
+    const hiddenBySearch = (id: string) =>
+      this.searchMode === 'hide' && !!this.searchMatches && !this.searchMatches.has(id);
+    for (const [id, card] of this.cards) {
+      if (!rectsIntersect(rect, card) || hiddenBySearch(id)) continue;
+      const sprite = this.sprites.get(id);
+      if (sprite) {
+        sprite.visible = true;
+        sprite.renderable = true;
+      }
+      const label = this.noteLabels.get(id);
+      if (label) label.visible = true;
+    }
+  }
+
+  private async upgradeTexturesForExport(rect: Rect): Promise<void> {
+    if (!this.textureManager) return;
+    const jobs: Promise<void>[] = [];
+    for (const [id, card] of this.cards) {
+      if (card.kind !== 'image' || !rectsIntersect(rect, card)) continue;
+      const sprite = this.sprites.get(id);
+      const url = card.thumbUrl512;
+      if (!sprite || !url) continue;
+      const key = `t512:${id}`;
+      if (sprite.texture === this.textureManager.get(key)) continue;
+      jobs.push(
+        this.textureManager.request(key, url).then((texture) => {
+          if (texture && !sprite.destroyed) {
+            sprite.texture = texture;
+            sprite.tint = 0xffffff;
+          }
+        }),
+      );
+    }
+    await Promise.all(jobs);
+  }
+
+  /** "Plain plum"/"white" is a solid fill; "dots" adds the bullet-journal grid (§3.4) on top, at
+   * its base world spacing — export always renders at "real" scale, unlike the on-screen CSS
+   * grid's zoom-based density switching. */
+  private buildExportBackground(rect: Rect, background: ExportBackground): Graphics | null {
+    if (background === 'white')
+      return new Graphics().rect(rect.x, rect.y, rect.w, rect.h).fill(0xffffff);
+    const g = new Graphics().rect(rect.x, rect.y, rect.w, rect.h).fill(colors.canvas);
+    if (background === 'plum') return g;
+    const spacing = canvasGeometry.dotGridWorldSpacing;
+    const startX = Math.floor(rect.x / spacing) * spacing;
+    const startY = Math.floor(rect.y / spacing) * spacing;
+    for (let x = startX; x < rect.x + rect.w; x += spacing) {
+      for (let y = startY; y < rect.y + rect.h; y += spacing) {
+        g.circle(x, y, canvasGeometry.dotScreenPx).fill({
+          color: colors.dot,
+          alpha: colors.dotAlpha,
+        });
+      }
+    }
+    return g;
   }
 
   private requestLod(card: ItemCard, sprite: Sprite): void {

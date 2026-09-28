@@ -1242,7 +1242,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] Swatches and Extract palette.
 - [x] Frames on any space.
 - [ ] The suggestions tray (from the source filter; similarity is added in M6).
-- [ ] Export: PNG (board or frame, 1×/2×, choice of background) and PDF (fitted, or one page per frame).
+- [x] Export: PNG (board or frame, 1×/2×, choice of background) and PDF (fitted, or one page per frame).
 
 **Acceptance:**
 - Filter → select → new board takes ≤ 3 actions.

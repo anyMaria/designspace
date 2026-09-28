@@ -32,6 +32,7 @@
     "allow-backup-list",
     "allow-backup-restore",
     "allow-app-paths",
-    "allow-open-logs"
+    "allow-open-logs",
+    "allow-dialog-save-file"
   ]
 }
