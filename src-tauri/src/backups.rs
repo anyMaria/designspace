@@ -81,8 +81,25 @@ fn rotate_backups(dir: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// §5.4's "optional extra destination... receives a copy" — best-effort: a failed or skipped
+/// copy here never fails the backup itself, since the primary copy (what Restore reads from)
+/// already succeeded. A blank destination or a path that isn't an existing directory is silently
+/// skipped rather than erroring, since it's just as likely to be "not configured" as "misconfigured".
+fn copy_to_extra_destination(backup_path: &Path, file_name: &str, extra_destination: Option<&str>) {
+    let Some(extra_dir) = extra_destination.map(str::trim).filter(|d| !d.is_empty()) else {
+        return;
+    };
+    let extra_path = Path::new(extra_dir);
+    if extra_path.is_dir() {
+        let _ = fs::copy(backup_path, extra_path.join(file_name));
+    }
+}
+
 #[tauri::command]
-pub fn backup_now(state: State<'_, AppState>) -> AppResult<BackupInfo> {
+pub fn backup_now(
+    state: State<'_, AppState>,
+    extra_destination: Option<String>,
+) -> AppResult<BackupInfo> {
     let guard = state.library.lock().expect("library mutex poisoned");
     let handle = guard
         .as_ref()
@@ -99,6 +116,8 @@ pub fn backup_now(state: State<'_, AppState>) -> AppResult<BackupInfo> {
         params![dest.to_string_lossy().into_owned()],
     )?;
     rotate_backups(&dir)?;
+
+    copy_to_extra_destination(&dest, &file_name, extra_destination.as_deref());
 
     let size_bytes = fs::metadata(&dest)?.len();
     Ok(BackupInfo {
@@ -224,5 +243,40 @@ mod tests {
         rotate_backups(dir.path()).unwrap();
         let after_second = list_backup_files(dir.path()).unwrap().len();
         assert_eq!(after_first, after_second);
+    }
+
+    #[test]
+    fn copies_to_an_existing_extra_destination() {
+        let backup_dir = tempfile::tempdir().unwrap();
+        let extra_dir = tempfile::tempdir().unwrap();
+        let backup_path = backup_dir.path().join("designspace-2026-01-01-0000.db");
+        fs::write(&backup_path, b"fake db bytes").unwrap();
+
+        copy_to_extra_destination(
+            &backup_path,
+            "designspace-2026-01-01-0000.db",
+            Some(extra_dir.path().to_str().unwrap()),
+        );
+
+        assert!(extra_dir
+            .path()
+            .join("designspace-2026-01-01-0000.db")
+            .is_file());
+    }
+
+    #[test]
+    fn skips_a_blank_or_missing_extra_destination_without_erroring() {
+        let backup_dir = tempfile::tempdir().unwrap();
+        let backup_path = backup_dir.path().join("designspace-2026-01-01-0000.db");
+        fs::write(&backup_path, b"fake db bytes").unwrap();
+
+        copy_to_extra_destination(&backup_path, "designspace-2026-01-01-0000.db", None);
+        copy_to_extra_destination(&backup_path, "designspace-2026-01-01-0000.db", Some("  "));
+        copy_to_extra_destination(
+            &backup_path,
+            "designspace-2026-01-01-0000.db",
+            Some("/no/such/directory"),
+        );
+        // No panic and nothing written anywhere — the assertions above not panicking is the test.
     }
 }

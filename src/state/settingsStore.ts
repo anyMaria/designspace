@@ -9,9 +9,13 @@ interface SettingsState {
   /** §4.10: AI (background analysis, suggestions, Find similar, search by meaning). On by
    * default — an owner who wants it off finds the switch in Settings → AI (M6-5). */
   aiEnabled: boolean;
+  /** §5.4: an optional second folder (e.g. a OneDrive folder) that also receives a copy of every
+   * backup. `null` means none configured. */
+  backupExtraDestination: string | null;
 }
 
 export const useSettingsStore = create<SettingsState>(() => ({
   offlineMode: false,
   aiEnabled: true,
+  backupExtraDestination: null,
 }));

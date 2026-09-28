@@ -6,6 +6,7 @@ import { useSettingsStore } from './settingsStore';
 interface LibrarySettingsJson {
   offlineMode?: boolean;
   aiEnabled?: boolean;
+  backupExtraDestination?: string | null;
 }
 
 async function readSettingsJson(platform: Platform): Promise<LibrarySettingsJson> {
@@ -25,6 +26,7 @@ export async function loadSettings(platform: Platform): Promise<void> {
   useSettingsStore.setState({
     offlineMode: parsed.offlineMode ?? false,
     aiEnabled: parsed.aiEnabled ?? true,
+    backupExtraDestination: parsed.backupExtraDestination ?? null,
   });
 }
 
@@ -52,4 +54,20 @@ export async function setAiEnabled(platform: Platform, value: boolean): Promise<
     [JSON.stringify(parsed)],
   );
   useSettingsStore.setState({ aiEnabled: value });
+}
+
+/** §5.4's "optional extra destination" for backups (e.g. a OneDrive folder) — `null` clears it.
+ * Persisted immediately, same "no separate Save step" convention as every other Settings toggle
+ * here. */
+export async function setBackupExtraDestination(
+  platform: Platform,
+  value: string | null,
+): Promise<void> {
+  const parsed = await readSettingsJson(platform);
+  parsed.backupExtraDestination = value;
+  await platform.db.execute(
+    "INSERT INTO meta (key, value) VALUES ('settings', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    [JSON.stringify(parsed)],
+  );
+  useSettingsStore.setState({ backupExtraDestination: value });
 }

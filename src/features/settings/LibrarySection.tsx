@@ -3,6 +3,9 @@ import type { Platform, LibraryInfo, BackupInfo } from '@/platform';
 import { Button } from '@/design/components';
 import { TrashSection } from '@/features/trash/TrashSection';
 import { useToastStore } from '@/state/toastStore';
+import { useSettingsStore } from '@/state/settingsStore';
+import { setBackupExtraDestination } from '@/state/loadSettings';
+import { exportLibraryJson, exportLibraryZip } from '@/features/export/exportLibrary';
 import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
 
@@ -20,6 +23,7 @@ export function LibrarySection({
   const [recent, setRecent] = useState<LibraryInfo[]>([]);
   const [backups, setBackups] = useState<BackupInfo[] | null>(null);
   const isTauri = platform.kind === 'tauri';
+  const extraDestination = useSettingsStore((s) => s.backupExtraDestination);
 
   useEffect(() => {
     if (!isTauri) return;
@@ -42,7 +46,7 @@ export function LibrarySection({
 
   async function backupNow(): Promise<void> {
     try {
-      const info = await platform.backups.now();
+      const info = await platform.backups.now(extraDestination);
       setBackups((prev) => [info, ...(prev ?? [])]);
       useToastStore.getState().show(en.settings.library.backupNowSucceeded);
     } catch (err) {
@@ -55,6 +59,28 @@ export function LibrarySection({
     if (!window.confirm(en.settings.library.restoreConfirm)) return;
     await platform.backups.restore(id);
     window.location.reload();
+  }
+
+  async function chooseExtraDestination(): Promise<void> {
+    const dir = await platform.dialogs.openFolder();
+    if (!dir) return;
+    await setBackupExtraDestination(platform, dir);
+  }
+
+  async function clearExtraDestination(): Promise<void> {
+    await setBackupExtraDestination(platform, null);
+  }
+
+  async function runExport(fn: (platform: Platform) => Promise<boolean>): Promise<void> {
+    try {
+      const saved = await fn(platform);
+      useToastStore
+        .getState()
+        .show(saved ? en.settings.library.exportSucceeded : en.settings.library.exportCancelled);
+    } catch (err) {
+      logger.error('Library export failed', err);
+      useToastStore.getState().show(en.settings.library.exportFailed);
+    }
   }
 
   return (
@@ -103,6 +129,30 @@ export function LibrarySection({
                 {en.settings.library.backupNow}
               </Button>
             </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: 'var(--space-2)',
+              }}
+            >
+              <span style={{ color: 'var(--text-2)', fontSize: 13, wordBreak: 'break-all' }}>
+                {extraDestination
+                  ? en.settings.library.extraDestinationSet(extraDestination)
+                  : en.settings.library.extraDestinationUnset}
+              </span>
+              <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
+                <Button variant="ghost" onClick={() => void chooseExtraDestination()}>
+                  {en.settings.library.extraDestinationChoose}
+                </Button>
+                {extraDestination && (
+                  <Button variant="ghost" onClick={() => void clearExtraDestination()}>
+                    {en.settings.library.extraDestinationClear}
+                  </Button>
+                )}
+              </div>
+            </div>
             {backups && backups.length === 0 && (
               <p style={{ color: 'var(--text-2)' }}>{en.settings.library.noBackupsYet}</p>
             )}
@@ -127,6 +177,20 @@ export function LibrarySection({
                 ))}
               </div>
             )}
+          </div>
+
+          <div>
+            <h3 style={{ margin: '0 0 var(--space-2)', fontSize: 'var(--text-md)' }}>
+              {en.settings.library.export}
+            </h3>
+            <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
+              <Button variant="secondary" onClick={() => void runExport(exportLibraryJson)}>
+                {en.settings.library.exportJson}
+              </Button>
+              <Button variant="secondary" onClick={() => void runExport(exportLibraryZip)}>
+                {en.settings.library.exportZip}
+              </Button>
+            </div>
           </div>
         </>
       ) : (

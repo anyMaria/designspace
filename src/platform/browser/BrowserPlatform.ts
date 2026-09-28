@@ -174,7 +174,7 @@ export class BrowserPlatform implements Platform {
   };
 
   backups = {
-    now: (): Promise<BackupInfo> => notSupported('backups.now'),
+    now: (_extraDestination?: string | null): Promise<BackupInfo> => notSupported('backups.now'),
     list: (): Promise<BackupInfo[]> => Promise.resolve([]),
     restore: (): Promise<void> => notSupported('backups.restore'),
   };
@@ -192,6 +192,10 @@ export class BrowserPlatform implements Platform {
       URL.revokeObjectURL(url);
       return Promise.resolve(true);
     },
+  };
+
+  libraryExport = {
+    zip: (): Promise<boolean> => notSupported('libraryExport.zip'),
   };
 
   shell = {

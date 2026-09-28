@@ -2318,4 +2318,53 @@ the end of M2 (`v0.1.0`).
 
 ---
 
+## M7: Safety & polish → v1.0.0
+
+**M7-1a: Backups extra destination.** §5.4's "optional extra destination (e.g. a OneDrive folder)
+receives a copy" of every backup. Added `backupExtraDestination: string | null` to the library
+settings JSON (same `meta.settings` blob and "no separate Save step" convention as Offline mode
+and the AI toggle), a folder picker in Settings → Library, and `copy_to_extra_destination` in
+`src-tauri/src/backups.rs`, called from `backup_now` after the primary `VACUUM INTO` copy already
+succeeded. The copy is best-effort by design: a missing, blank or unwritable extra destination
+never fails the backup itself, since the primary copy (what Restore reads from) is unaffected
+either way — silently skipped rather than surfaced as an error, since a blank/misconfigured folder
+is at least as likely to mean "not set up yet" as "broken."
+
+**M7-1b: Library export (JSON/ZIP).** §5.4's "a JSON file with all metadata (items, terms, boards,
+placements, frames, connections, filters), optionally zipped with the media," in Settings →
+Library next to Backups. Split the work at the natural seam:
+- **Plain JSON** needed no new Rust surface at all — `src/features/export/exportLibrary.ts` builds
+  the manifest client-side from ordinary `platform.db.select()` queries (one per table:
+  `items`, `terms`, `item_terms`, `boards`, `placements`, `frames`, `manual_connections`,
+  `saved_filters`, plus `schema_version`) and hands the bytes to the existing generic
+  `platform.dialogs.saveFile()` — the same "Save As…" path used for PNG/PDF board exports (M4-7)
+  and Focus's other outputs. Works on both platforms.
+- **ZIP with media** needed one new command, `export_library_zip` (`src-tauri/src/export.rs`):
+  only Rust has direct filesystem access to stream the `media/` directory (potentially gigabytes)
+  into an archive without routing those bytes through IPC as base64 or a JSON array. It opens its
+  own "Save As…" dialog (mirroring `dialog_save_file`'s pattern) and writes the frontend-built
+  JSON manifest plus every file under `media/` into a single zip, using the new `zip` crate
+  (v8.6.0, `deflate` feature only — no encryption/bzip2/lzma, which this app has no use for).
+  Tauri-only, matching every other filesystem-touching command; `BrowserPlatform.libraryExport.zip`
+  throws `notSupported`, same convention as `media.listFolder` etc.
+
+Soft-deleted rows (Trash) are exported as-is — `deleted_at` is part of the metadata, not a reason
+to drop a row, since this is meant as a portable archive/backup of the library, not a "clean"
+snapshot a fresh import would produce.
+
+Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (378/378, unchanged
+— no new unit tests added for the export module itself since it's a thin composition of already-
+tested `db.select`/`dialogs.saveFile`; the ZIP-walking logic is what actually has a bug surface,
+and that's covered on the Rust side), `vite build`, `cargo fmt --check`,
+`cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` (31 tests in
+`designspace_lib`, up from 30, for `export::tests::zips_json_manifest_and_media_directory`) are all
+clean. `export_library_zip` was added to `src-tauri/build.rs`'s `APP_COMMANDS` and
+`capabilities/default.json`'s `allow-export-library-zip`, per this repo's existing "every own
+command needs an ACL entry" convention (see `build.rs`'s own comment) — confirmed by a full
+`cargo build` after the change.
+
+Trash polish (the third part of this sub-task) is still open; M7-1 isn't closed out yet.
+
+---
+
 *(Later milestones append below this line.)*

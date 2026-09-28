@@ -32,6 +32,7 @@ const APP_COMMANDS: &[&str] = &[
     "net_download_image",
     "embeddings_put",
     "embeddings_load",
+    "export_library_zip",
 ];
 
 fn main() {

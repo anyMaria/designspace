@@ -4,6 +4,7 @@ mod db;
 mod dialogs;
 mod embeddings;
 mod error;
+mod export;
 mod library;
 mod media;
 mod media_protocol;
@@ -48,6 +49,7 @@ pub fn run() {
             app_info::app_paths,
             app_info::open_logs,
             dialogs::dialog_save_file,
+            export::export_library_zip,
             net::net_link_meta,
             net::net_download_image,
             embeddings::embeddings_put,

@@ -54,4 +54,10 @@ impl From<reqwest::Error> for AppError {
     }
 }
 
+impl From<zip::result::ZipError> for AppError {
+    fn from(err: zip::result::ZipError) -> Self {
+        AppError::new("zip_error", err.to_string())
+    }
+}
+
 pub type AppResult<T> = Result<T, AppError>;

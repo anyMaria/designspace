@@ -122,7 +122,8 @@ export class TauriPlatform implements Platform {
   };
 
   backups = {
-    now: (): Promise<BackupInfo> => invoke<BackupInfo>('backup_now'),
+    now: (extraDestination?: string | null): Promise<BackupInfo> =>
+      invoke<BackupInfo>('backup_now', { extraDestination: extraDestination ?? null }),
     list: (): Promise<BackupInfo[]> => invoke<BackupInfo[]>('backup_list'),
     restore: (id: string): Promise<void> => invoke<void>('backup_restore', { id }),
   };
@@ -139,6 +140,11 @@ export class TauriPlatform implements Platform {
     },
     saveFile: (defaultName: string, bytes: Uint8Array): Promise<boolean> =>
       invoke<boolean>('dialog_save_file', { defaultName, bytes: Array.from(bytes) }),
+  };
+
+  libraryExport = {
+    zip: (manifestJson: string, defaultName: string): Promise<boolean> =>
+      invoke<boolean>('export_library_zip', { manifestJson, defaultName }),
   };
 
   shell = {

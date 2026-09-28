@@ -100,7 +100,10 @@ export interface Platform {
   };
 
   backups: {
-    now(): Promise<BackupInfo>;
+    /** `extraDestination` (§5.4): an optional second folder (e.g. a OneDrive folder) that also
+     * receives a copy of the backup, best-effort — a failure to copy there never fails the
+     * backup itself. */
+    now(extraDestination?: string | null): Promise<BackupInfo>;
     list(): Promise<BackupInfo[]>;
     restore(id: string): Promise<void>;
   };
@@ -109,6 +112,15 @@ export interface Platform {
     openFiles(filters?: FileFilter[]): Promise<string[]>;
     openFolder(): Promise<string | null>;
     saveFile(defaultName: string, bytes: Uint8Array): Promise<boolean>;
+  };
+
+  /** §5.4's library export (M7): a JSON file with all metadata, optionally zipped with the
+   * media. The JSON itself is assembled by `src/features/export/exportLibrary.ts` from ordinary
+   * `db.select` queries; only the ZIP variant needs a platform command, since streaming the
+   * (potentially gigabytes-large) `media/` folder into an archive needs direct filesystem
+   * access. Returns `false` if the owner cancels the Save dialog, matching `dialogs.saveFile`. */
+  libraryExport: {
+    zip(manifestJson: string, defaultName: string): Promise<boolean>;
   };
 
   shell: {
