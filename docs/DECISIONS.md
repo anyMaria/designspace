@@ -1519,6 +1519,48 @@ predates AI) simply because the tray's own filter excludes anything in that set.
 collapsed/expanded state is a plain UI-state store instead (`suggestionsUiStore`), not persisted —
 only the per-item dismissals need to survive a reload.
 
+### M4 wrap-up
+Every checklist item shipped: Spike S4, Boards (space switcher, gallery, create from a selection/
+search results/empty), the whole board canvas (remove-from-board, the List's [This board |
+Library] switch with drag-to-add, search within the board, media dropped on a board also landing
+on the Library map), Notes, Swatches + Extract palette, Frames on any space, the suggestions tray,
+and Export (PNG/PDF). Nothing was descoped or left as "(if time allows)" this time.
+
+The milestone's real throughline turned out to be one architectural decision made all the way back
+in M4-3: `libraryStore` splits the library-wide item catalog from the *current space's* placements,
+swapped wholesale on switch. Nearly every later M4 sub-task either leaned on that split directly
+(the suggestions tray's "what's already on the board" check is a bare `placements.has(id)`, no
+query needed) or had to explicitly work around its one sharp edge — the live `placements` map only
+ever reflects whichever space is open right now, so anything that needs *another* space's rows
+(M4-9's Library-map half of a board drop) needs its own DB fetch, since they're never both loaded
+at once. That's a deliberate memory/simplicity trade-off worth keeping in mind for M5+: a feature
+that wants to read a second board's placements without switching to it will hit the same thing.
+
+A second recurring pattern: several sub-tasks reused the exact same primitive across features
+rather than each inventing its own — `findFreeSpot`/`isOccupied` (packing) powers fresh imports,
+drag-to-board, and both halves of a board-drop's placement; the single `LIST_ITEM_DRAG_MIME` drag
+contract serves both the List panel's Library-mode tiles and the suggestions tray's tiles, so
+`useListDragToBoard`'s one drop handler, written for M4-8, needed zero changes to also serve M4-10.
+
+Two real deviations from the plan's own sketch, both logged where they happened and worth
+repeating here: Export renders via PixiJS's built-in `renderer.extract.canvas({ frame, resolution
+})` rather than the plan's manual `RenderTexture`-tiling loop (§4.9's approach the exact right
+answer only past a GPU's real texture-size ceiling — no board this app produces gets there), and
+it upgrades exported images to `t512` rather than the plan's `t1600` (this app's ingest worker has
+never generated a `t1600` tier — building one was out of scope for an already large milestone item,
+flagged as a gap worth revisiting once/if the owner finds 512px insufficient for print).
+
+Verification for the whole milestone (not just the last sub-task): `tsc -b --noEmit`, `eslint .`,
+`prettier --check .`, `vitest run` (276 tests), `vite build`, `cargo fmt --check`, `cargo clippy
+--workspace --all-targets -- -D warnings`, and `cargo test --workspace` are all clean; the full
+Playwright suite (36 specs, including seven new M4 ones) passes end to end against the real browser
+build. No tag for M4 — same as M3, the plan only calls for tagging at the end of M2 (`v0.1.0`).
+
+**Owner check:** make a real moodboard for a current project — filter or select from the Library,
+create a board, drag a few more things in from the suggestions tray or the List's Library mode,
+add a note and a swatch, arrange a frame or two, and export it as both PNG (try 2× and the plain-
+plum background) and PDF. Does the export actually look like the board you built?
+
 ---
 
 *(Later milestones append below this line.)*
