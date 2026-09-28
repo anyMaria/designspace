@@ -8,6 +8,7 @@ import {
   createBoardFromItemsCommand,
   createRemoveFromBoardCommand,
   createAddToBoardCommand,
+  createDismissSuggestionCommand,
 } from './boardCommands';
 import { useBoardStore } from '@/state/boardStore';
 import { useLibraryStore } from '@/state/libraryStore';
@@ -252,6 +253,49 @@ describe('createAddToBoardCommand', () => {
     expect(placement).toBeDefined();
     const occupied = useLibraryStore.getState().placements.get('b')!;
     expect(rectsIntersect(placement!, occupied)).toBe(false);
+  });
+});
+
+describe('createDismissSuggestionCommand', () => {
+  it('adds the item id to boards.settings.dismissedSuggestions, and undo removes it', async () => {
+    const platform = makePlatform();
+    const { command: create, board } = createCreateBoardCommand(platform, 'Moodboard');
+    await create.do();
+
+    const dismiss = createDismissSuggestionCommand(platform, board.id, 'a');
+    await dismiss.do();
+    expect(useBoardStore.getState().boards.get(board.id)?.settings).toEqual({
+      dismissedSuggestions: ['a'],
+    });
+    expect(platform.db.execute).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE boards SET settings'),
+      expect.arrayContaining([JSON.stringify({ dismissedSuggestions: ['a'] }), board.id]),
+    );
+
+    await dismiss.undo();
+    expect(useBoardStore.getState().boards.get(board.id)?.settings).toBeNull();
+  });
+
+  it('preserves other settings and dedupes an already-dismissed id', async () => {
+    const platform = makePlatform();
+    const { command: create, board } = createCreateBoardCommand(platform, 'Moodboard');
+    await create.do();
+    useBoardStore.setState((s) => {
+      const current = s.boards.get(board.id)!;
+      const boards = new Map(s.boards);
+      boards.set(board.id, {
+        ...current,
+        settings: { background: 'dots', dismissedSuggestions: ['a'] },
+      });
+      return { boards };
+    });
+
+    const dismiss = createDismissSuggestionCommand(platform, board.id, 'a');
+    await dismiss.do();
+    expect(useBoardStore.getState().boards.get(board.id)?.settings).toEqual({
+      background: 'dots',
+      dismissedSuggestions: ['a'],
+    });
   });
 });
 

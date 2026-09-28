@@ -1241,7 +1241,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] Notes: TipTap editing in place (DOM overlay), colors, sanitized rendering, searchable; double-click the empty canvas; pasted text becomes a note.
 - [x] Swatches and Extract palette.
 - [x] Frames on any space.
-- [ ] The suggestions tray (from the source filter; similarity is added in M6).
+- [x] The suggestions tray (from the source filter; similarity is added in M6).
 - [x] Export: PNG (board or frame, 1×/2×, choice of background) and PDF (fitted, or one page per frame).
 
 **Acceptance:**

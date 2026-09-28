@@ -57,6 +57,7 @@ import { useFrameCanvasBinding } from '@/canvas/useFrameCanvasBinding';
 import { FrameRenameDialog } from '@/features/frames/FrameRenameDialog';
 import { ExportDialog } from '@/features/export/ExportDialog';
 import { useExportUiStore } from '@/state/exportUiStore';
+import { SuggestionsTray } from '@/features/boards/SuggestionsTray';
 import {
   Dock,
   DockDivider,
@@ -264,7 +265,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         </div>
       )}
 
-      {/* Bottom-center dock — §2.1 */}
+      {/* Bottom-center dock (and, above it while a board with a source filter is open, the
+          suggestions tray — §2.11) — §2.1 */}
       <div
         style={{
           position: 'absolute',
@@ -272,8 +274,13 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           left: '50%',
           zIndex: 1,
           transform: 'translateX(-50%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 'var(--space-2)',
         }}
       >
+        <SuggestionsTray platform={platform} />
         <Dock>
           <AddMenu platform={platform} engine={engine} />
           <span style={{ position: 'relative' }}>

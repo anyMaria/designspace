@@ -1494,6 +1494,31 @@ drop, so it simply spirals out from world origin instead — a deliberate simpli
 rather than building "last arrival point" tracking for a case the owner never actually looks at
 during the drop itself.
 
+### M4-10: The suggestions tray
+"More like this" re-runs a board's saved `sourceFilter` — a `lib/search.ts` `Filter`, the exact
+object the search bar itself produces — against the *whole* library, via the same
+`buildSearchIndex`/`search` pair `useSearchResults` already uses for the search bar and the canvas
+Dim/Hide binding. Filtering out what's already on the board needed no new plumbing at all: the
+board is the space that's currently open while its own tray is visible, so `libraryStore.placements`
+already holds exactly its rows (the same "current space" architecture M4-3 established, and the
+same one M4-9 had to work around for the *other* board). A board created from an ad hoc selection
+(no `sourceFilter`, `createBoardFromItemsCommand(platform, ids, name, null)`) or one created empty
+simply never has anything to suggest — the tray renders nothing rather than showing an empty strip.
+
+Drag-to-add reuses M4-8's exact mechanism: a suggestion tile sets the same
+`LIST_ITEM_DRAG_MIME`/`createAddToBoardCommand` pair the List panel's "Library" mode tiles use, so
+`useListDragToBoard`'s drop handler (already mounted once in `Shell.tsx`) needed no changes to
+also serve the tray — it doesn't know or care which UI the drag started from.
+
+Dismissal is the first real use of `boards.settings` (the JSON column §5.2 already earmarked for
+"background, connection criteria, dismissed suggestions" — none of those existed yet). A new
+`createDismissSuggestionCommand` merges the item id into
+`settings.dismissedSuggestions`, undoable like every other command; a dismissed suggestion "doesn't
+come back for that item" (§2.13's AI-suggestion rule, reused verbatim even though this tray
+predates AI) simply because the tray's own filter excludes anything in that set. The tray's
+collapsed/expanded state is a plain UI-state store instead (`suggestionsUiStore`), not persisted —
+only the per-item dismissals need to survive a reload.
+
 ---
 
 *(Later milestones append below this line.)*

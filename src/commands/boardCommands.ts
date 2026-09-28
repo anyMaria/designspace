@@ -402,3 +402,38 @@ export function createRestoreBoardCommand(platform: Platform, boardId: string): 
     undo: () => apply(previous?.deletedAt ?? new Date().toISOString()),
   };
 }
+
+/** The suggestions tray's "×" (§2.11) — remembered per board in `boards.settings.dismissedSuggestions`
+ * (the JSON column §5.2 already earmarks for exactly this). A dismissed suggestion never comes
+ * back for that item on this board, matching the plan's AI-suggestion dismissal rule (§2.13) even
+ * though this tray predates AI (M6) — it's the same "click × once, stays gone" contract. */
+export function createDismissSuggestionCommand(
+  platform: Platform,
+  boardId: string,
+  itemId: string,
+): Command {
+  const previous = useBoardStore.getState().boards.get(boardId)?.settings ?? null;
+  const previousDismissed = (previous?.dismissedSuggestions as string[] | undefined) ?? [];
+  const next: Record<string, unknown> = {
+    ...previous,
+    dismissedSuggestions: [...new Set([...previousDismissed, itemId])],
+  };
+
+  async function apply(settings: Record<string, unknown> | null): Promise<void> {
+    const current = useBoardStore.getState().boards.get(boardId);
+    if (!current) return;
+    const updatedAt = new Date().toISOString();
+    useBoardStore.getState().upsertBoard({ ...current, settings, updatedAt });
+    await platform.db.execute('UPDATE boards SET settings = ?, updated_at = ? WHERE id = ?', [
+      settings ? JSON.stringify(settings) : null,
+      updatedAt,
+      boardId,
+    ]);
+  }
+
+  return {
+    label: 'Dismiss suggestion',
+    do: () => apply(next),
+    undo: () => apply(previous),
+  };
+}

@@ -35,6 +35,12 @@ export const en = {
     createFromResults: 'Create board from results',
     removeFromBoard: 'Remove from board',
   },
+  suggestions: {
+    title: 'More like this',
+    dismiss: 'Dismiss suggestion',
+    collapse: 'Collapse suggestions',
+    expand: 'Expand suggestions',
+  },
   notes: {
     colorLabel: (name: string) => `${name.charAt(0).toUpperCase()}${name.slice(1)} note color`,
   },
