@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import type { Engine } from '@/canvas/Engine';
 import type { Platform } from '@/platform/types';
 import { importFiles } from './importItems';
+import { useBoardStore } from '@/state/boardStore';
+import { useHistoryStore } from '@/commands/history';
+import { createCreateNoteCommand } from '@/commands/noteCommands';
 
 /** Drag-and-drop onto the canvas and Ctrl+V anywhere (§2.3). Files land at the drop point;
  * a paste with no cursor position lands at the viewport center. Listens on `window` rather than
@@ -57,6 +60,28 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
       if (bytes) {
         const file = new File([bytes.slice()], `pasted-${Date.now()}.png`, { type: 'image/png' });
         void importFiles(platform, [file], point, (rect) => engine?.flyTo(rect));
+        return;
+      }
+
+      // §2.11 "Pasted text becomes a note" — only once neither a file nor an image is on the
+      // clipboard, so pasting a copied *image* (bytes above) never also drops a text note of its
+      // alt text or whatever else browsers sometimes put on the text/plain slot alongside it.
+      const text = e.clipboardData?.getData('text/plain')?.trim();
+      if (text) {
+        const boardId = useBoardStore.getState().currentBoardId;
+        if (!boardId) return;
+        const board = useBoardStore.getState().boards.get(boardId);
+        const isLibraryBoard = board?.kind === 'library';
+        const { command } = createCreateNoteCommand(
+          platform,
+          boardId,
+          isLibraryBoard,
+          point.x,
+          point.y,
+          text,
+          'cream',
+        );
+        void useHistoryStore.getState().execute(command);
       }
     }
 

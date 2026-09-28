@@ -34,6 +34,10 @@ describe('rowToItem', () => {
       created_at: '2026-09-27T00:00:00.000Z',
       updated_at: '2026-09-27T00:00:00.000Z',
       deleted_at: null,
+      body: null,
+      body_text: null,
+      color: null,
+      origin_board_id: null,
     });
 
     expect(item).toEqual({
@@ -61,6 +65,10 @@ describe('rowToItem', () => {
       createdAt: '2026-09-27T00:00:00.000Z',
       updatedAt: '2026-09-27T00:00:00.000Z',
       deletedAt: null,
+      body: null,
+      bodyText: null,
+      color: null,
+      originBoardId: null,
     });
   });
 

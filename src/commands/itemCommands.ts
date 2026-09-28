@@ -212,6 +212,7 @@ const FIELD_COLUMNS = {
   sourceUrl: 'source_url',
   why: 'why',
   favorite: 'favorite',
+  color: 'color',
 } as const;
 
 type ItemFieldKey = keyof typeof FIELD_COLUMNS;

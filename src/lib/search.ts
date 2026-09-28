@@ -4,10 +4,10 @@ import type { ColorFamily } from './color';
 import { normalize } from './normalize';
 
 /** Search engine (§4.8): a MiniSearch free-text index plus prebuilt facet sets, combined by
- * `search()`. Board filtering, "by meaning" (CLIP) results and note/font/link body text are all
- * deferred — see docs/DECISIONS.md — since those fields and Boards don't exist before M3–M6;
+ * `search()`. Board filtering and "by meaning" (CLIP) results are still deferred — see
+ * docs/DECISIONS.md — since Boards-as-a-filter and the AI pipeline land in later milestones;
  * `Filter` still carries their shape so the UI (M2-7) and later milestones don't need to touch
- * this type again. */
+ * this type again. Notes' body text is indexed as of M4-4 (`bodyText` below). */
 
 export interface Filter {
   text?: string;
@@ -31,6 +31,7 @@ export interface SearchDoc {
   sourceDomain: string;
   why: string;
   fileName: string;
+  bodyText: string;
 }
 
 function sourceDomain(url: string | null): string {
@@ -51,7 +52,7 @@ function tokenize(text: string): string[] {
 function createIndex(): MiniSearch<SearchDoc> {
   return new MiniSearch<SearchDoc>({
     idField: 'id',
-    fields: ['title', 'termNames', 'artist', 'sourceDomain', 'why', 'fileName'],
+    fields: ['title', 'termNames', 'artist', 'sourceDomain', 'why', 'fileName', 'bodyText'],
     tokenize,
     processTerm: (term) => normalize(term) || null,
     searchOptions: {
@@ -88,6 +89,7 @@ function toDoc(
     sourceDomain: sourceDomain(item.sourceUrl),
     why: item.why ?? '',
     fileName: item.fileName ?? '',
+    bodyText: item.bodyText ?? '',
   };
 }
 

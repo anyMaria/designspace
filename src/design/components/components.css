@@ -430,3 +430,17 @@
   font-size: var(--text-lg);
   color: var(--text-1);
 }
+
+/* Note editor (§2.11) — TipTap's ProseMirror root, styled to look like plain text on the note's
+ * own color, not a form field. */
+.ds-note-editor .ProseMirror {
+  outline: none;
+  font-size: var(--text-md);
+  line-height: 1.4;
+}
+.ds-note-editor .ProseMirror p {
+  margin: 0 0 var(--space-2);
+}
+.ds-note-editor .ProseMirror p:last-child {
+  margin-bottom: 0;
+}

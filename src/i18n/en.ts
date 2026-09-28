@@ -35,6 +35,9 @@ export const en = {
     createFromResults: 'Create board from results',
     removeFromBoard: 'Remove from board',
   },
+  notes: {
+    colorLabel: (name: string) => `${name.charAt(0).toUpperCase()}${name.slice(1)} note color`,
+  },
   inbox: {
     chip: (count: number) => `Inbox ${count}`,
     zero: 'Inbox zero ✦',

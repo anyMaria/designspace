@@ -1230,7 +1230,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 **Owner checks:** try Constellations by Vibe + Movement on your real library. Do the clusters make sense? Are the lines readable?
 
 ### M4: Moodboards
-- [ ] Spike **S4 Notes on the canvas:** `HTMLText` vs `pixi.js/html-source` vs a canvas layout (crispness, speed, handing off to the editor).
+- [x] Spike **S4 Notes on the canvas:** `HTMLText` vs `pixi.js/html-source` vs a canvas layout (crispness, speed, handing off to the editor).
 - [x] Boards: the space switcher, the Boards gallery with covers, rename, duplicate, delete/restore.
 - [x] Create a board from a selection, from search results, or empty; justified-row layout; save the source filter.
 - [ ] The board canvas:
@@ -1238,7 +1238,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
   - [ ] the List's [This board | Library] switch with drag-to-add;
   - [x] search within the board;
   - [ ] media dropped on a board also land on the Library map (it always lands on the Library map today; it doesn't yet *also* land on whichever board is currently open).
-- [ ] Notes: TipTap editing in place (DOM overlay), colors, sanitized rendering, searchable; double-click the empty canvas; pasted text becomes a note.
+- [x] Notes: TipTap editing in place (DOM overlay), colors, sanitized rendering, searchable; double-click the empty canvas; pasted text becomes a note.
 - [ ] Swatches and Extract palette.
 - [ ] Frames on any space.
 - [ ] The suggestions tray (from the source filter; similarity is added in M6).

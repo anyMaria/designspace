@@ -49,6 +49,8 @@ import { useListStore } from '@/state/listStore';
 import { SpaceSwitcher } from '@/features/boards/SpaceSwitcher';
 import { BoardsGallery } from '@/features/boards/BoardsGallery';
 import { useBoardUiStore } from '@/state/boardUiStore';
+import { useNoteCanvasBinding } from '@/canvas/useNoteCanvasBinding';
+import { NoteEditor } from '@/features/notes/NoteEditor';
 import {
   Dock,
   DockDivider,
@@ -111,6 +113,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const { dragOver } = useDropAndPaste(engine, platform);
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
   useFocusViewBinding(engine);
+  useNoteCanvasBinding(engine, platform);
   useSearchBinding(engine);
   useConnectionsBinding(engine);
   useManualConnectionsBinding(engine, platform);
@@ -411,6 +414,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         />
       )}
       <FocusView platform={platform} />
+      <NoteEditor platform={platform} engine={engine} />
       <TriageView platform={platform} />
       {useBoardUiStore((s) => s.galleryOpen) && <BoardsGallery platform={platform} />}
       <SearchBar engine={engine} platform={platform} />

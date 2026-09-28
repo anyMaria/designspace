@@ -22,6 +22,8 @@ import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from 
 import type { ConstellationHub } from '@/lib/constellations';
 import { easeInOut } from '@/lib/motion';
 import { en } from '@/i18n/en';
+import type { ItemKind } from '@/state/types';
+import { noteTextColor } from '@/design/tokens';
 
 export interface EngineOptions {
   getTool: () => Tool;
@@ -36,17 +38,24 @@ export interface ItemCard {
   h: number;
   z: number;
   /** Packed 0xRRGGBB — the placeholder tint before a thumbnail loads, and the far-zoom flat
-   * color — §3.4, §4.6 LOD table. */
+   * color — §3.4, §4.6 LOD table. For a note, this is the note's own color token and never
+   * changes to a thumbnail (notes have none). */
   dominantColor: number;
   thumbUrl128: string | null;
   thumbUrl512: string | null;
+  kind: ItemKind;
+  /** §2.11 — a note's plain-text content, drawn as a `Text` child of its card (see
+   * `setLibraryItems`). `null` for every other kind. */
+  noteText: string | null;
 }
 
 interface EngineEvents {
   select: (ids: string[]) => void;
   move: (updates: { id: string; x: number; y: number }[]) => void;
   resize: (update: { id: string; x: number; y: number; w: number; h: number }) => void;
-  dblclick: (id: string | null) => void;
+  /** `world` is where the double-click landed, in canvas world coordinates — used to place a new
+   * note when `id` is `null` (double-click on empty canvas, §2.11). */
+  dblclick: (id: string | null, world: { x: number; y: number }) => void;
   contextmenu: (id: string | null, screen: { x: number; y: number }) => void;
   hover: (id: string | null) => void;
   /** A connection line was hovered (or un-hovered, `null`) — §2.10's "Hovering a line shows what
@@ -104,6 +113,12 @@ const CONSTELLATION_HUB_STAR_INNER_RADIUS_PX = 6;
 const CONSTELLATION_HUB_HIT_PX = 18;
 const CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE = 13;
 
+// §2.11 note cards — the snippet is drawn in world units (a sibling of the sprite in
+// `itemsLayer`, not its child — a child would stretch/scale with `sprite.width/height` and
+// change font size as the card resizes, which a text snippet should never do).
+const NOTE_TEXT_PADDING_WORLD = 14;
+const NOTE_TEXT_FONT_SIZE_WORLD = 18;
+
 /**
  * The framework-agnostic canvas engine — §4.6. Owns the Pixi `Application`, the camera and
  * culling. React mounts it once in `<CanvasView>` and never re-renders per frame; everything
@@ -127,6 +142,7 @@ export class Engine {
   // Library items mode — real cards with LOD thumbnails.
   private cards = new Map<string, ItemCard>();
   private sprites = new Map<string, Sprite>();
+  private noteLabels = new Map<string, Text>(); // §2.11 — a note card's plain-text snippet
   private itemIndex = new SpatialIndex();
   private itemVisible = new Set<string>();
   private textureManager: TextureManager<Texture> | null = null;
@@ -155,6 +171,7 @@ export class Engine {
   private pickingConnectFrom: string | null = null;
   private selectedConnectionPair: { fromId: string; toId: string } | null = null;
   private lastLineTapAt: { key: string; at: number } | null = null;
+  private suppressNextEmptyDblClick = false;
 
   // Constellations (§2.10/§4.9) — `constellationMyLayout` is the real placement rect for every
   // item, snapshotted the first time Constellations turns on and restored by "Back to my
@@ -323,6 +340,11 @@ export class Engine {
       if (!next.has(id)) {
         sprite.destroy();
         this.sprites.delete(id);
+        const label = this.noteLabels.get(id);
+        if (label) {
+          label.destroy();
+          this.noteLabels.delete(id);
+        }
       }
     }
     for (const card of patchedCards) {
@@ -332,6 +354,12 @@ export class Engine {
         existing.width = card.w;
         existing.height = card.h;
         existing.zIndex = card.z;
+        // A note's tint IS its color (never overwritten by a loaded texture, since notes never
+        // get one — see `requestLod`), so it must track `card.dominantColor` live for the color
+        // swatch picker to work. An image's tint is `requestLod`'s to own once a real thumbnail
+        // loads (it sets it to white); re-asserting the placeholder tint here on every unrelated
+        // store write would put a color cast back over an already-loaded photo.
+        if (card.kind === 'note') existing.tint = card.dominantColor;
       } else {
         const sprite = new Sprite(Texture.WHITE);
         sprite.tint = card.dominantColor;
@@ -344,12 +372,55 @@ export class Engine {
         this.itemsLayer.addChild(sprite);
         this.sprites.set(card.id, sprite);
       }
+      this.syncNoteLabel(card);
     }
     this.itemsLayer.sortableChildren = true;
     this.cards = next;
     this.itemIndex.load(patchedCards);
     this.refreshAlpha();
     this.scheduleFrame();
+  }
+
+  /** Creates/updates/removes a note's plain-text snippet (§2.11) — see the constants above for
+   * why it's a sibling `Text`, not a sprite child. A no-op for every non-note card, and removes
+   * a stale label if a card ever stops being a note (kind never actually changes post-creation
+   * today, but this keeps the invariant "no label without a note card" true regardless). */
+  private syncNoteLabel(card: ItemCard): void {
+    if (!this.itemsLayer) return;
+    if (card.kind !== 'note') {
+      const stale = this.noteLabels.get(card.id);
+      if (stale) {
+        stale.destroy();
+        this.noteLabels.delete(card.id);
+      }
+      return;
+    }
+    const wrapWidth = Math.max(card.w - NOTE_TEXT_PADDING_WORLD * 2, 1);
+    const x = card.x + NOTE_TEXT_PADDING_WORLD;
+    const y = card.y + NOTE_TEXT_PADDING_WORLD;
+    const existing = this.noteLabels.get(card.id);
+    if (existing) {
+      existing.text = card.noteText ?? '';
+      existing.style.wordWrapWidth = wrapWidth;
+      existing.position.set(x, y);
+      existing.zIndex = card.z + 0.5;
+    } else {
+      const label = new Text({
+        text: card.noteText ?? '',
+        style: {
+          fontSize: NOTE_TEXT_FONT_SIZE_WORLD,
+          fill: noteTextColor,
+          wordWrap: true,
+          wordWrapWidth: wrapWidth,
+          breakWords: true,
+        },
+      });
+      label.position.set(x, y);
+      label.zIndex = card.z + 0.5;
+      label.eventMode = 'none'; // selection/drag hit-testing is geometry-based, not Pixi events
+      this.itemsLayer.addChild(label);
+      this.noteLabels.set(card.id, label);
+    }
   }
 
   /** Search Dim/Hide (§2.8): `matches` null clears the filter (everything normal again); a Set
@@ -576,6 +647,7 @@ export class Engine {
       sprite.width = rect.w;
       sprite.height = rect.h;
     }
+    if (card) this.syncNoteLabel(card);
   }
 
   private refreshAlpha(): void {
@@ -636,6 +708,8 @@ export class Engine {
   private clearItems(): void {
     for (const sprite of this.sprites.values()) sprite.destroy();
     this.sprites.clear();
+    for (const label of this.noteLabels.values()) label.destroy();
+    this.noteLabels.clear();
     this.cards.clear();
     this.itemIndex.clear();
     this.itemVisible.clear();
@@ -879,6 +953,7 @@ export class Engine {
             sprite.position.set(origin.x + worldDx, origin.y + worldDy);
             card.x = origin.x + worldDx;
             card.y = origin.y + worldDy;
+            this.syncNoteLabel(card);
           }
         }
         this.drawSelectionOverlay();
@@ -894,6 +969,7 @@ export class Engine {
           sprite.position.set(next.x, next.y);
           sprite.width = next.w;
           sprite.height = next.h;
+          this.syncNoteLabel(card);
           this.drawSelectionOverlay();
         }
       } else if (mode === 'hubdrag' && this.draggingHubId) {
@@ -947,7 +1023,12 @@ export class Engine {
       const { w, h } = viewport();
       const world = this.camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top, w, h);
       const hit = hitTest(this.interactableCards(), world);
-      this.emit('dblclick', hit?.id ?? null);
+      if (!hit && this.suppressNextEmptyDblClick) {
+        this.suppressNextEmptyDblClick = false;
+        return;
+      }
+      this.suppressNextEmptyDblClick = false;
+      this.emit('dblclick', hit?.id ?? null, world);
     };
 
     const onContextMenu = (e: MouseEvent) => {
@@ -1130,6 +1211,12 @@ export class Engine {
     const now = performance.now();
     if (this.lastLineTapAt?.key === key && now - this.lastLineTapAt.at < DOUBLE_TAP_MS) {
       this.lastLineTapAt = null;
+      // The two real clicks that just double-tapped this line also produce a native browser
+      // `dblclick` on the container itself (Pixi's own `pointertap` doesn't stop that bubbling).
+      // Since the line isn't a "card", `onDblClick`'s own hit-test comes up empty and would
+      // otherwise read as "double-click on empty canvas" — §2.11's "create a note there" — right
+      // on top of the line being labeled. Suppress that one `dblclick` emission.
+      this.suppressNextEmptyDblClick = true;
       this.emit('connectionLineDblClick', { fromId, toId });
       return;
     }
@@ -1494,6 +1581,8 @@ export class Engine {
           sprite.visible = false;
           sprite.renderable = false;
         }
+        const label = this.noteLabels.get(id);
+        if (label) label.visible = false;
       }
     }
     const hiddenBySearch = (id: string) =>
@@ -1505,9 +1594,27 @@ export class Engine {
       const hidden = hiddenBySearch(id);
       sprite.visible = !hidden;
       sprite.renderable = !hidden;
+      const label = this.noteLabels.get(id);
+      if (label) label.visible = !hidden;
       if (!hidden && !this.itemVisible.has(id)) this.requestLod(card, sprite);
     }
     this.itemVisible = nextVisible;
+  }
+
+  /** The screen-space rect a card currently occupies — used by `NoteEditor` (§2.11) to position
+   * the TipTap DOM overlay exactly over a note while it's being edited. */
+  getScreenRect(id: string): { x: number; y: number; w: number; h: number } | null {
+    if (!this.app) return null;
+    const card = this.cards.get(id);
+    if (!card) return null;
+    const { width: vw, height: vh } = this.app.screen;
+    const topLeft = this.camera.worldToScreen(card.x, card.y, vw, vh);
+    return {
+      x: topLeft.x,
+      y: topLeft.y,
+      w: card.w * this.camera.zoom,
+      h: card.h * this.camera.zoom,
+    };
   }
 
   private requestLod(card: ItemCard, sprite: Sprite): void {

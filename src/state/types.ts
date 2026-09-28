@@ -35,6 +35,17 @@ export interface Item {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  /** §2.11 Notes/Swatches (M4). `body` is a note's TipTap document (`JSONContent`, untyped here
+   * to avoid a `@tiptap/core` import in the shared types module); `bodyText` is its plain-text
+   * extraction, kept in sync for search. `color` is a note color token (see `design/tokens.ts`'s
+   * `noteColors`) or a swatch's hex. `originBoardId` non-null means "board-only" — doesn't show
+   * in the Library (§5.2's `origin_board_id`). Optional (rather than `| null` required) so every
+   * `image`-kind `Item` literal from before M4 doesn't need updating — treat a missing value the
+   * same as `null`. */
+  body?: unknown;
+  bodyText?: string | null;
+  color?: string | null;
+  originBoardId?: string | null;
 }
 
 export interface Placement {

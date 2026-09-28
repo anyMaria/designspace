@@ -60,6 +60,10 @@ export function rowToItem(row: DbRow): Item {
     createdAt: asString(row.created_at),
     updatedAt: asString(row.updated_at),
     deletedAt: asNullableString(row.deleted_at),
+    body: asJson<unknown>(row.body),
+    bodyText: asNullableString(row.body_text),
+    color: asNullableString(row.color),
+    originBoardId: asNullableString(row.origin_board_id),
   };
 }
 

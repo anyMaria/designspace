@@ -1231,6 +1231,96 @@ rather than gaps:
   path, which touches drop/paste/file-dialog entry points already spread across
   `features/import/*` — scoped as its own follow-up rather than folded in here.
 
+### Spike S4 — Notes on the canvas
+Read `node_modules/pixi.js/skills/pixijs-scene-text/references/html-text.md`,
+`node_modules/pixi.js/skills/pixijs-html-source/SKILL.md`, and
+`node_modules/pixi.js/skills/pixijs-scene-dom-container/SKILL.md` per CLAUDE.md. Ruled out
+`pixi.js/html-source` (`HTMLSource`) immediately: it's built on the still-experimental
+HTML-in-Canvas browser proposal, gated behind a feature flag most Chromium builds (WebView2
+included) don't ship — not something to depend on for a distributed desktop app. `DOMContainer`
+(`pixi.js/dom`) is lower-risk (just CSS-transform math, no special browser API) but duplicating
+every card behavior (select/drag/resize/z-order/LOD) a second time for a DOM-only note type isn't
+worth it when the existing sprite/card pipeline already does all of that generically.
+
+**Decision:** notes render on the canvas the same way every other item does — a sprite in the
+existing card pipeline — with the sprite's texture generated from `HTMLText` (sanitized HTML,
+word-wrapped, resolution-aware so it stays crisp at any zoom) instead of an image thumbnail. This
+gets "speed" for free (same LOD/culling/texture-manager code path as images) and "crispness" for
+free (`HTMLText` rasterizes through an SVG `foreignObject`, not a live DOM node, so it scales
+cleanly with the sprite). Editing is the one place that needs a real DOM element: double-click (or
+Enter, matching Focus view's own convention) opens a plain positioned `<div>` overlay — the same
+"React DOM element layered above the canvas" pattern every other overlay in this app already uses
+(`ConnectionLabelDialog`, `DetailsPanel`, etc.), not `DOMContainer` — sized and placed over the
+note's current screen rect (computed the same way `Engine.connectHandleScreenPos` already
+projects world→screen for the manual-connection handle), hosting TipTap for the actual editing.
+Closing the editor re-sanitizes the HTML, regenerates the `HTMLText` texture, and the DOM overlay
+disappears — "handing off to the editor" and back, cleanly, with the canvas never holding a live
+editable DOM node.
+
+### M4-4: Notes
+Built per the Spike S4 decision above: a note is a normal canvas card (flat color, from its own
+`color` token) with a plain-text snippet drawn as a `Text` sibling of the sprite in `itemsLayer`
+(`Engine.syncNoteLabel`, kept in sync across the create/diff loop, `applyCardRect`'s tween path,
+and the direct move/resize drag paths — three call sites, one small helper). Editing is a DOM
+overlay (`NoteEditor`) positioned every frame from a new `Engine.getScreenRect(id)` (there's no
+camera-change event to subscribe to instead, so it's an rAF poll while open, same idea as the
+Constellations morph's own tween loop) hosting a TipTap `EditorContent`. `Engine.dblclick` now
+carries the world position alongside the hit id, since "double-click empty canvas" needs to know
+*where* — `useFocusViewBinding` was narrowed to only open Focus view for `kind: 'image'` so it
+stops fighting with the new `useNoteCanvasBinding` (double-click a note → open its editor; empty
+canvas → create one there and open it) over the same event.
+
+**"Sanitized rendering"**: no raw-HTML sanitizer (DOMPurify, already an unused dependency since
+M0) turned out to be necessary, because raw HTML never appears anywhere in this feature. A note's
+`body` column stores TipTap's own JSON document (schema-constrained by `noteExtensions` —
+`StarterKit` only), never a string of markup; the canvas snippet is `generateText()`'d plain text
+into a Pixi `Text` (a texture, not a DOM/HTML sink); and the live editor is TipTap/ProseMirror's
+own `contentEditable`, which manages its DOM from that same structured JSON rather than from
+`innerHTML`. So "sanitized" here means "the content is never treated as HTML in the first place" —
+arguably stronger than sanitizing a string would be. If a future feature renders a note's content
+as an actual HTML string somewhere (a hover preview via `dangerouslySetInnerHTML`, say), that's
+exactly where DOMPurify (`generateHTML(body, noteExtensions)` → `DOMPurify.sanitize(html)`) should
+finally get used — logged here so it isn't forgotten.
+
+Colors reuse the existing "stone" accent tokens (`sage`/`blush`/`cream`/`lavender`/`sky` —
+`design/tokens.ts`'s new `noteColors`) instead of inventing a note-specific palette; they were
+already light/pastel enough to read dark text on and already had matching CSS custom properties.
+Search indexes `body_text` as a new MiniSearch field (`lib/search.ts`) — no incremental-index
+wiring needed since the existing "rebuild on every store change" strategy (M2-6) already covers it.
+"Pasted text becomes a note" hooks into `useDropAndPaste`'s existing paste handler, ordered after
+the file/image checks so copying an actual image never *also* drops a stray text note from
+whatever else ends up on the clipboard's `text/plain` slot alongside the image bytes.
+
+Left out, both logged rather than silently dropped: the note's on-canvas snippet is plain text
+only — bold/italic/lists you type in the editor don't show on the flat canvas card, only while
+actually editing (a direct consequence of the Spike S4 "Pixi `Text`, not `HTMLText`" call, see
+above); and a corrupt/legacy note body falls back to an empty snippet rather than crashing
+(`noteBodyToPlainText`'s try/catch), covered by its own test.
+
+**Two real bugs found by the existing e2e suite (not written for this milestone) while
+integrating this**, both fixed before landing:
+1. Double-clicking a connection line to label it (§2.10, M3-5) also fires the container's native
+   browser `dblclick` — Pixi's own `pointertap`-based double-tap detection on the line doesn't
+   stop that from bubbling. Before this milestone nothing acted on an empty-hit `dblclick`, so it
+   was silent; now `useNoteCanvasBinding` does ("create a note there"), and a label double-click
+   would spawn a phantom note stacked right on the line it was labeling — confirmed by
+   `smoke-m3-connections-drag-label.spec.ts` breaking (the line stayed connected after a later
+   "select + Delete", because that click was landing on the new note card instead of the line).
+   Fixed with `Engine.suppressNextEmptyDblClick`: `handleManualLineTap` sets it the instant it
+   emits `connectionLineDblClick`, and `onDblClick` checks/clears it before deciding whether an
+   empty hit means "make a note". General lesson matching M3-5's own pointer-capture write-up:
+   Pixi's synthetic event system and the browser's native events run in parallel, not one on top
+   of the other, so a handler for one can't assume it's the only thing reacting to the same click.
+2. `setLibraryItems`'s per-update loop unconditionally re-applied `existing.tint = card.
+   dominantColor` on every existing sprite (added so a note's color swatch change actually
+   repaints) — but for an *image*, `requestLod` sets `tint = 0xffffff` once a thumbnail loads, and
+   nothing else is supposed to touch it afterward. Since `useEngineBindings`'s `syncCards` re-runs
+   on *any* unrelated library-store write (the same unfiltered-subscribe shape flagged in M3-7's
+   entry), every already-loaded photo would get its placeholder tint reasserted over its real
+   thumbnail texture on the next unrelated edit — a visible color cast, not caught by any existing
+   test (none assert on rendered pixel color) but caught by re-reading the diff before pushing.
+   Fixed by gating the re-tint on `card.kind === 'note'`.
+
 ---
 
 *(Later milestones append below this line.)*
