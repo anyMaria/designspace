@@ -68,14 +68,18 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
   const ready = item.status === 'ok';
   const unsupported = item.status === 'unsupported';
   // Reuses the note/swatch label's Text-overlay machinery for a video whose codec/container
-  // `<video>` couldn't decode, or a PDF pdf.js couldn't parse (§2.4's fallback tile) rather than
-  // leaving it an indefinite placeholder that looks like it's still loading.
-  const fallbackText =
-    item.kind === 'video' && unsupported
+  // `<video>` couldn't decode, a PDF pdf.js couldn't parse, or a font fontkit/`FontFace` couldn't
+  // read (§2.4's fallback tile) rather than leaving it an indefinite placeholder that looks like
+  // it's still loading.
+  const fallbackText = !unsupported
+    ? null
+    : item.kind === 'video'
       ? en.video.unsupportedFallback
-      : item.kind === 'pdf' && unsupported
+      : item.kind === 'pdf'
         ? en.pdf.unsupportedFallback
-        : null;
+        : item.kind === 'font'
+          ? en.font.unsupportedFallback
+          : null;
   return {
     id: item.id,
     x: placement.x,

@@ -9,6 +9,7 @@ import type { DbRow, DbStatement, Platform } from '@/platform/types';
 const enqueueImage = vi.fn();
 const enqueueVideo = vi.fn();
 const enqueuePdf = vi.fn();
+const enqueueFont = vi.fn();
 vi.mock('@/workers/ingestQueue', () => ({
   getIngestQueue: () => ({ enqueue: enqueueImage }),
 }));
@@ -17,6 +18,9 @@ vi.mock('@/workers/videoIngestQueue', () => ({
 }));
 vi.mock('@/workers/pdfIngestQueue', () => ({
   getPdfIngestQueue: () => ({ enqueue: enqueuePdf }),
+}));
+vi.mock('@/workers/fontIngestQueue', () => ({
+  getFontIngestQueue: () => ({ enqueue: enqueueFont }),
 }));
 
 // Imported after the mocks above so `importItems.ts` picks up the mocked ingest queues.
@@ -74,6 +78,7 @@ beforeEach(() => {
   enqueueImage.mockClear();
   enqueueVideo.mockClear();
   enqueuePdf.mockClear();
+  enqueueFont.mockClear();
 });
 
 describe('importFiles', () => {
@@ -202,6 +207,30 @@ describe('importFiles', () => {
     ]);
     expect(enqueueImage).not.toHaveBeenCalled();
     expect(enqueueVideo).not.toHaveBeenCalled();
+  });
+
+  it('routes a font file to the font ingest queue, with kind set to font', async () => {
+    const platform = makePlatform({
+      media: {
+        ...makePlatform().media,
+        importFile: vi.fn().mockResolvedValue({
+          relPath: 'media/2026/01/face-a.woff2',
+          hash: 'hash-face',
+          size: 40,
+          mime: 'font/woff2',
+        }),
+      },
+    });
+    await importFiles(platform, [makeFile('face.woff2', 'x', 'font/woff2')], { x: 0, y: 0 });
+
+    const items = [...useLibraryStore.getState().items.values()];
+    expect(items).toHaveLength(1);
+    expect(items[0].kind).toBe('font');
+    expect(enqueueFont).toHaveBeenCalledWith([
+      { itemId: items[0].id, relPath: 'media/2026/01/face-a.woff2' },
+    ]);
+    expect(enqueueImage).not.toHaveBeenCalled();
+    expect(enqueuePdf).not.toHaveBeenCalled();
   });
 
   it('also lands on the Library map when dropped while a board is open (§2.3)', async () => {

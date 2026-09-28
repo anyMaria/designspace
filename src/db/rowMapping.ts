@@ -1,4 +1,5 @@
 import type { DbRow } from '@/platform/types';
+import type { FontMeta } from '@/lib/fontRender';
 import type {
   Board,
   BoardCamera,
@@ -69,6 +70,7 @@ export function rowToItem(row: DbRow): Item {
     posterMs: asNullableNumber(row.poster_ms),
     pageCount: asNullableNumber(row.page_count),
     coverPage: asNullableNumber(row.cover_page),
+    fontMeta: asJson<FontMeta>(row.font_meta),
   };
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   detectMediaKind,
   extensionOf,
+  isSupportedFont,
   isSupportedImage,
   isSupportedPdf,
   isSupportedVideo,
@@ -40,6 +41,13 @@ describe('isSupportedImage / isSupportedVideo', () => {
     expect(isSupportedPdf('doc.PDF')).toBe(true);
     expect(isSupportedPdf('a.png')).toBe(false);
   });
+
+  it('recognizes every listed font extension', () => {
+    for (const ext of ['ttf', 'otf', 'woff', 'woff2']) {
+      expect(isSupportedFont(`a.${ext}`)).toBe(true);
+    }
+    expect(isSupportedFont('a.png')).toBe(false);
+  });
 });
 
 describe('detectMediaKind', () => {
@@ -53,6 +61,10 @@ describe('detectMediaKind', () => {
 
   it("returns 'pdf' for a pdf extension", () => {
     expect(detectMediaKind('doc.pdf')).toBe('pdf');
+  });
+
+  it("returns 'font' for a font extension", () => {
+    expect(detectMediaKind('face.woff2')).toBe('font');
   });
 
   it('returns null for anything unsupported', () => {

@@ -6,6 +6,7 @@ import { useFocusStore } from '@/state/focusStore';
 import { IconButton } from '@/design/components';
 import { en } from '@/i18n/en';
 import { PdfFocusViewer } from './PdfFocusViewer';
+import { FontFocusViewer } from './FontFocusViewer';
 
 /** Full-window overlay for one image (§2.12). Simplifications logged in docs/DECISIONS.md: no
  * zoom/pan/fit-vs-1:1 toggle yet (the image is always letterboxed to fit), and no collapsible
@@ -179,6 +180,27 @@ export function FocusView({ platform }: { platform: Platform }) {
           </div>
         ) : (
           <PdfFocusViewer key={item.id} platform={platform} item={item} />
+        ))}
+      {item.kind === 'font' &&
+        item.filePath &&
+        (item.status === 'unsupported' ? (
+          <div
+            style={{
+              width: 'min(85vw, 640px)',
+              aspectRatio: '8 / 5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--surface-2)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {en.font.unsupportedFallback}
+          </div>
+        ) : (
+          <FontFocusViewer key={item.id} platform={platform} item={item} />
         ))}
       <div style={{ marginTop: 'var(--space-4)', color: 'var(--text-2)' }}>
         {item.title || item.fileName}

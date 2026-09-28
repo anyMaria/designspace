@@ -1255,7 +1255,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] Spikes **S5 Video codecs** (mp4/webm/mov samples in WebView2: which ones play) and **S6 Font metadata** (WOFF2 name tables with fontkit vs opentype.js).
 - [ ] Videos: import, automatic and chosen cover frame, duration badge, hover preview (one at a time), the Focus player, and the fallback for unsupported codecs.
 - [x] PDFs: import, the cover-page picker, split into pages (pdf-lib), the Focus viewer.
-- [ ] Fonts: import TTF/OTF/WOFF/WOFF2, metadata, the specimen card (live text at mid and near zoom), the Focus type tester.
+- [x] Fonts: import TTF/OTF/WOFF/WOFF2, metadata, the specimen card (live text at mid and near zoom), the Focus type tester.
 - [ ] Links: paste or drop URLs, metadata and cover through Rust, custom cover, Open in browser, image-URL detection, Offline mode.
 - [ ] The Kind filter and Kind grouping everywhere.
 

@@ -9,6 +9,7 @@ import { createAddItemsCommand, createRestoreItemCommand } from '@/commands/item
 import { getIngestQueue } from '@/workers/ingestQueue';
 import { getVideoIngestQueue } from '@/workers/videoIngestQueue';
 import { getPdfIngestQueue } from '@/workers/pdfIngestQueue';
+import { getFontIngestQueue } from '@/workers/fontIngestQueue';
 import { findFreeSpot, justifiedRows } from '@/lib/packing';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { extensionOf, detectMediaKind } from '@/lib/fileKinds';
@@ -202,7 +203,7 @@ async function findLibraryBoardId(platform: Platform): Promise<string> {
 }
 
 interface NewRow {
-  kind: 'image' | 'video' | 'pdf';
+  kind: 'image' | 'video' | 'pdf' | 'font';
   relPath: string;
   fileName: string;
   hash: string;
@@ -323,6 +324,8 @@ async function createRow(
     getVideoIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath, mime: row.mime }]);
   } else if (row.kind === 'pdf') {
     getPdfIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath }]);
+  } else if (row.kind === 'font') {
+    getFontIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath }]);
   } else {
     getIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath, mime: row.mime }]);
   }

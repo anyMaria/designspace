@@ -42,6 +42,7 @@ describe('rowToItem', () => {
       poster_ms: null,
       page_count: null,
       cover_page: null,
+      font_meta: null,
     });
 
     expect(item).toEqual({
@@ -77,6 +78,7 @@ describe('rowToItem', () => {
       posterMs: null,
       pageCount: null,
       coverPage: null,
+      fontMeta: null,
     });
   });
 

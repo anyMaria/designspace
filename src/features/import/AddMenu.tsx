@@ -21,6 +21,7 @@ const MEDIA_FILTERS: FileFilter[] = [
   { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg'] },
   { name: 'Videos', extensions: ['mp4', 'webm', 'm4v', 'mov'] },
   { name: 'PDFs', extensions: ['pdf'] },
+  { name: 'Fonts', extensions: ['ttf', 'otf', 'woff', 'woff2'] },
 ];
 
 export interface AddMenuProps {
@@ -219,7 +220,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
         ref={filesInputRef}
         type="file"
         multiple
-        accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v,application/pdf"
+        accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v,application/pdf,font/ttf,font/otf,font/woff,font/woff2,.ttf,.otf,.woff,.woff2"
         style={{ display: 'none' }}
         onChange={onFilesInputChange}
       />

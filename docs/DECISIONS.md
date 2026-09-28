@@ -1710,6 +1710,55 @@ bespoke import path.
 directly (solid-colored pages with a page-number label) — no external tool needed, unlike the video
 fixture's `ffmpeg` dependency.
 
+### M5-4: Fonts
+Import, metadata (family, subfamily, full name, designer, foundry, license, glyph count, variable
+axes), the dark specimen card, and the Focus type tester (editable sample text, size waterfall
+12–96, a glyph grid, variable-axis sliders, and the metadata panel) all shipped.
+
+**Ingest reuses the video/PDF main-thread pattern, but with no palette/color extraction.** Parsing
+(`fontkit.create`) needs no DOM and could run in a Worker, but rendering the specimen card does
+(`FontFace` + canvas `fillText`), so `lib/fontRender.ts`'s `extractFontDerivatives` runs on the
+main thread and `FontIngestQueue` (`workers/fontIngestQueue.ts`) processes one font at a time —
+same shape as `VideoIngestQueue`/`PdfIngestQueue`. Unlike every other kind, a font's card is a
+*fixed* dark design ("large 'Aa' in the font, the family name, one sample line," §2.4's table), not
+a derived photo — so there's no palette/color-family step, and `itemCards.ts`'s existing
+`FALLBACK_COLOR` (`0x33203d`) already equals `colors.surface2`, the card's permanent tint, with no
+special-casing needed. `font_meta` (a JSON column already in `001_init.sql` from M0) stores the
+parsed metadata; `page_count`/`cover_page`-style dedicated columns weren't needed since nothing
+else in the schema needs to query into font metadata individually.
+
+**A single square placeholder, like every other imported kind — a deliberate, logged deviation
+from §2.4's "320 × 200" font card size.** Checked first: no imported kind's placement rect is ever
+resized after ingest reports real metadata (images, videos and PDFs all keep whatever square
+`PLACEHOLDER_SIZE` (320×320) `importItems.ts` placed them at, regardless of their real aspect
+ratio — an existing M1-era simplification, not something M5 introduced). Giving fonts a
+kind-specific 320×200 placeholder at import time would mean threading per-kind sizes through
+`planBatchPlacements`/`placeBatch`'s batch-layout math, which today assumes one uniform size for
+the whole batch (mixed-kind batches already work fine since layout only needs a placeholder size,
+not caring what that size means) — not worth the complexity for a card whose specimen render
+degrades gracefully inside a slightly-too-tall square anyway. Fonts use the same 320×320 square as
+everything else; noted here rather than silently diverging from the plan's own table.
+
+**Registered `FontFace` names are always the item id, never the font's own family name** — both in
+`lib/fontRender.ts`'s temporary registration (torn down right after the specimen renders) and in
+`FontFocusViewer`'s registration for the interactive type tester (torn down on unmount) — so two
+different fonts that happen to share a family name (or the same font imported twice) never collide
+in `document.fonts`. The Focus viewer's "editable text, size waterfall, glyph grid, variable-axis
+sliders" all reference this same registered family via inline `fontFamily`/`fontVariationSettings`
+CSS rather than canvas rendering — DOM text is simpler, sharper at any size, and selectable, so
+canvas is only used where §2.4 actually calls for a rendered image (the specimen thumbnail).
+
+**Glyph grid** samples the font's own `characterSet` (fontkit re-parses the already-fetched bytes
+client-side in `FontFocusViewer`, capped at 200 code points to keep the grid responsive for large
+CJK/icon fonts) rather than a fixed Latin/ASCII range, so a genuinely non-Latin font's Focus view
+still shows glyphs that exist in it.
+
+**e2e fixture.** `tests/e2e/fixtures/sample.woff2` is a real, already-vendored WOFF2 file
+(`@fontsource/unbounded`'s own latin-400 file, the same one S6's spike verified parses correctly
+with fontkit) copied in directly — no synthetic font generation needed, and it exercises the real
+WOFF2 decompression path end-to-end (import → specimen thumbnail → Focus type tester showing the
+font's actual name-table family, "Unbounded").
+
 ---
 
 *(Later milestones append below this line.)*

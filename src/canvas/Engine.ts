@@ -472,20 +472,21 @@ export class Engine {
     this.scheduleFrame();
   }
 
-  /** Creates/updates/removes a note or swatch card's plain-text snippet (§2.11), or a video/PDF's
-   * "can't play/open this" fallback message (§2.4, when `card.noteText` is set) — see the
-   * constants above for why it's a sibling `Text`, not a sprite child. A no-op for every other
+  /** Creates/updates/removes a note or swatch card's plain-text snippet (§2.11), or a video/PDF/
+   * font's "can't play/open/read this" fallback message (§2.4, when `card.noteText` is set) — see
+   * the constants above for why it's a sibling `Text`, not a sprite child. A no-op for every other
    * card, and removes a stale label once a card stops needing one (kind never actually changes
-   * post-creation, but a video/PDF's `noteText` does, the moment ingest finishes or fails). Text
-   * color is fixed dark for notes (their 5 colors are all light pastels, §2.11's palette), but
-   * computed everywhere else — an extracted/freely-set swatch color, or a video/PDF's placeholder
-   * tint, can be anything, including near-black, where the fixed dark text would vanish. */
+   * post-creation, but a video/PDF/font's `noteText` does, the moment ingest finishes or fails).
+   * Text color is fixed dark for notes (their 5 colors are all light pastels, §2.11's palette),
+   * but computed everywhere else — an extracted/freely-set swatch color, or a video/PDF/font's
+   * placeholder tint, can be anything, including near-black, where the fixed dark text would
+   * vanish. */
   private syncNoteLabel(card: ItemCard): void {
     if (!this.itemsLayer) return;
     const wantsLabel =
       card.kind === 'note' ||
       card.kind === 'swatch' ||
-      ((card.kind === 'video' || card.kind === 'pdf') && !!card.noteText);
+      ((card.kind === 'video' || card.kind === 'pdf' || card.kind === 'font') && !!card.noteText);
     if (!wantsLabel) {
       const stale = this.noteLabels.get(card.id);
       if (stale) {

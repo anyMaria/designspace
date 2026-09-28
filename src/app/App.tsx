@@ -12,6 +12,7 @@ import { useBoardStore } from '@/state/boardStore';
 import { resumePendingIngest } from '@/workers/ingestQueue';
 import { resumePendingVideoIngest } from '@/workers/videoIngestQueue';
 import { resumePendingPdfIngest } from '@/workers/pdfIngestQueue';
+import { resumePendingFontIngest } from '@/workers/fontIngestQueue';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
 import { logger } from '@/lib/logger';
@@ -59,6 +60,7 @@ export function App() {
           void resumePendingIngest(platform);
           void resumePendingVideoIngest(platform);
           void resumePendingPdfIngest(platform);
+          void resumePendingFontIngest(platform);
           void purgeExpiredTrash(platform);
           if (!cancelled)
             setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: bench });
@@ -83,6 +85,7 @@ export function App() {
         void resumePendingIngest(platform);
         void resumePendingVideoIngest(platform);
         void resumePendingPdfIngest(platform);
+        void resumePendingFontIngest(platform);
         void purgeExpiredTrash(platform);
         void maybeBackupAtStartup(platform);
         if (!cancelled)

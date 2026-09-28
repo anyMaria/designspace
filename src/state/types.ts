@@ -2,6 +2,8 @@
  * columns from §5.2. M1 only deals with the `image` kind; the rest of the union lands with the
  * milestones that add them (videos/PDFs/fonts in M5, links in M5, notes/swatches in M4). */
 
+import type { FontMeta } from '@/lib/fontRender';
+
 export type ItemKind = 'image' | 'video' | 'pdf' | 'font' | 'link' | 'note' | 'swatch';
 export type ItemStatus = 'pending' | 'ok' | 'unsupported' | 'error';
 
@@ -56,6 +58,10 @@ export interface Item {
    * cover". Optional for the same pre-M5 `Item`-literal reason as the video fields above. */
   pageCount?: number | null;
   coverPage?: number | null;
+  /** §2.4/§5.2 font metadata (M5) — parsed once at ingest (`lib/fontRender.ts`) and never
+   * recomputed, unlike video/PDF's re-derivable cover frame/page. Optional for the same pre-M5
+   * `Item`-literal reason as the video/PDF fields above. */
+  fontMeta?: FontMeta | null;
 }
 
 export interface Placement {
