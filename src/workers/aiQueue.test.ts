@@ -130,6 +130,41 @@ describe('AiQueue', () => {
     expect(worker?.posted).toHaveLength(2);
   });
 
+  it('embedText() resolves with the returned vector without touching the analysis queue', async () => {
+    let worker: FakeWorker | undefined;
+    const platform = makePlatform();
+    const queue = new AiQueue(platform, () => (worker = new FakeWorker()));
+    await flush();
+
+    const promise = queue.embedText('a golden retriever');
+    await flush();
+    expect(worker?.posted[1]).toMatchObject({ type: 'embedText', text: 'a golden retriever' });
+
+    const id = (worker?.posted[1] as { id: string }).id;
+    const vector = new Float32Array(512).fill(0.25).buffer;
+    worker?.respond({ type: 'embedResult', id, ok: true, vector });
+
+    const result = await promise;
+    expect(result).toBeInstanceOf(Float32Array);
+    expect(result.length).toBe(512);
+    expect(queue.completed).toBe(0); // doesn't count toward background-analysis progress
+    expect(queue.pending).toBe(0); // doesn't occupy the analysis queue slot
+  });
+
+  it('embedText() rejects when the worker reports an error', async () => {
+    let worker: FakeWorker | undefined;
+    const platform = makePlatform();
+    const queue = new AiQueue(platform, () => (worker = new FakeWorker()));
+    await flush();
+
+    const promise = queue.embedText('broken');
+    await flush();
+    const id = (worker?.posted[1] as { id: string }).id;
+    worker?.respond({ type: 'embedResult', id, ok: false, error: 'model not loaded' });
+
+    await expect(promise).rejects.toThrow('model not loaded');
+  });
+
   it('destroy() terminates the worker', () => {
     let worker: FakeWorker | undefined;
     const platform = makePlatform();

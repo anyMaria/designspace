@@ -2053,4 +2053,82 @@ UI change yet.
 
 ---
 
+## CI fix: `src-tauri/resources/models/` must exist even without a fetched model
+
+M6-1's `tauri.conf.json` change (`bundle.resources: {"resources/models": "models"}`) turned out to
+break `cargo build`/`clippy`/`test` outright in CI: `tauri-build`'s resource-copy step runs on
+*every* build, not just `tauri build` packaging, and CI never runs `fetch-models.mjs` (only
+`windows-build.yml` does — see its own new caching step, M6-1). A fresh checkout therefore had no
+`src-tauri/resources/models/` directory at all, and the build failed with `resource path
+"resources/models" doesn't exist` before a single test ran. This sandbox's own local checkout had
+silently avoided the bug only because an earlier manual `mkdir` for local testing happened to leave
+the directory in place — a difference between "works in this session" and "works on a clean
+checkout" that only surfaced once CI ran the real diff. Fixed by force-adding a tracked `.gitkeep`
+inside the (otherwise still fully gitignored) directory, so it exists on every checkout without
+ever committing real model bytes.
+
+## M6-3: Suggestions (zero-shot + personal blend)
+
+`src/lib/ai/suggestions.ts` implements §4.10's formulas exactly as specified — `zeroShotScores`
+(softmax over `100·cos`), `personalScores` (similarity-weighted neighbor voting), `blendAlpha`
+(`max(0.25, 1 − labeled/150)`) — as pure functions over already-computed `Float32Array`s, so the
+whole scoring engine (14 tests) is verifiable without a model, a worker, or a database. One
+interpretation call the plan leaves implicit: the zero-shot softmax is computed over *every* value
+in the field (not just eligible ones), matching the plan's literal "softmax over the field's
+values"; exclusion (assigned/dismissed) is applied afterward, to the final ranked list — softmax
+would otherwise redistribute probability mass onto excluded values, which reads as more "the plan's
+formula, filtered" than "a different formula."
+
+**`AiQueue` gained a second request lane (`embedText`) that bypasses the background-analysis
+queue entirely.** Value/prompt embeddings (Appendix B) and, later, search-by-meaning queries are
+interactive and small — routing them through the same one-item-at-a-time image queue would make a
+Details panel selection wait behind whatever background analysis happens to be mid-flight.
+`embedText` posts straight to the shared worker (reusing its already-loaded model rather than
+spinning up a second one) and resolves via a `pendingText` map keyed by request id, decoupled from
+the queue's `busy`/`pump` bookkeeping.
+
+**Value embeddings cache in memory only, not in `embeddings` (the table is item-keyed, not
+term-keyed) or a new migration.** The plan calls them "cached and recomputed when a vocabulary
+changes" without specifying persistence; given the vocabulary is small (dozens of terms) and
+recomputing costs a few `embedText` calls, an in-memory `Map<termId, Float32Array>`
+(`valueEmbeddings.ts`) that the vocabulary commands (rename, hint edit, merge, delete) explicitly
+invalidate is simpler than a schema migration for what's essentially a derived cache — and avoids
+a stale-vocabulary-embedding class of bug a persisted cache would need its own invalidation
+tracking for anyway.
+
+**`computeSuggestions` (`src/features/ai/`) is the one orchestrator both Details and Triage call
+through `useSuggestions`, a shared hook** — accept/dismiss/Accept all behave identically in both
+surfaces, and Triage's `A` key (a documented no-op since M2-5, waiting for exactly this) now calls
+the same `acceptAll` the Details panel's button does. Each surface owns its own `useSuggestions`
+call (Triage's also drives the `A` key directly) rather than sharing one instance across both,
+since they're never mounted at once. "Labeled in field" for `blendAlpha` counts classified
+neighbors *among items with an embedding so far* (background analysis may still be catching up on
+a large library) rather than a separate DB query — a documented undercount that only softens the
+zero-shot/personal blend, not a correctness bug.
+
+**Dismissing a suggestion (`ai_dismissed`) is not a `Command`.** Same reasoning already applied to
+"Set as cover" and "Extract palette": it's a standing preference ("don't suggest this again for
+this item"), not a content edit an owner would expect Ctrl+Z to walk back.
+
+Accepting a suggestion reuses the existing `createSetItemTypeCommand`/`createAddItemTermCommand`
+verbatim (passing `{id: termId}` for an existing term) — no new command type, no `via: 'ai'`
+provenance tracking added, since accepting through Details/Triage's own chips already behaves
+identically to picking the value manually, and the plan doesn't call for distinguishing the two
+in the data model.
+
+Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (360 tests across
+56 files, up from 333/53 at the end of M6-2 — 27 new: `suggestions.ts` 14, `valueEmbeddings.ts` 6,
+`computeSuggestions.ts` 5, `aiQueue.ts`'s two new `embedText` cases), `vite build`, `cargo fmt
+--check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`
+are all clean.
+
+**Owner checks:** on your Windows build with real embeddings — open Details on a classified image
+similar to others you've already tagged, and check that at least one dashed "suggested" chip shows
+up with a plausible value. Click it to accept (it should look exactly like adding the value
+yourself), and the ✕ next to another to dismiss it (re-opening the item shouldn't bring it back).
+In Triage, press `A` on an item with suggestions showing and confirm every chip gets accepted at
+once.
+
+---
+
 *(Later milestones append below this line.)*

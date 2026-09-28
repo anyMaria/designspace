@@ -53,6 +53,14 @@ export const en = {
     collapse: 'Collapse suggestions',
     expand: 'Expand suggestions',
   },
+  /** §4.10's AI classification suggestions (Details panel + Triage) — distinct from `suggestions`
+   * above, which is the board suggestions tray (§2.10/M4). */
+  aiSuggestions: {
+    title: 'Suggested',
+    accept: (name: string) => `Accept "${name}"`,
+    dismiss: 'Dismiss suggestion',
+    acceptAll: 'Accept all',
+  },
   notes: {
     colorLabel: (name: string) => `${name.charAt(0).toUpperCase()}${name.slice(1)} note color`,
   },

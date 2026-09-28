@@ -3,6 +3,7 @@ import { useTermStore } from '@/state/termStore';
 import type { Command } from './types';
 import { normalize } from '@/lib/normalize';
 import type { Facet } from '@/state/types';
+import { invalidateValueEmbeddings } from '@/lib/ai/valueEmbeddings';
 
 /** Settings → Vocabularies (§2.5): rename, merge, delete, reorder and AI-hint edits, each one
  * undoable Command. */
@@ -15,6 +16,7 @@ export function createRenameTermCommand(platform: Platform, id: string, name: st
     const term = useTermStore.getState().terms.get(id);
     if (!term) return;
     useTermStore.getState().upsertTerm({ ...term, name: newName, nameNorm: newNameNorm });
+    invalidateValueEmbeddings(id); // §4.10: the name feeds prompt templates when there's no hint
     await platform.db.execute('UPDATE terms SET name = ?, name_norm = ? WHERE id = ?', [
       newName,
       newNameNorm,
@@ -40,6 +42,7 @@ export function createSetAiHintCommand(
     const term = useTermStore.getState().terms.get(id);
     if (!term) return;
     useTermStore.getState().upsertTerm({ ...term, aiHint: newHint });
+    invalidateValueEmbeddings(id);
     await platform.db.execute('UPDATE terms SET ai_hint = ? WHERE id = ?', [newHint, id]);
   }
 
@@ -60,6 +63,7 @@ export function createDeleteTermCommand(platform: Platform, id: string): Command
 
   async function doIt(): Promise<void> {
     useTermStore.getState().removeTerms([id]);
+    invalidateValueEmbeddings(id);
     await platform.db.batch([
       { sql: 'DELETE FROM item_terms WHERE term_id = ?', params: [id] },
       { sql: 'DELETE FROM terms WHERE id = ?', params: [id] },
@@ -123,6 +127,7 @@ export function createMergeTermsCommand(
   async function doIt(): Promise<void> {
     if (!source || !target) return;
     useTermStore.getState().removeTerms([sourceId]);
+    invalidateValueEmbeddings(sourceId);
     for (const itemId of repointedItemIds) useTermStore.getState().addItemTerm(itemId, targetId);
 
     const now = new Date().toISOString();

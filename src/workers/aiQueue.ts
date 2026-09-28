@@ -2,7 +2,12 @@ import type { DbRow, Platform } from '@/platform';
 import { useSettingsStore } from '@/state/settingsStore';
 import { computeAiEnvConfig } from '@/lib/ai/env';
 import { logger } from '@/lib/logger';
-import type { AiWorkerRequest, AiWorkerResponse, EmbedImageRequest } from './ai.worker';
+import type {
+  AiWorkerRequest,
+  AiWorkerResponse,
+  EmbedImageRequest,
+  EmbedTextRequest,
+} from './ai.worker';
 
 /** Minimal Worker surface this module needs — lets tests inject a fake (mirrors `IngestQueue`'s
  * `WorkerLike`, `src/workers/ingestQueue.ts`). */
@@ -44,6 +49,13 @@ export class AiQueue {
   private nextReqId = 0;
   private configured: Promise<void>;
   private listeners = new Set<() => void>();
+  /** Pending `embedText` requests (value/prompt embeddings, search-by-meaning queries) — these
+   * bypass the background-analysis queue entirely: they're interactive, small, and share the
+   * same worker/model instance rather than spinning up a second one. */
+  private pendingText = new Map<
+    string,
+    { resolve: (v: Float32Array) => void; reject: (e: Error) => void }
+  >();
   completed = 0;
   failed = 0;
 
@@ -120,7 +132,17 @@ export class AiQueue {
   }
 
   private handleResult(result: AiWorkerResponse): void {
-    if (result.type !== 'embedResult' || !result.itemId) return;
+    if (result.type !== 'embedResult') return;
+
+    const textRequest = this.pendingText.get(result.id);
+    if (textRequest) {
+      this.pendingText.delete(result.id);
+      if (result.ok) textRequest.resolve(new Float32Array(result.vector));
+      else textRequest.reject(new Error(result.error));
+      return;
+    }
+
+    if (!result.itemId) return;
     this.busy = false;
 
     if (!result.ok) {
@@ -145,6 +167,19 @@ export class AiQueue {
         this.notify();
         this.pump();
       });
+  }
+
+  /** Embeds arbitrary text (a value's prompt templates, §4.10 Appendix B; a search-by-meaning
+   * query) — shares this queue's worker/model rather than loading a second one, and doesn't
+   * consume a background-analysis queue slot. */
+  async embedText(text: string): Promise<Float32Array> {
+    await this.configured;
+    return new Promise((resolve, reject) => {
+      const id = `text-${++this.nextReqId}`;
+      this.pendingText.set(id, { resolve, reject });
+      const req: EmbedTextRequest = { type: 'embedText', id, text };
+      this.worker.postMessage(req);
+    });
   }
 
   destroy(): void {

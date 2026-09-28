@@ -18,6 +18,7 @@ import { ChipInput, Swatch, Toggle, Button, IconButton } from '@/design/componen
 import { formatBytes } from '@/lib/formatBytes';
 import { formatDuration } from '@/lib/formatDuration';
 import { en } from '@/i18n/en';
+import { SuggestionsSection } from '@/features/ai/SuggestionsSection';
 
 const MOST_USED_TYPE_COUNT = 8;
 
@@ -235,6 +236,8 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
           suggestions={tagTerms.map((t) => t.name)}
         />
       </Field>
+
+      <SuggestionsSection platform={platform} item={item} />
 
       <Field label={en.connections.myConnections}>
         {connections.length === 0 ? (
