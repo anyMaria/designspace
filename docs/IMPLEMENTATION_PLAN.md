@@ -1252,7 +1252,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 **Owner checks:** make a real moodboard for a current project, export it as PNG and PDF, and check the quality.
 
 ### M5: More content
-- [ ] Spikes **S5 Video codecs** (mp4/webm/mov samples in WebView2: which ones play) and **S6 Font metadata** (WOFF2 name tables with fontkit vs opentype.js).
+- [x] Spikes **S5 Video codecs** (mp4/webm/mov samples in WebView2: which ones play) and **S6 Font metadata** (WOFF2 name tables with fontkit vs opentype.js).
 - [ ] Videos: import, automatic and chosen cover frame, duration badge, hover preview (one at a time), the Focus player, and the fallback for unsupported codecs.
 - [ ] PDFs: import, the cover-page picker, split into pages (pdf-lib), the Focus viewer.
 - [ ] Fonts: import TTF/OTF/WOFF/WOFF2, metadata, the specimen card (live text at mid and near zoom), the Focus type tester.

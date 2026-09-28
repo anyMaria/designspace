@@ -1561,6 +1561,53 @@ create a board, drag a few more things in from the suggestions tray or the List'
 add a note and a swatch, arrange a frame or two, and export it as both PNG (try 2× and the plain-
 plum background) and PDF. Does the export actually look like the board you built?
 
+## M5: More content
+
+### Spikes S5 (video codecs) and S6 (font metadata)
+
+**S5 — video codecs.** This cloud session's Chromium is a stock open-source build (no Google/
+Microsoft proprietary codec licensing bundled in), so it's a useful but incomplete stand-in for
+the real target, WebView2 on Windows. Checked `HTMLVideoElement.canPlayType()` for the plan's
+candidate formats:
+
+| Container/codec | This sandbox's Chromium |
+|---|---|
+| WebM (VP8/VP9/AV1) | `probably` — plays |
+| MP4 (H.264/AVC) | *(empty)* — no proprietary decoder in this build |
+| MP4 (HEVC) | *(empty)* |
+| MP4 (AV1) | `probably` |
+| QuickTime (`.mov`) | *(empty)* — container itself unrecognized |
+
+The MP4/H.264 result is expected and not representative: WebView2 uses the Windows Media
+Foundation stack, which ships H.264/AAC decoding out of the box on every supported Windows version
+(unlike a bare open-source Chromium build) — so real verification of MP4 and `.mov` playback has
+to happen on the owner's actual Windows install, per CLAUDE.md's cloud-session guidance. What *is*
+decided here, and doesn't need Windows to verify: rather than hardcoding a codec-support table,
+videos import as their given file and playability is discovered at runtime (`canPlayType`/the
+`<video>` element's own `error` event) — the one design that's correct on both platforms and
+naturally drives the plan's "fallback for unsupported codecs" UI, which this sandbox can build and
+test end-to-end right now (every MP4 dropped in here *is* the unsupported case).
+
+**S6 — font metadata (WOFF2 name tables).** Compared `fontkit` and `opentype.js`:
+
+- `opentype.js` has zero dependencies and a small footprint, but **doesn't decompress WOFF2 at
+  all** — its own docs recommend loading a separate ~1.4MB Brotli decoder (`wawoff2`) via a
+  `<script>` tag from a CDN. That's flatly incompatible with this app's strict CSP (no
+  `unsafe-eval`, no background network in the webview) and the "everything ships in the
+  installer" requirement — a local static import of `wawoff2` would work around the CDN part, but
+  still means carrying two libraries for one job.
+- `fontkit` bundles WOFF2 (Brotli) decompression natively and ships a dedicated browser build
+  (`dist/browser-module.mjs`, picked up automatically by Vite/esbuild's default `browser` field
+  resolution). Verified directly: real-world WOFF2 fixtures (`@fontsource/unbounded`'s own files,
+  already vendored for this app's UI font) parse correctly via `create(bytes)`, the compiled
+  browser bundle contains zero references to Node's `Buffer` and zero `eval`/`new Function` calls
+  (grepped the output), and it typechecks and bundles cleanly through this project's actual
+  `tsc -b`/esbuild toolchain. `@types/fontkit`'s `create()` signature is typed against fontkit's
+  Node API (`Buffer`), which the browser build doesn't actually need — M5-4 casts a `Uint8Array`
+  through `unknown` rather than pulling in a `buffer` polyfill just to satisfy that stale type.
+
+**Decision:** `fontkit` (already added — `package.json`), not `opentype.js`.
+
 ---
 
 *(Later milestones append below this line.)*
