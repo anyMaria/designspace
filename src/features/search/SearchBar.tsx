@@ -5,6 +5,7 @@ import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useTermStore } from '@/state/termStore';
 import { useSearchStore, isFilterActive } from '@/state/searchStore';
+import { useSettingsStore } from '@/state/settingsStore';
 import { useHistoryStore } from '@/commands/history';
 import { createBoardFromItemsCommand } from '@/commands/boardCommands';
 import { switchSpace } from '@/features/boards/switchSpace';
@@ -12,7 +13,7 @@ import { useToastStore } from '@/state/toastStore';
 import type { ColorFamily } from '@/lib/color';
 import type { Facet, ItemKind } from '@/state/types';
 import { useSearchResults } from './useSearchResults';
-import { Panel, SearchField, Chip, IconButton, Button, Tabs } from '@/design/components';
+import { Panel, SearchField, Chip, IconButton, Button, Tabs, Toggle } from '@/design/components';
 import { en } from '@/i18n/en';
 
 const KINDS: ItemKind[] = ['image', 'video', 'pdf', 'font', 'link', 'note', 'swatch'];
@@ -54,7 +55,9 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
 
   const terms = useTermStore((s) => s.terms);
   const items = useLibraryStore((s) => s.items);
-  const { matches, total } = useSearchResults();
+  const { matches, total } = useSearchResults(platform);
+  const includeVisualMatches = useSearchStore((s) => s.includeVisualMatches);
+  const aiEnabled = useSettingsStore((s) => s.aiEnabled);
 
   const artists = [
     ...new Set([...items.values()].map((i) => i.artist).filter((a): a is string => !!a)),
@@ -146,6 +149,19 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
             onClick={() => useSearchStore.getState().closeOrClearText()}
           />
         </div>
+
+        {aiEnabled && filter.text && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>
+              {en.search.includeVisualMatches}
+            </span>
+            <Toggle
+              checked={includeVisualMatches}
+              onChange={() => useSearchStore.getState().toggleIncludeVisualMatches()}
+              label={en.search.includeVisualMatches}
+            />
+          </div>
+        )}
 
         <div
           style={{

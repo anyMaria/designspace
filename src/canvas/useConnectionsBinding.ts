@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Engine, ShowAllHub } from './Engine';
+import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useTermStore } from '@/state/termStore';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
+import { useEmbeddingsStore } from '@/state/embeddingsStore';
 import { useSearchResults } from '@/features/search/useSearchResults';
 import {
   buildConnectionIndex,
@@ -25,16 +27,17 @@ const HOVER_DELAY_MS = 300;
  * "respects the active filter") becomes a hub via `computeHubs`, handed to
  * `Engine.setShowAllHubs`; past the 5,000-line cap, no hubs are drawn and
  * `connectionsUiStore.showAllOverLimit` is set instead, for the popover's "Too many links" message. */
-export function useConnectionsBinding(engine: Engine | null): void {
+export function useConnectionsBinding(engine: Engine | null, platform: Platform): void {
   const items = useLibraryStore((s) => s.items);
   const selection = useLibraryStore((s) => s.selection);
   const itemTerms = useTermStore((s) => s.itemTerms);
   const terms = useTermStore((s) => s.terms);
   const connections = useManualConnectionsStore((s) => s.connections);
+  const embeddings = useEmbeddingsStore((s) => s.vectors);
   const activeCriteria = useConnectionsUiStore((s) => s.activeCriteria);
   const minStrength = useConnectionsUiStore((s) => s.minStrength);
   const mode = useConnectionsUiStore((s) => s.mode);
-  const { matches } = useSearchResults();
+  const { matches } = useSearchResults(platform);
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const hoverTimer = useRef<number | null>(null);
@@ -52,8 +55,8 @@ export function useConnectionsBinding(engine: Engine | null): void {
   }, [engine]);
 
   const index = useMemo(
-    () => buildConnectionIndex(items.values(), itemTerms, terms, connections.values()),
-    [items, itemTerms, terms, connections],
+    () => buildConnectionIndex(items.values(), itemTerms, terms, connections.values(), embeddings),
+    [items, itemTerms, terms, connections, embeddings],
   );
 
   useEffect(() => {

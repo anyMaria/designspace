@@ -7,10 +7,17 @@ import { en } from '@/i18n/en';
 
 const LIMIT_HIT_DISPLAY_MS = 2500;
 
-/** The 6 real criteria (§2.10) — `similar` ("Similar look", cosine on CLIP embeddings) needs the
- * AI pipeline from M6 and always scores zero candidates until then (see `lib/connections.ts`), so
- * it's left out of the popover rather than shown as a toggle that visibly does nothing. */
-const POPOVER_CRITERIA: Criterion[] = ['type', 'vibe', 'movement', 'tag', 'color', 'manual'];
+/** The 7 real criteria (§2.10), including `similar` ("Similar look", cosine on CLIP embeddings —
+ * §4.10, M6). */
+const POPOVER_CRITERIA: Criterion[] = [
+  'type',
+  'vibe',
+  'movement',
+  'tag',
+  'color',
+  'manual',
+  'similar',
+];
 
 const CRITERION_LABEL: Record<Criterion, string> = {
   type: en.connections.criterionType,

@@ -1,10 +1,15 @@
 import type { Facet, Item, ManualConnection, Term } from '@/state/types';
+import { cosineSimilarity } from '@/lib/ai/embeddingProvider';
 
-/** Connection criteria (§2.10, §4.9). `similar` ("Similar look", cosine ≥ 0.85 on CLIP
- * embeddings) needs the AI pipeline from M6 and isn't implemented yet — it's kept in the type so
- * the popover (M3-3) and the color/line-style tokens don't need to change shape later, but
- * `valueSetFor` always returns an empty set for it, so it never contributes to a score. */
+/** Connection criteria (§2.10, §4.9). */
 export type Criterion = Facet | 'color' | 'manual' | 'similar';
+
+/** §4.10/§2.10: "Similar look", cosine on CLIP embeddings. Unlike every other criterion,
+ * `similar` has no discrete "value" items can share — it's scored directly from embeddings in
+ * `scoreCandidates` (mirroring how `manual` is special-cased there), never through the inverted
+ * index, so it never produces Show-all hubs (there's no natural group to hub around a continuous
+ * similarity). */
+export const SIMILAR_THRESHOLD = 0.85;
 
 export interface ConnectionIndex {
   /** itemId -> its value set, per criterion (term ids for the four facets, color family names
@@ -14,6 +19,10 @@ export interface ConnectionIndex {
    * from, so scoring one hover never has to scan every item. */
   itemsByValue: Map<Criterion, Map<string, Set<string>>>;
   createdAt: Map<string, string>;
+  /** `similar`'s CLIP embeddings, passed straight through — see the `SIMILAR_THRESHOLD` doc
+   * comment above for why this doesn't feed the inverted index. `undefined` when the caller
+   * doesn't have embeddings on hand (e.g. no AI worker), same as "no items carry this facet". */
+  embeddings?: Map<string, Float32Array>;
 }
 
 const FACETS: Facet[] = ['type', 'vibe', 'movement', 'tag'];
@@ -27,6 +36,7 @@ export function buildConnectionIndex(
   itemTerms: Map<string, Set<string>>,
   terms: Map<string, Term>,
   manualConnections: Iterable<ManualConnection>,
+  embeddings?: Map<string, Float32Array>,
 ): ConnectionIndex {
   const valuesByItem = new Map<Criterion, Map<string, Set<string>>>();
   const itemsByValue = new Map<Criterion, Map<string, Set<string>>>();
@@ -66,7 +76,7 @@ export function buildConnectionIndex(
     addValue('manual', c.toId, c.fromId);
   }
 
-  return { valuesByItem, itemsByValue, createdAt };
+  return { valuesByItem, itemsByValue, createdAt, embeddings };
 }
 
 export function valueSetFor(
@@ -99,6 +109,25 @@ export function scoreCandidates(
   const shared = new Map<string, Partial<Record<Criterion, string[]>>>();
 
   for (const criterion of activeCriteria) {
+    if (criterion === 'similar') {
+      const embeddings = index.embeddings;
+      const myVector = embeddings?.get(itemId);
+      if (!embeddings || !myVector) continue;
+      for (const [otherId, otherVector] of embeddings) {
+        if (otherId === itemId) continue;
+        const similarity = cosineSimilarity(myVector, otherVector);
+        if (similarity < SIMILAR_THRESHOLD) continue;
+        // +1, not the raw cosine — `minStrength` counts shared *criteria*, and a qualifying
+        // similarity match is exactly one of those, same as `manual`; the percentage still goes
+        // into `shared` for the tooltip.
+        scores.set(otherId, (scores.get(otherId) ?? 0) + 1);
+        const s = shared.get(otherId) ?? {};
+        (s.similar ??= []).push(`${Math.round(similarity * 100)}%`);
+        shared.set(otherId, s);
+      }
+      continue;
+    }
+
     const myValues = valueSetFor(index, criterion, itemId);
     if (criterion === 'manual') {
       // A manual connection's "value" is the neighbor's own id, not a shared attribute other
@@ -187,7 +216,8 @@ export function formatSharedTooltip(
  * already maps an item id to everyone connected to it (`buildConnectionIndex` adds both
  * directions), so a hub for that "value" is exactly "the items manually connected to this one" —
  * the natural Show-all reading of My connections, and it falls out of the existing structure for
- * free. `similar` never produces hubs before M6, since its index is always empty. */
+ * free. `similar` never produces hubs — see `SIMILAR_THRESHOLD`'s doc comment for why it's
+ * deliberately absent from the inverted index `computeHubs` reads. */
 export interface Hub {
   criterion: Criterion;
   /** The term id (facets), color family (`color`), or connected item id (`manual`). */

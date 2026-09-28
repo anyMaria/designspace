@@ -1,6 +1,8 @@
 import type { DbRow, Platform } from '@/platform';
 import { useSettingsStore } from '@/state/settingsStore';
+import { useEmbeddingsStore } from '@/state/embeddingsStore';
 import { computeAiEnvConfig } from '@/lib/ai/env';
+import { CLIP_MODEL } from '@/lib/ai/model';
 import { logger } from '@/lib/logger';
 import type {
   AiWorkerRequest,
@@ -25,12 +27,7 @@ export interface AiQueueItem {
   cacheKey: string;
 }
 
-/** Bump if the model changes (a different model's vectors aren't comparable to the old ones) —
- * mirrors `IngestQueue.CURRENT_DERIVED_V`'s "resumable after an algorithm change" convention.
- * Must match `scripts/fetch-models.mjs`'s `MODEL_ID` in spirit (not literally: this is the
- * `embeddings.model` column's key, kept short and version-free so swapping quantization or
- * fetch details doesn't orphan existing vectors — only an actual model swap should). */
-export const CLIP_MODEL = 'clip-vit-base-patch32';
+export { CLIP_MODEL };
 
 function defaultWorkerFactory(): WorkerLike {
   return new Worker(new URL('./ai.worker.ts', import.meta.url), { type: 'module' });
@@ -142,11 +139,12 @@ export class AiQueue {
       return;
     }
 
-    if (!result.itemId) return;
+    const itemId = result.itemId;
+    if (!itemId) return;
     this.busy = false;
 
     if (!result.ok) {
-      logger.warn(`AI embedding failed for ${result.itemId}: ${result.error}`);
+      logger.warn(`AI embedding failed for ${itemId}: ${result.error}`);
       this.failed++;
       this.notify();
       this.pump();
@@ -155,9 +153,12 @@ export class AiQueue {
 
     const vector = new Float32Array(result.vector);
     this.platform.embeddings
-      .put(CLIP_MODEL, [[result.itemId, vector]])
+      .put(CLIP_MODEL, [[itemId, vector]])
       .then(() => {
         this.completed++;
+        // Keeps "Similar look" connections/Constellations and Find similar live as background
+        // analysis progresses, without their own async round trip (§4.10).
+        useEmbeddingsStore.getState().upsert(itemId, vector);
       })
       .catch((err: unknown) => {
         logger.error('AI: failed to persist an embedding', err);

@@ -1,11 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ExternalLink, X } from 'lucide-react';
+import { ExternalLink, Sparkles, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
+import type { Engine } from '@/canvas/Engine';
 import { useTermStore } from '@/state/termStore';
 import { useFocusStore } from '@/state/focusStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
+import { useEmbeddingsStore } from '@/state/embeddingsStore';
 import { useHistoryStore } from '@/commands/history';
 import { createSetItemFieldCommand } from '@/commands/itemCommands';
 import {
@@ -17,13 +19,22 @@ import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
 import { ChipInput, Swatch, Toggle, Button, IconButton } from '@/design/components';
 import { formatBytes } from '@/lib/formatBytes';
 import { formatDuration } from '@/lib/formatDuration';
+import { findSimilarItemIds } from '@/lib/ai/findSimilar';
 import { en } from '@/i18n/en';
 import { SuggestionsSection } from '@/features/ai/SuggestionsSection';
 
 const MOST_USED_TYPE_COUNT = 8;
 
 /** Details panel for a single selected item — §2.6. Bulk (several items) lands in M2-4. */
-export function DetailsPanel({ platform, item }: { platform: Platform; item: Item }) {
+export function DetailsPanel({
+  platform,
+  item,
+  engine,
+}: {
+  platform: Platform;
+  item: Item;
+  engine: Engine | null;
+}) {
   const terms = useTermStore((s) => s.terms);
   const itemTermIds = useTermStore((s) => s.itemTerms.get(item.id)) ?? new Set<string>();
 
@@ -70,6 +81,8 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
 
   const [showAllTypes, setShowAllTypes] = useState(false);
   const items = useLibraryStore((s) => s.items);
+  const embeddings = useEmbeddingsStore((s) => s.vectors);
+  const hasEmbedding = embeddings.has(item.id);
   const manualConnections = useManualConnectionsStore((s) => s.connections);
   const manualByItem = useManualConnectionsStore((s) => s.byItem);
   const connections = useMemo(
@@ -126,6 +139,14 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
       .execute(createSetItemFieldCommand(platform, item.id, 'favorite', !item.favorite));
   }
 
+  function findSimilar(): void {
+    const results = findSimilarItemIds(item.id, embeddings);
+    if (results.length === 0 || !engine) return;
+    const ids = results.map((r) => r.id);
+    engine.setSelection(ids);
+    engine.zoomToIds(ids);
+  }
+
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', overflowY: 'auto' }}
@@ -150,6 +171,16 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
         </button>
+      )}
+
+      {hasEmbedding && (
+        <Button
+          variant="ghost"
+          icon={<Sparkles size={16} strokeWidth={1.75} />}
+          onClick={findSimilar}
+        >
+          {en.details.findSimilar}
+        </Button>
       )}
 
       <input

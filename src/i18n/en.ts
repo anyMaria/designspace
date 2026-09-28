@@ -58,7 +58,10 @@ export const en = {
   aiSuggestions: {
     title: 'Suggested',
     accept: (name: string) => `Accept "${name}"`,
-    dismiss: 'Dismiss suggestion',
+    /** Distinct from `suggestions.dismiss` above — same wording would collide as an accessible
+     * name wherever both a board suggestion and an AI classification suggestion render at once
+     * (caught by `tests/e2e/smoke-m4-suggestions-tray.spec.ts` picking up both). */
+    dismiss: 'Dismiss AI suggestion',
     acceptAll: 'Accept all',
   },
   notes: {
@@ -293,6 +296,7 @@ export const en = {
     mixed: 'Mixed',
     artistMixedPlaceholder: 'Mixed',
     moveToTrash: 'Move to Trash',
+    findSimilar: 'Find similar',
   },
   vocabulary: {
     facets: {
@@ -438,6 +442,9 @@ export const en = {
     dateYear: 'This year',
     favorite: 'Favorite',
     inbox: 'Inbox',
+    /** §4.10's "Include visual matches" — CLIP search-by-meaning results folded into the regular
+     * text/facet match set. */
+    includeVisualMatches: 'Include visual matches',
   },
   triage: {
     progress: (index: number, total: number) => `${index} of ${total}`,

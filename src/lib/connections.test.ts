@@ -304,3 +304,64 @@ describe('formatHubLabel', () => {
     expect(formatHubLabel(hub, new Map(), itemTitles)).toBe('Poster study');
   });
 });
+
+describe("'similar' criterion", () => {
+  function vec(...values: number[]): Float32Array {
+    let sumSquares = 0;
+    for (const v of values) sumSquares += v * v;
+    const norm = Math.sqrt(sumSquares) || 1;
+    return Float32Array.from(values.map((v) => v / norm));
+  }
+
+  it('scores an above-threshold neighbor and excludes a below-threshold one', () => {
+    const embeddings = new Map([
+      ['a', vec(1, 0, 0)],
+      ['close', vec(0.99, 0.01, 0)], // cos ~0.9999, above SIMILAR_THRESHOLD (0.85)
+      ['far', vec(0, 1, 0)], // cos 0, below
+    ]);
+    const items = [makeItem({ id: 'a' }), makeItem({ id: 'close' }), makeItem({ id: 'far' })];
+    const index = buildConnectionIndex(items, new Map(), new Map(), [], embeddings);
+    const candidates = scoreCandidates('a', ['similar'], index);
+    const ids = candidates.map((c) => c.id);
+    expect(ids).toContain('close');
+    expect(ids).not.toContain('far');
+  });
+
+  it('never produces Show-all hubs', () => {
+    const embeddings = new Map([
+      ['a', vec(1, 0, 0)],
+      ['b', vec(0.99, 0.01, 0)],
+    ]);
+    const items = [makeItem({ id: 'a' }), makeItem({ id: 'b' })];
+    const index = buildConnectionIndex(items, new Map(), new Map(), [], embeddings);
+    const { hubs } = computeHubs(['a', 'b'], ['similar'], index);
+    expect(hubs).toEqual([]);
+  });
+
+  it('contributes nothing when no embeddings were passed to buildConnectionIndex', () => {
+    const items = [makeItem({ id: 'a' }), makeItem({ id: 'b' })];
+    const index = buildConnectionIndex(items, new Map(), new Map(), []);
+    const candidates = scoreCandidates('a', ['similar'], index);
+    expect(candidates).toEqual([]);
+  });
+
+  it('formats the shared tooltip with a percentage, not a term name', () => {
+    const embeddings = new Map([
+      ['a', vec(1, 0, 0)],
+      ['b', vec(0.99, 0.01, 0)],
+    ]);
+    const items = [makeItem({ id: 'a' }), makeItem({ id: 'b' })];
+    const index = buildConnectionIndex(items, new Map(), new Map(), [], embeddings);
+    const candidates = scoreCandidates('a', ['similar'], index);
+    const tooltip = formatSharedTooltip(candidates[0].shared, new Map(), {
+      type: 'Type',
+      vibe: 'Vibe',
+      movement: 'Movement',
+      tag: 'Tags',
+      color: 'Color',
+      manual: 'My connections',
+      similar: 'Similar look',
+    });
+    expect(tooltip).toMatch(/Similar look: \d+%/);
+  });
+});

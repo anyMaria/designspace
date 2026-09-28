@@ -13,6 +13,9 @@ export interface LayoutRequest {
   itemTerms: Map<string, Set<string>>;
   terms: Map<string, Term>;
   manualConnections: ManualConnection[];
+  /** `similar` ("Similar look", §4.10) — omitted (not just empty) when no embeddings are
+   * available at all, same convention `buildConnectionIndex` uses. */
+  embeddings?: Map<string, Float32Array>;
 }
 
 export interface LayoutResponse extends ConstellationLayout {
@@ -26,7 +29,13 @@ export interface LayoutResponse extends ConstellationLayout {
  * about at the call site in `useConstellationsBinding` (M3-7). */
 self.onmessage = (event: MessageEvent<LayoutRequest>) => {
   const req = event.data;
-  const index = buildConnectionIndex(req.items, req.itemTerms, req.terms, req.manualConnections);
+  const index = buildConnectionIndex(
+    req.items,
+    req.itemTerms,
+    req.terms,
+    req.manualConnections,
+    req.embeddings,
+  );
   const itemTitles = new Map(req.items.map((i) => [i.id, i.title]));
   const layout = computeConstellationLayout(
     req.visibleItemIds,

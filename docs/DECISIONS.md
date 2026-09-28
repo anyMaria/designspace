@@ -2131,4 +2131,96 @@ once.
 
 ---
 
+## CI fix: `aiSuggestions.dismiss` collided with the board tray's `suggestions.dismiss`
+
+M6-3's Details/Triage dismiss button reused the exact string "Dismiss suggestion" the M4-10 board
+suggestions tray already used for its own, unrelated dismiss button. Harmless until both render on
+screen at once (a board with classified items that also have AI suggestions showing) — caught by
+CI, not locally, because `tests/e2e/smoke-m4-suggestions-tray.spec.ts` uses `getByRole('button',
+{ name: 'Dismiss suggestion' })`, and the real fixture data in that test happens to produce both.
+Renamed to "Dismiss AI suggestion" — the two features stay conceptually separate (one dismisses an
+unadded board match, the other dismisses an AI classification suggestion) and now read distinctly
+in the accessibility tree too.
+
+## M6-4: Find similar, the Similar look criterion, search by meaning, board similarity
+
+**"Similar look" reuses the existing `ConnectionIndex`/`scoreCandidates` machinery from M3 rather
+than a parallel code path** — the type (`Criterion`), the popover entry, and even the color token
+were already scaffolded in M3 with a comment saying exactly this: "needs the AI pipeline from M6
+... kept in the type so the popover and the color/line-style tokens don't need to change shape
+later." `buildConnectionIndex` gained an optional `embeddings` param that's passed straight through
+to a new `ConnectionIndex.embeddings` field rather than folded into the inverted index
+(`itemsByValue`) every other criterion uses — cosine similarity has no discrete "value" two items
+either share or don't, so `scoreCandidates` special-cases `'similar'` exactly the way it already
+special-cased `'manual'` (a criterion whose "value" is also not a shared attribute). One real
+correctness fix during this: the first pass scored `similar` matches with the raw cosine
+(e.g. 0.87), which `scoreCandidates`' `minStrength` filter (default 1, meaning "at least one
+qualifying criterion") then silently dropped, since 0.87 < 1 — every `similar`-only hover produced
+zero candidates despite matching. Fixed by scoring a qualifying match as a flat `+1` (like
+`manual`), matching `minStrength`'s "count of criteria" semantics; the actual cosine still goes
+into `shared` for the hover tooltip ("Similar look: 87%"). Caught by a test that asserts a
+same-item-embedding pair (cosine ≈ 1) actually appears in `scoreCandidates`' output — it didn't,
+until this fix.
+
+**`useEmbeddingsStore` is the main-thread mirror of the `embeddings` table**, loaded once at
+startup (`loadEmbeddings`, alongside `loadSettings`) and kept live by `AiQueue.handleResult`
+pushing each newly-persisted vector into it as background analysis progresses — so "Similar look"
+connections, Constellations, and Find similar never need their own async round trip mid-
+interaction, the same reasoning `termStore`/`libraryStore` already apply to everything else. Wiring
+it into `layout.worker.ts` needed a genuine circular-import fix: `AiQueue` (writes) and
+`embeddingsStore.ts` (reads) both needed `CLIP_MODEL`, and importing it from `aiQueue.ts` into
+`embeddingsStore.ts` while `aiQueue.ts` also needs to import `embeddingsStore.ts` (to push live
+updates) would create an import cycle; moved the constant to a new one-line `src/lib/ai/model.ts`
+both import from instead.
+
+**Constellations' `similar` re-settle trigger uses `embeddings.size`, not a full per-item
+signature.** `useConstellationsBinding`'s existing `itemsSignature` optimization (a string built
+from just the fields that could actually move a layout, to avoid restarting the 800ms morph on
+every quiet ingest write) has no natural way to represent "did any embedding change" cheaply — a
+full per-item embedding signature would be the exact expensive computation the optimization exists
+to avoid. The vector count is a rough but cheap proxy: it changes once per completed background-
+analysis batch, not per vector, so `similar`-driven Constellations settles increasingly less often
+as the library finishes analysis, which is the right direction even if not perfectly precise.
+
+**Find similar and board similarity are pure, synchronous functions** (`findSimilar.ts`,
+`boardSimilarSuggestions.ts`) over the same `useEmbeddingsStore` map "Similar look" reads — no new
+async plumbing needed since the embeddings are already in memory. Find similar sits on the Details
+panel next to the thumbnail (only rendered once the item actually has an embedding) and calls the
+same `Engine.setSelection`/`zoomToIds` "Frame results" already uses, so it behaves identically to
+every other "select these items and fly to them" action in the app. The board suggestions tray
+(M4-10) now fills any slots the source-filter matches leave empty with the centroid-based
+similarity result, and — unlike before — now also produces suggestions for a board with placed
+items but no source filter at all (an empty/manually-built board), which the tray previously always
+returned nothing for.
+
+**Search by meaning is additive to the existing text/facet result set, not a separate results
+section**, despite §2.10's wording suggesting a distinct "section." Building a second, parallel
+results UI (with its own List-panel-equivalent, its own Dim/Hide semantics, its own "Frame these
+too") would have roughly doubled this sub-task's scope for a UI difference the owner may not even
+prefer; unioning `searchByMeaning`'s matches into the same `Set<string>` every other feature
+(Dim/Hide, the List panel, Frame results, "Create board from results") already consumes means a
+semantic match behaves exactly like a text match everywhere in the app for free, gated behind the
+explicit "Include visual matches" toggle so it's opt-in per search. `useSearchResults` gained a
+required `platform` parameter (it needs to reach the AI worker for `embedText`) — propagated to
+its five call sites (`useSearchBinding`, `useConnectionsBinding`, `useConstellationsBinding`,
+`SearchBar`, `ListPanel`), all of which already had `platform` available.
+
+Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (377 tests across
+59 files, up from 360/56 at the end of M6-3 — 17 new across `findSimilar.ts`,
+`searchByMeaning.ts`, `boardSimilarSuggestions.ts`, and four new `'similar'`-criterion cases in
+`connections.test.ts`), `vite build`, `cargo fmt --check`, `cargo clippy --workspace
+--all-targets -- -D warnings`, and `cargo test --workspace` are all clean.
+
+**Owner checks:** on your Windows build with real embeddings — open the Connections popover,
+enable "Similar look" alone, and hover a classified item: do the highlighted lines actually go to
+visually similar items? Try Constellations by Similar look on a real library and see if the
+clusters look sensible. Open Details on an image with visual neighbors and click "Find similar" —
+does the canvas select and fly to a plausible set? Turn on "Include visual matches" in the search
+bar and type a description ("a red sports car") with no matching text/tags in the library — do
+visually matching items show up in the results count? On a board with placed items, check that the
+suggestions tray now offers visually-similar library items even without (or in addition to) a
+source filter.
+
+---
+
 *(Later milestones append below this line.)*

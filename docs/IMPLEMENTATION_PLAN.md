@@ -1270,7 +1270,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] `fetch-models.mjs`, CI caching and bundling as resources; ONNX Runtime WASM bundled; the local-only `env`.
 - [x] The AI worker: image and text embeddings, background analysis (pause, resume, progress), and the fake provider for tests.
 - [x] Suggestions (zero-shot + personal blend) in Details and Triage: accept, dismiss, Accept all.
-- [ ] Find similar, the Similar look criterion, search by meaning, and similarity in board suggestions.
+- [x] Find similar, the Similar look criterion, search by meaning, and similarity in board suggestions.
 - [ ] Settings → AI.
 - [ ] Check that there are zero network requests at runtime (DevTools network panel on Windows, with the CSP in place).
 

@@ -96,7 +96,7 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
   }, []);
 
   // "The List panel shows only the matches" (§2.8) while a search filter is active.
-  const { matches } = useSearchResults();
+  const { matches } = useSearchResults(platform);
   const liveItems = useMemo(() => {
     const all = [...items.values()].filter((i) => !i.deletedAt);
     const scoped =

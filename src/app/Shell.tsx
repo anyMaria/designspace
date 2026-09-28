@@ -123,10 +123,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   useFocusViewBinding(engine);
   useNoteCanvasBinding(engine, platform);
   useFrameCanvasBinding(engine, platform);
-  useSearchBinding(engine);
-  useConnectionsBinding(engine);
+  useSearchBinding(engine, platform);
+  useConnectionsBinding(engine, platform);
   useManualConnectionsBinding(engine, platform);
-  useConstellationsBinding(engine);
+  useConstellationsBinding(engine, platform);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
   const listExpanded = useListStore((s) => s.expanded);
   const constellationsOn = useConnectionsUiStore((s) => s.constellationsOn);
@@ -385,7 +385,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           ) : selectedItems.length > 1 ? (
             <BulkDetailsPanel platform={platform} items={selectedItems} />
           ) : selectedItem ? (
-            <DetailsPanel platform={platform} item={selectedItem} />
+            <DetailsPanel platform={platform} item={selectedItem} engine={engine} />
           ) : (
             <div
               style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}

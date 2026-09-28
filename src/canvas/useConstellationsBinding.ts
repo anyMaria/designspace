@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { Engine } from './Engine';
+import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useTermStore } from '@/state/termStore';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
+import { useEmbeddingsStore } from '@/state/embeddingsStore';
 import { useSearchResults } from '@/features/search/useSearchResults';
 import {
   defaultLayoutWorkerFactory,
@@ -23,14 +25,21 @@ import { logger } from '@/lib/logger';
  * out. A stale in-flight worker response (superseded by a newer request before it resolves) is
  * dropped via `requestId`, and the worker itself is created fresh per run and terminated after,
  * per `runConstellationLayout`'s own doc comment. */
-export function useConstellationsBinding(engine: Engine | null): void {
+export function useConstellationsBinding(engine: Engine | null, platform: Platform): void {
   const items = useLibraryStore((s) => s.items);
   const itemTerms = useTermStore((s) => s.itemTerms);
   const terms = useTermStore((s) => s.terms);
   const connections = useManualConnectionsStore((s) => s.connections);
+  const embeddings = useEmbeddingsStore((s) => s.vectors);
   const activeCriteria = useConnectionsUiStore((s) => s.activeCriteria);
   const constellationsOn = useConnectionsUiStore((s) => s.constellationsOn);
-  const { matches } = useSearchResults();
+  const { matches } = useSearchResults(platform);
+
+  // A rough "did embeddings change" signal for `similar` — background analysis adds vectors one
+  // at a time, and re-settling on every single one would be excessive; the count is enough to
+  // catch "a batch landed" without a full per-item signature.
+  const includeEmbeddings = activeCriteria.includes('similar');
+  const embeddingsSignature = includeEmbeddings ? embeddings.size : 0;
 
   // `items` gets a fresh Map reference for *any* field write — including ingest quietly filling
   // in a thumbnail/palette/phash/width/height well after import, which can take several seconds
@@ -86,6 +95,7 @@ export function useConstellationsBinding(engine: Engine | null): void {
       itemTerms,
       terms,
       manualConnections: [...connections.values()],
+      embeddings,
     })
       .then((layout) => {
         if (requestId.current !== myRequestId) return; // superseded by a newer run
@@ -114,6 +124,7 @@ export function useConstellationsBinding(engine: Engine | null): void {
     itemTerms,
     terms,
     connections,
+    embeddingsSignature,
     activeCriteria,
     matches,
   ]);

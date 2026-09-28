@@ -15,6 +15,7 @@ import { resumePendingPdfIngest } from '@/workers/pdfIngestQueue';
 import { resumePendingFontIngest } from '@/workers/fontIngestQueue';
 import { resumePendingLinkIngest } from '@/features/import/importLink';
 import { resumePendingAiAnalysis } from '@/workers/aiQueue';
+import { loadEmbeddings } from '@/state/embeddingsStore';
 import { loadSettings } from '@/state/loadSettings';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
@@ -59,6 +60,7 @@ export function App() {
             loadBoards(platform),
             loadFramesForBoard(platform, libraryBoardId),
             loadSettings(platform),
+            loadEmbeddings(platform),
           ]);
           useBoardStore.getState().setCurrentBoardId(libraryBoardId);
           void resumePendingIngest(platform);
@@ -87,6 +89,7 @@ export function App() {
           loadBoards(platform),
           loadFramesForBoard(platform, libraryBoardId),
           loadSettings(platform),
+          loadEmbeddings(platform),
         ]);
         useBoardStore.getState().setCurrentBoardId(libraryBoardId);
         void resumePendingIngest(platform);
