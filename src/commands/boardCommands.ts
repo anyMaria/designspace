@@ -3,9 +3,10 @@ import type { DbStatement } from '@/platform/types';
 import { useBoardStore } from '@/state/boardStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { newId } from '@/lib/ids';
-import { justifiedRows } from '@/lib/packing';
+import { justifiedRows, findFreeSpot } from '@/lib/packing';
+import { rectsIntersect, type Rect } from '@/lib/geometry';
 import type { Command } from './types';
-import type { Board } from '@/state/types';
+import type { Board, Placement } from '@/state/types';
 
 /** §2.11 Boards gallery commands — create/rename/duplicate/delete/restore. Delete is soft (sets
  * `deleted_at`, like items' own Trash) so it's undoable and the gallery can offer Restore;
@@ -301,6 +302,81 @@ export function createRemoveFromBoardCommand(
         params: [p.boardId, p.itemId, p.x, p.y, p.w, p.h, p.z, p.frameId, p.addedAt],
       }));
       if (statements.length > 0) await platform.db.batch(statements);
+    },
+  };
+}
+
+const PLACEHOLDER_SIZE = 320; // matches importItems.ts's own placeholder square
+
+function isOccupied(rect: Rect): boolean {
+  for (const p of useLibraryStore.getState().placements.values()) {
+    if (rectsIntersect(rect, { x: p.x, y: p.y, w: p.w, h: p.h })) return true;
+  }
+  return false;
+}
+
+function nextZ(): number {
+  let max = -1;
+  for (const p of useLibraryStore.getState().placements.values()) max = Math.max(max, p.z);
+  return max + 1;
+}
+
+/** The List panel's [This board | Library] drag-to-add (§2.11): dropping a Library-wide item
+ * (browsed while "Library" mode shows the full catalog) onto the board canvas adds it as a new
+ * placement there, sized from its own aspect ratio (like `createBoardFromItemsCommand`'s layout)
+ * and placed at the nearest free spot to the drop point — the same `findFreeSpot` logic
+ * `importItems.ts` uses for a fresh import. Callers should skip calling this at all when the item
+ * already has a placement on this board (`useLibraryStore.getState().placements.has(itemId)`),
+ * since `placements` is always scoped to the current space. */
+export function createAddToBoardCommand(
+  platform: Platform,
+  boardId: string,
+  itemId: string,
+  dropPoint: { x: number; y: number },
+): Command {
+  const item = useLibraryStore.getState().items.get(itemId);
+  const aspect = item?.width && item?.height ? item.width / item.height : 1;
+  const size =
+    aspect >= 1
+      ? { w: PLACEHOLDER_SIZE, h: PLACEHOLDER_SIZE / aspect }
+      : { w: PLACEHOLDER_SIZE * aspect, h: PLACEHOLDER_SIZE };
+  const pos = findFreeSpot(dropPoint, size, isOccupied);
+  const placement: Placement = {
+    boardId,
+    itemId,
+    x: pos.x,
+    y: pos.y,
+    w: size.w,
+    h: size.h,
+    z: nextZ(),
+    frameId: null,
+    addedAt: new Date().toISOString(),
+  };
+
+  return {
+    label: 'Add to board',
+    do: async () => {
+      useLibraryStore.getState().upsertPlacement(placement);
+      await platform.db.execute(
+        'INSERT INTO placements (board_id, item_id, x, y, w, h, z, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          placement.boardId,
+          placement.itemId,
+          placement.x,
+          placement.y,
+          placement.w,
+          placement.h,
+          placement.z,
+          placement.addedAt,
+        ],
+      );
+    },
+    undo: async () => {
+      useLibraryStore.getState().removePlacements([itemId]);
+      await platform.db.execute('DELETE FROM placements WHERE board_id = ? AND item_id = ?', [
+        boardId,
+        itemId,
+      ]);
     },
   };
 }

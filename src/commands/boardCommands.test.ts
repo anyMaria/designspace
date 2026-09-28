@@ -7,9 +7,11 @@ import {
   createRestoreBoardCommand,
   createBoardFromItemsCommand,
   createRemoveFromBoardCommand,
+  createAddToBoardCommand,
 } from './boardCommands';
 import { useBoardStore } from '@/state/boardStore';
 import { useLibraryStore } from '@/state/libraryStore';
+import { rectsIntersect } from '@/lib/geometry';
 import type { Platform } from '@/platform/types';
 import type { Item, Placement } from '@/state/types';
 
@@ -214,6 +216,42 @@ describe('createRemoveFromBoardCommand', () => {
     const command = createRemoveFromBoardCommand(platform, 'board-1', ['a', 'missing']);
     await expect(command.do()).resolves.not.toThrow();
     expect(useLibraryStore.getState().placements.size).toBe(0);
+  });
+});
+
+describe('createAddToBoardCommand', () => {
+  it('adds a placement sized from the item aspect ratio, and removes it on undo', async () => {
+    const platform = makePlatform();
+    const command = createAddToBoardCommand(platform, 'board-1', 'a', { x: 500, y: 500 });
+
+    await command.do();
+    const placement = useLibraryStore.getState().placements.get('a');
+    expect(placement?.boardId).toBe('board-1');
+    expect(placement?.w).toBe(320);
+    expect(placement?.h).toBe(160); // item 'a' is 1600x800, aspect 2 → 320x160
+    expect(platform.db.execute).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO placements'),
+      expect.arrayContaining(['board-1', 'a']),
+    );
+
+    await command.undo();
+    expect(useLibraryStore.getState().placements.has('a')).toBe(false);
+    expect(platform.db.execute).toHaveBeenCalledWith(
+      expect.stringContaining('DELETE FROM placements'),
+      ['board-1', 'a'],
+    );
+  });
+
+  it('avoids landing on top of an already-occupied spot', async () => {
+    const platform = makePlatform();
+    useLibraryStore.setState({ placements: new Map([['b', makePlacement('board-1', 'b')]]) });
+
+    const command = createAddToBoardCommand(platform, 'board-1', 'a', { x: 0, y: 0 });
+    await command.do();
+    const placement = useLibraryStore.getState().placements.get('a');
+    expect(placement).toBeDefined();
+    const occupied = useLibraryStore.getState().placements.get('b')!;
+    expect(rectsIntersect(placement!, occupied)).toBe(false);
   });
 });
 

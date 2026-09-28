@@ -341,6 +341,10 @@ export const en = {
     selectGroup: 'Select group',
     empty: 'Nothing here yet.',
     itemCount: (n: number) => `${n}`,
+    source: 'Show',
+    sourceThisBoard: 'This board',
+    sourceLibrary: 'Library',
+    alreadyOnBoard: 'Already on this board',
   },
   search: {
     placeholder: 'Search your library…',

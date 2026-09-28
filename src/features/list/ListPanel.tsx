@@ -11,11 +11,13 @@ import type { Platform } from '@/platform/types';
 import type { Engine } from '@/canvas/Engine';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useTermStore } from '@/state/termStore';
+import { useBoardStore } from '@/state/boardStore';
 import { useListStore, TILE_SIZE_PX, type TileSize } from '@/state/listStore';
 import { useFocusStore } from '@/state/focusStore';
 import { groupItems, sortItems, type GroupBy, type SortBy } from './listGrouping';
 import { useSearchResults } from '@/features/search/useSearchResults';
-import { IconButton } from '@/design/components';
+import { LIST_ITEM_DRAG_MIME } from './useListDragToBoard';
+import { IconButton, Tabs } from '@/design/components';
 import { en } from '@/i18n/en';
 import { prefersReducedMotion } from '@/lib/motion';
 
@@ -60,18 +62,26 @@ type Row = HeaderRow | TileRow;
  * into header rows + tile rows) so 10,000 items scroll smoothly, hover-to-highlight on the
  * canvas, click-to-select-and-fly, and double-click to Focus view. Works the same whether it's
  * docked in the right panel or shown "Expand"ed full-window — the caller just places it in a
- * differently sized container; this component only ever measures its own width. Deferred (see
- * docs/DECISIONS.md): the [This board | Library] switch and drag-to-board (Boards don't exist
- * before M3), and saved filters at the top (M2-7 deferred those for the same reason). */
+ * differently sized container; this component only ever measures its own width. While a board is
+ * open, a [This board | Library] switch (§2.11) scopes the list to the board's own placements or
+ * the whole catalog; in "Library" mode, tiles are draggable onto the canvas to add a placement
+ * (`useListDragToBoard`, mounted once in `Shell.tsx`). Still deferred: saved filters at the top
+ * (M2-7 deferred those for the same reason — no such feature exists to surface yet). */
 export function ListPanel({ platform, engine }: { platform: Platform; engine: Engine | null }) {
   const items = useLibraryStore((s) => s.items);
+  const placements = useLibraryStore((s) => s.placements);
   const itemTerms = useTermStore((s) => s.itemTerms);
   const terms = useTermStore((s) => s.terms);
+  const boards = useBoardStore((s) => s.boards);
+  const currentBoardId = useBoardStore((s) => s.currentBoardId);
   const groupBy = useListStore((s) => s.groupBy);
   const sortBy = useListStore((s) => s.sortBy);
   const tileSize = useListStore((s) => s.tileSize);
   const collapsedGroups = useListStore((s) => s.collapsedGroups);
   const expanded = useListStore((s) => s.expanded);
+  const listSource = useListStore((s) => s.listSource);
+
+  const isBoard = !!currentBoardId && boards.get(currentBoardId)?.kind === 'board';
 
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -89,8 +99,10 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
   const { matches } = useSearchResults();
   const liveItems = useMemo(() => {
     const all = [...items.values()].filter((i) => !i.deletedAt);
-    return matches ? all.filter((i) => matches.has(i.id)) : all;
-  }, [items, matches]);
+    const scoped =
+      isBoard && listSource === 'space' ? all.filter((i) => placements.has(i.id)) : all;
+    return matches ? scoped.filter((i) => matches.has(i.id)) : scoped;
+  }, [items, matches, isBoard, listSource, placements]);
 
   const groups = useMemo(
     () => groupItems(liveItems, groupBy, itemTerms, terms),
@@ -162,7 +174,10 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
     useLibraryStore.getState().setSelection(itemIds);
   }
 
-  if (liveItems.length === 0) {
+  // A wholly empty *library* needs no controls — there's nothing to group/sort/switch. An empty
+  // *board* (in "This board" mode) still needs the [This board | Library] toggle rendered below,
+  // or the owner would have no way to switch to "Library" and drag something in.
+  if (liveItems.length === 0 && !isBoard) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <p style={{ color: 'var(--text-3)' }}>{en.list.empty}</p>
@@ -181,6 +196,17 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
         minHeight: 0,
       }}
     >
+      {isBoard && (
+        <Tabs
+          aria-label={en.list.source}
+          value={listSource}
+          onChange={(v) => useListStore.getState().setListSource(v)}
+          tabs={[
+            { id: 'space', label: en.list.sourceThisBoard },
+            { id: 'library', label: en.list.sourceLibrary },
+          ]}
+        />
+      )}
       <div
         style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'center' }}
       >
@@ -256,42 +282,49 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
         />
       </div>
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
-        <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
-          {virtualizer.getVirtualItems().map((virtualRow) => {
-            const row = rows[virtualRow.index];
-            return (
-              <div
-                key={row.key}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-              >
-                {row.type === 'header' ? (
-                  <GroupHeader row={row} engine={engine} onSelectGroup={selectGroup} />
-                ) : (
-                  <div style={{ display: 'flex', gap: GAP, paddingBottom: GAP }}>
-                    {row.itemIds.map((id) => (
-                      <Tile
-                        key={id}
-                        id={id}
-                        px={px}
-                        platform={platform}
-                        onClick={() => handleTileClick(id)}
-                        onDoubleClick={() => handleTileDoubleClick(id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      {liveItems.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: 'var(--text-3)' }}>{en.list.empty}</p>
         </div>
-      </div>
+      ) : (
+        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+          <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const row = rows[virtualRow.index];
+              return (
+                <div
+                  key={row.key}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  {row.type === 'header' ? (
+                    <GroupHeader row={row} engine={engine} onSelectGroup={selectGroup} />
+                  ) : (
+                    <div style={{ display: 'flex', gap: GAP, paddingBottom: GAP }}>
+                      {row.itemIds.map((id) => (
+                        <Tile
+                          key={id}
+                          id={id}
+                          px={px}
+                          platform={platform}
+                          draggable={isBoard}
+                          onClick={() => handleTileClick(id)}
+                          onDoubleClick={() => handleTileDoubleClick(id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -372,12 +405,14 @@ function Tile({
   id,
   px,
   platform,
+  draggable,
   onClick,
   onDoubleClick,
 }: {
   id: string;
   px: number;
   platform: Platform;
+  draggable: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
 }) {
@@ -388,6 +423,8 @@ function Tile({
       type="button"
       className="ds-list-tile"
       title={item.title}
+      draggable={draggable}
+      onDragStart={draggable ? (e) => e.dataTransfer.setData(LIST_ITEM_DRAG_MIME, id) : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       style={{

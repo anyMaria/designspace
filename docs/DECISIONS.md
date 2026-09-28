@@ -1442,6 +1442,31 @@ Rust command (`src-tauri/src/dialogs.rs`) using `tauri-plugin-dialog`'s native S
 changes; the two together mean an owner can save on both the browser dev build and the real
 Windows app.
 
+### M4-8: The List's [This board | Library] switch with drag-to-add
+Deferred from M4-3 as its own follow-up. `ListPanel` always showed `libraryStore.items` — the
+library-wide catalog — regardless of the current space, so "This board" (showing only what's
+actually placed there) needed a real filter: a new `listStore.listSource` (`'space' | 'library'`)
+plus a `Tabs` toggle, rendered only while an actual board (not the Library map) is open — there's
+no distinction to make on the Library map itself, since the whole catalog *is* what's on it.
+
+One subtlety caught before it shipped: `ListPanel`'s existing "nothing to show" early return
+replaced the *entire* component, controls included. For a brand-new empty board — the exact case
+this feature exists for — that would have hidden the "Library" tab along with everything else,
+leaving no way to reach it. Split the empty check in two: a wholly empty *library* still shows
+nothing (nothing to group/sort/switch either), but an empty *board* in "This board" mode keeps the
+toggle and group/sort controls mounted, swapping out only the tile area for the empty message.
+
+Drag-to-add is a new `createAddToBoardCommand` (`boardCommands.ts`) — sized from the item's own
+aspect ratio (matching `createBoardFromItemsCommand`'s layout math) and placed at the nearest free
+spot to the drop point via the same `findFreeSpot`/`isOccupied` pair `importItems.ts` already uses
+for a fresh import (reimplemented here rather than exported, since `importItems.ts`'s versions are
+module-private and only a few lines). The List tile sets a custom drag MIME
+(`application/x-designspace-item-id`) rather than the plain-text sniffing `useDropAndPaste.ts`
+uses for pasted URLs/notes, so the two drop handlers (`useListDragToBoard`, new; the existing file
+drop) never trigger on each other's gesture. Dropping an item already on the board (checked via
+`libraryStore.placements`, which is always scoped to the current space) shows a toast instead of
+duplicating the placement.
+
 ---
 
 *(Later milestones append below this line.)*

@@ -24,6 +24,7 @@ import { Minimap } from '@/canvas/Minimap';
 import { useFocusViewBinding } from '@/canvas/useFocusViewBinding';
 import { FocusView } from '@/features/focus/FocusView';
 import { useDropAndPaste } from '@/features/import/useDropAndPaste';
+import { useListDragToBoard } from '@/features/list/useListDragToBoard';
 import { AddMenu } from '@/features/import/AddMenu';
 import { DropOverlay } from '@/features/import/DropOverlay';
 import { ImportProgressCard } from '@/features/import/ImportProgressCard';
@@ -116,6 +117,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   useEngineBindings(engine, platform);
   useCanvasShortcuts(engine, platform);
   const { dragOver } = useDropAndPaste(engine, platform);
+  useListDragToBoard(engine, platform);
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
   useFocusViewBinding(engine);
   useNoteCanvasBinding(engine, platform);
