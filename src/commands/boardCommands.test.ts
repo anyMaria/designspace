@@ -6,11 +6,26 @@ import {
   createDeleteBoardCommand,
   createRestoreBoardCommand,
   createBoardFromItemsCommand,
+  createRemoveFromBoardCommand,
 } from './boardCommands';
 import { useBoardStore } from '@/state/boardStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import type { Platform } from '@/platform/types';
-import type { Item } from '@/state/types';
+import type { Item, Placement } from '@/state/types';
+
+function makePlacement(boardId: string, itemId: string): Placement {
+  return {
+    boardId,
+    itemId,
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    z: 0,
+    frameId: null,
+    addedAt: '2026-01-01T00:00:00.000Z',
+  };
+}
 
 function makeItem(id: string, width: number, height: number): Item {
   return {
@@ -58,6 +73,7 @@ beforeEach(() => {
       ['a', makeItem('a', 1600, 800)],
       ['b', makeItem('b', 800, 800)],
     ]),
+    placements: new Map(),
   });
 });
 
@@ -157,6 +173,47 @@ describe('createDuplicateBoardCommand', () => {
 
     await command.undo();
     expect(useBoardStore.getState().boards.has(copy.id)).toBe(false);
+  });
+});
+
+describe('createRemoveFromBoardCommand', () => {
+  it('deletes the placement (only), and undo re-inserts it exactly', async () => {
+    const platform = makePlatform();
+    useLibraryStore.setState({
+      placements: new Map([
+        ['a', makePlacement('board-1', 'a')],
+        ['b', makePlacement('board-1', 'b')],
+      ]),
+    });
+
+    const command = createRemoveFromBoardCommand(platform, 'board-1', ['a', 'b']);
+    await command.do();
+    expect(useLibraryStore.getState().placements.size).toBe(0);
+    const statements = (platform.db.batch as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
+      sql: string;
+      params?: unknown[];
+    }[];
+    expect(statements).toHaveLength(2);
+    for (const stmt of statements) expect(stmt.sql).toContain('DELETE FROM placements');
+    expect(statements.map((s) => s.params)).toEqual([
+      ['board-1', 'a'],
+      ['board-1', 'b'],
+    ]);
+    // The item itself is untouched — this isn't Trash.
+    expect(useLibraryStore.getState().items.get('a')?.deletedAt).toBeNull();
+
+    await command.undo();
+    expect(useLibraryStore.getState().placements.get('a')?.boardId).toBe('board-1');
+    expect(useLibraryStore.getState().placements.get('b')?.boardId).toBe('board-1');
+  });
+
+  it('ignores an id with no placement on this board', async () => {
+    const platform = makePlatform();
+    useLibraryStore.setState({ placements: new Map([['a', makePlacement('board-1', 'a')]]) });
+
+    const command = createRemoveFromBoardCommand(platform, 'board-1', ['a', 'missing']);
+    await expect(command.do()).resolves.not.toThrow();
+    expect(useLibraryStore.getState().placements.size).toBe(0);
   });
 });
 

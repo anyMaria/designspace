@@ -6,6 +6,7 @@ import { useBoardUiStore } from '@/state/boardUiStore';
 import { useHistoryStore } from '@/commands/history';
 import { createCreateBoardCommand } from '@/commands/boardCommands';
 import { useToastStore } from '@/state/toastStore';
+import { switchSpace } from './switchSpace';
 import { Popover, Menu } from '@/design/components';
 import { en } from '@/i18n/en';
 import type { MenuItem } from '@/design/components/Menu';
@@ -14,9 +15,7 @@ const RECENT_BOARDS_LIMIT = 5;
 
 /** Top-left space switcher (§2.1, §2.11): current space's name, a dropdown of the Library plus
  * the most recently updated boards, "+ New board", and "All boards…" to open the gallery.
- * Actually rendering a board's own content on the canvas is a later M4 sub-task — for now,
- * switching just moves `boardStore.currentBoardId`, which the gallery and this switcher both
- * read to show which space is "open". */
+ * Selecting a space calls `switchSpace`, which is what actually swaps the canvas's content. */
 export function SpaceSwitcher({
   platform,
   libraryBoardId,
@@ -58,7 +57,7 @@ export function SpaceSwitcher({
     const { command, board } = createCreateBoardCommand(platform, en.boards.untitled);
     await useHistoryStore.getState().execute(command);
     useBoardUiStore.getState().closeSwitcher();
-    useBoardStore.getState().setCurrentBoardId(board.id);
+    await switchSpace(platform, board.id);
     useToastStore.getState().show(en.boards.createdBoard(board.name));
   }
 
@@ -67,7 +66,7 @@ export function SpaceSwitcher({
       id: 'library',
       label: en.spaceSwitcher.library,
       onSelect: () => {
-        useBoardStore.getState().setCurrentBoardId(libraryBoardId);
+        void switchSpace(platform, libraryBoardId);
         useBoardUiStore.getState().closeSwitcher();
       },
     },
@@ -75,7 +74,7 @@ export function SpaceSwitcher({
       id: b.id,
       label: b.name,
       onSelect: () => {
-        useBoardStore.getState().setCurrentBoardId(b.id);
+        void switchSpace(platform, b.id);
         useBoardUiStore.getState().closeSwitcher();
       },
     })),

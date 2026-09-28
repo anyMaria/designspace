@@ -33,6 +33,7 @@ export const en = {
     duplicatedBoard: (name: string) => `Duplicated “${name}”`,
     createFromSelection: 'Create board from selection',
     createFromResults: 'Create board from results',
+    removeFromBoard: 'Remove from board',
   },
   inbox: {
     chip: (count: number) => `Inbox ${count}`,

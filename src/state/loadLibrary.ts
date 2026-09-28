@@ -12,3 +12,13 @@ export async function loadLibraryItems(platform: Platform, libraryBoardId: strin
   ]);
   useLibraryStore.getState().loadAll(itemRows.map(rowToItem), placementRows.map(rowToPlacement));
 }
+
+/** §2.11 switching spaces: swaps just the placements (the item catalog stays library-wide) so
+ * the canvas — which only draws a card per `placements` entry — shows the newly-opened board or
+ * the Library map. Called by the space switcher and the Boards gallery's "Open". */
+export async function loadPlacementsForBoard(platform: Platform, boardId: string): Promise<void> {
+  const rows = await platform.db.select<DbRow>('SELECT * FROM placements WHERE board_id = ?', [
+    boardId,
+  ]);
+  useLibraryStore.getState().setPlacements(rows.map(rowToPlacement));
+}

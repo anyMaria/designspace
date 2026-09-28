@@ -1198,6 +1198,39 @@ a unit test asserts on, and via `boardStore.currentBoardId` + the switcher's own
 an e2e test — not by looking at the board's contents rendered anywhere, because nothing renders
 them yet.
 
+### M4-3: Board canvas — switching spaces, remove from board
+The key realization here: `libraryStore` already modeled "items (library-wide) + placements (the
+*current* space's rows)" since M1 — the canvas engine (`useEngineBindings`) only ever draws a card
+for an item that has an entry in `placements`. So making the canvas actually show a board's own
+content needed no Engine changes at all: `setPlacements` (a new `libraryStore` action) replaces
+the whole placements map, `loadPlacementsForBoard` re-queries it for a given board id, and
+`switchSpace` (new, `features/boards/switchSpace.ts`) ties the two together plus clears selection
+and moves `boardStore.currentBoardId`. The space switcher, the gallery's "Open", and every
+"create a board and switch to it" flow (M4-1's "+ New board", M4-2's two create-from paths) all
+now go through this one function, so there's exactly one place that knows what "switching spaces"
+means.
+
+Added `createRemoveFromBoardCommand` (deletes just the `(board_id, item_id)` placement row,
+snapshotted for undo) and wired it into the context menu's new "Remove from board" (shown only
+while viewing an actual board, not the Library) and the Delete/Backspace shortcut, which now
+checks `boardStore.currentBoardId`'s kind before choosing between it and the existing
+`createTrashCommand`. "Search within the board" needed no new code at all: `Engine.setSearchFilter`
+only ever dims/hides ids that already have a card, so a search match outside the current board's
+placements is already a no-op — confirmed by running the full e2e suite rather than by writing
+anything new for it.
+
+Two bullets under "The board canvas" are deliberately still open, both logged as follow-ups
+rather than gaps:
+- **The List's [This board | Library] switch with drag-to-add** — a real UI feature (a toggle in
+  the List panel, plus drag-from-Library-list-onto-canvas-to-add-a-placement), not a side effect
+  of the placements-swap work above. Left for a dedicated follow-up.
+- **Media dropped on a board also lands on the Library map** — half of this already held before
+  M4-3 (`importItems.ts` always resolves the Library board via `findLibraryBoardId`, so nothing
+  dropped is ever *only* on a board); what's missing is dropping *while a board is open* also
+  writing a second placement onto that board. Needs the current board id threaded into the import
+  path, which touches drop/paste/file-dialog entry points already spread across
+  `features/import/*` — scoped as its own follow-up rather than folded in here.
+
 ---
 
 *(Later milestones append below this line.)*

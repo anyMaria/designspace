@@ -2,15 +2,19 @@ import { create } from 'zustand';
 import type { Item, Placement } from './types';
 
 /**
- * Items and placements for the current space — §4.3 `state/library` + `state/space` combined
- * for M1, since Boards don't exist yet (everything lives on the Library map). Commands mutate
- * this store optimistically, then persist through `platform.db.batch`; the canvas engine
- * subscribes to it via `useLibraryStore.subscribe` rather than React re-renders.
+ * The item catalog (library-wide, every space shares it) plus the *current* space's placements
+ * — §4.3 `state/library` + `state/space` combined. `items` never changes when switching spaces;
+ * `placements` is swapped out wholesale by `setPlacements` (§2.11, `boardUiStore`'s "switch
+ * space" effect) — the canvas engine (`useEngineBindings`) only ever draws a card for an item
+ * that has an entry in `placements`, so pointing `placements` at a board's own rows is enough to
+ * make the canvas "show that board" with no Engine changes needed. Commands mutate this store
+ * optimistically, then persist through `platform.db.batch`; the canvas engine subscribes to it
+ * via `useLibraryStore.subscribe` rather than React re-renders.
  */
 interface LibraryState {
   libraryBoardId: string | null;
   items: Map<string, Item>;
-  placements: Map<string, Placement>; // keyed by itemId (single-space in M1)
+  placements: Map<string, Placement>; // keyed by itemId, scoped to the current space
   selection: Set<string>;
 
   setLibraryBoardId: (id: string) => void;
@@ -20,6 +24,7 @@ interface LibraryState {
   removeItems: (ids: string[]) => void;
   upsertPlacement: (placement: Placement) => void;
   removePlacements: (itemIds: string[]) => void;
+  setPlacements: (placements: Placement[]) => void;
   setSelection: (ids: string[]) => void;
   toggleSelection: (id: string, additive: boolean) => void;
   clearSelection: () => void;
@@ -79,6 +84,11 @@ export const useLibraryStore = create<LibraryState>((set) => ({
       for (const id of itemIds) placements.delete(id);
       return { placements };
     }),
+
+  /** Replaces the whole placements map — §2.11 switching the current space (Library vs. a
+   * board). Unlike `loadAll`, `items` stays put: items are library-wide, boards are just a
+   * different `placements` view over the same catalog (§4.3). */
+  setPlacements: (placements) => set({ placements: new Map(placements.map((p) => [p.itemId, p])) }),
 
   setSelection: (ids) => set({ selection: new Set(ids) }),
 

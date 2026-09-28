@@ -10,18 +10,24 @@ import {
   createTrashCommand,
 } from '@/commands/itemCommands';
 import { createBackToInboxCommand } from '@/commands/itemTermCommands';
-import { createBoardFromItemsCommand } from '@/commands/boardCommands';
+import {
+  createBoardFromItemsCommand,
+  createRemoveFromBoardCommand,
+} from '@/commands/boardCommands';
 import { useBoardStore } from '@/state/boardStore';
+import { switchSpace } from '@/features/boards/switchSpace';
 import { useListStore } from '@/state/listStore';
 import { sortItems } from '@/features/list/listGrouping';
 import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
 import type { ContextMenuState } from './useContextMenu';
 
-/** Right-click menu for a canvas item — §2.4. "Create board from selection" landed in M4-2 now
- * that Boards exist; the rest (Open, Add to an *existing* board, Find similar, Copy palette, Set
- * cover) still need the board canvas or video/PDF support from later milestones — deferred and
- * logged in docs/DECISIONS.md rather than shown as dead buttons. */
+/** Right-click menu for a canvas item — §2.4. "Create board from selection" (M4-2) and, while
+ * viewing a board, "Remove from board" (M4-3 — deletes only this board's placement, unlike Move
+ * to Trash which deletes the item everywhere) both now exist. The rest (Open, Add to an
+ * *existing* board, Find similar, Copy palette, Set cover) still need drag-to-add or video/PDF
+ * support from later milestones — deferred and logged in docs/DECISIONS.md rather than shown as
+ * dead buttons. */
 export function ContextMenu({
   state,
   engine,
@@ -35,6 +41,9 @@ export function ContextMenu({
 }) {
   const selection = [...useLibraryStore.getState().selection];
   const ids = selection.includes(state.itemId) ? selection : [state.itemId];
+  const currentBoardId = useBoardStore.getState().currentBoardId;
+  const currentBoard = currentBoardId ? useBoardStore.getState().boards.get(currentBoardId) : null;
+  const onBoard = currentBoard?.kind === 'board';
 
   async function copyImage(): Promise<void> {
     onClose();
@@ -95,9 +104,25 @@ export function ContextMenu({
     void useHistoryStore
       .getState()
       .execute(command)
+      .then(() => switchSpace(platform, board.id))
       .then(() => {
-        useBoardStore.getState().setCurrentBoardId(board.id);
         useToastStore.getState().show(en.boards.createdBoard(board.name));
+      });
+  }
+
+  function removeFromBoard(): void {
+    onClose();
+    if (!currentBoard) return;
+    void useHistoryStore
+      .getState()
+      .execute(createRemoveFromBoardCommand(platform, currentBoard.id, ids))
+      .then(() => {
+        useToastStore
+          .getState()
+          .show(ids.length > 1 ? `Removed ${ids.length} items from board` : 'Removed from board', {
+            actionLabel: en.toasts.undo,
+            onAction: () => void useHistoryStore.getState().undo(),
+          });
       });
   }
 
@@ -169,6 +194,15 @@ export function ContextMenu({
                 label: en.boards.createFromSelection,
                 onSelect: createBoard,
               },
+              ...(onBoard
+                ? [
+                    {
+                      id: 'remove-from-board',
+                      label: en.boards.removeFromBoard,
+                      onSelect: removeFromBoard,
+                    },
+                  ]
+                : []),
               { id: 'move-to-trash', label: en.contextMenu.moveToTrash, onSelect: moveToTrash },
             ]}
           />

@@ -272,6 +272,39 @@ export function createDeleteBoardCommand(platform: Platform, boardId: string): C
   };
 }
 
+/** "Remove from board" (§2.11's board canvas, distinct from Move to Trash — the item stays in
+ * the Library and any other board, only this board's placement row goes away). Snapshots each
+ * removed placement so undo re-inserts it exactly where it was. */
+export function createRemoveFromBoardCommand(
+  platform: Platform,
+  boardId: string,
+  itemIds: string[],
+): Command {
+  const removed = itemIds
+    .map((id) => useLibraryStore.getState().placements.get(id))
+    .filter((p): p is NonNullable<typeof p> => !!p && p.boardId === boardId);
+
+  return {
+    label: removed.length > 1 ? `Remove ${removed.length} items from board` : 'Remove from board',
+    do: async () => {
+      useLibraryStore.getState().removePlacements(removed.map((p) => p.itemId));
+      const statements: DbStatement[] = removed.map((p) => ({
+        sql: 'DELETE FROM placements WHERE board_id = ? AND item_id = ?',
+        params: [p.boardId, p.itemId],
+      }));
+      if (statements.length > 0) await platform.db.batch(statements);
+    },
+    undo: async () => {
+      for (const p of removed) useLibraryStore.getState().upsertPlacement(p);
+      const statements: DbStatement[] = removed.map((p) => ({
+        sql: 'INSERT INTO placements (board_id, item_id, x, y, w, h, z, frame_id, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        params: [p.boardId, p.itemId, p.x, p.y, p.w, p.h, p.z, p.frameId, p.addedAt],
+      }));
+      if (statements.length > 0) await platform.db.batch(statements);
+    },
+  };
+}
+
 export function createRestoreBoardCommand(platform: Platform, boardId: string): Command {
   const previous = useBoardStore.getState().boards.get(boardId) ?? null;
 

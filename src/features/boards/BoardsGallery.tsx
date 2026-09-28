@@ -12,6 +12,7 @@ import {
   createRestoreBoardCommand,
 } from '@/commands/boardCommands';
 import { useToastStore } from '@/state/toastStore';
+import { switchSpace } from './switchSpace';
 import { IconButton, Button, EmptyState } from '@/design/components';
 import type { Board } from '@/state/types';
 import { en } from '@/i18n/en';
@@ -48,7 +49,7 @@ export function BoardsGallery({ platform }: { platform: Platform }) {
   async function handleCreate(): Promise<void> {
     const { command, board } = createCreateBoardCommand(platform, en.boards.untitled);
     await useHistoryStore.getState().execute(command);
-    useBoardStore.getState().setCurrentBoardId(board.id);
+    await switchSpace(platform, board.id);
     setRenamingId(board.id);
     setDraftName(board.name);
   }
@@ -90,7 +91,7 @@ export function BoardsGallery({ platform }: { platform: Platform }) {
   }
 
   function openBoard(board: Board): void {
-    useBoardStore.getState().setCurrentBoardId(board.id);
+    void switchSpace(platform, board.id);
     useBoardUiStore.getState().closeGallery();
   }
 

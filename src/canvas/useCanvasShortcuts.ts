@@ -9,6 +9,8 @@ import {
   createStackOrderCommand,
   createTrashCommand,
 } from '@/commands/itemCommands';
+import { createRemoveFromBoardCommand } from '@/commands/boardCommands';
+import { useBoardStore } from '@/state/boardStore';
 import { prefersReducedMotion } from '@/lib/motion';
 import { zoomRange } from '@/design/tokens';
 import { useFocusStore } from '@/state/focusStore';
@@ -134,8 +136,31 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
         }
       }
 
+      // §2.11 board canvas: Delete removes the placement from a board (the item stays in the
+      // Library and any other board) rather than trashing it, mirroring the context menu's
+      // "Remove from board" vs. "Move to Trash" split.
       if ((e.key === 'Delete' || e.key === 'Backspace') && selection.length > 0) {
         e.preventDefault();
+        const currentBoardId = useBoardStore.getState().currentBoardId;
+        const currentBoard = currentBoardId
+          ? useBoardStore.getState().boards.get(currentBoardId)
+          : null;
+        if (currentBoard?.kind === 'board') {
+          void useHistoryStore
+            .getState()
+            .execute(createRemoveFromBoardCommand(platform, currentBoard.id, selection))
+            .then(() => {
+              useToastStore
+                .getState()
+                .show(
+                  selection.length > 1
+                    ? `Removed ${selection.length} items from board`
+                    : 'Removed from board',
+                  { onAction: () => void useHistoryStore.getState().undo() },
+                );
+            });
+          return;
+        }
         void useHistoryStore
           .getState()
           .execute(createTrashCommand(platform, selection))

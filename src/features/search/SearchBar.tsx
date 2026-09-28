@@ -7,7 +7,7 @@ import { useTermStore } from '@/state/termStore';
 import { useSearchStore, isFilterActive } from '@/state/searchStore';
 import { useHistoryStore } from '@/commands/history';
 import { createBoardFromItemsCommand } from '@/commands/boardCommands';
-import { useBoardStore } from '@/state/boardStore';
+import { switchSpace } from '@/features/boards/switchSpace';
 import { useToastStore } from '@/state/toastStore';
 import type { ColorFamily } from '@/lib/color';
 import type { Facet, ItemKind } from '@/state/types';
@@ -96,8 +96,8 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
     void useHistoryStore
       .getState()
       .execute(command)
+      .then(() => switchSpace(platform, board.id))
       .then(() => {
-        useBoardStore.getState().setCurrentBoardId(board.id);
         useToastStore.getState().show(en.boards.createdBoard(board.name));
       });
   }
