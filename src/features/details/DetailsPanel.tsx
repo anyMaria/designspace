@@ -128,7 +128,7 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
     <div
       style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', overflowY: 'auto' }}
     >
-      {item.status === 'ok' && (
+      {item.kind === 'image' && item.status === 'ok' && (
         <button
           type="button"
           onClick={() => useFocusStore.getState().open(item.id)}
@@ -157,6 +157,30 @@ export function DetailsPanel({ platform, item }: { platform: Platform; item: Ite
         defaultValue={item.title}
         onBlur={(e) => setField('title', e.target.value)}
       />
+
+      {item.kind === 'swatch' && (
+        <Field label={en.swatches.colorField}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+            <Swatch hex={item.color ?? '#8c8c8c'} name={item.title || undefined} />
+            <input
+              aria-label={en.swatches.colorField}
+              key={item.color ?? ''}
+              className="ds-chip-input__field"
+              defaultValue={item.color ?? ''}
+              placeholder="#RRGGBB"
+              style={{ flex: 1 }}
+              onBlur={(e) => {
+                const hex = e.target.value.trim();
+                if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                  void useHistoryStore
+                    .getState()
+                    .execute(createSetItemFieldCommand(platform, item.id, 'color', hex));
+                }
+              }}
+            />
+          </div>
+        </Field>
+      )}
 
       <Field label={en.vocabulary.facets.type}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>

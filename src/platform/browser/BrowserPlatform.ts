@@ -224,6 +224,9 @@ export class BrowserPlatform implements Platform {
         return null;
       }
     },
+    writeText: async (text: string): Promise<void> => {
+      await navigator.clipboard.writeText(text);
+    },
     writeImage: async (bytes: Uint8Array, mime: string): Promise<void> => {
       // Re-encode to PNG — the Clipboard API's ClipboardItem support for arbitrary source
       // mime types (e.g. image/jpeg) is inconsistent across browsers; PNG always works.

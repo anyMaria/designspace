@@ -1321,6 +1321,34 @@ integrating this**, both fixed before landing:
    test (none assert on rendered pixel color) but caught by re-reading the diff before pushing.
    Fixed by gating the re-tint on `card.kind === 'note'`.
 
+### M4-5: Swatches + Extract palette
+Reused as much of M4-4's Notes plumbing as fit: a swatch is the same kind of flat-color card,
+so `Engine.syncNoteLabel` (now also handling `kind: 'swatch'`) draws its "HEX and an optional
+name" label with the same `Text`-sibling mechanism — the one addition there is
+`readableTextColor`, since a swatch's color is arbitrary (including near-black or near-white)
+where notes' fixed dark ink would sometimes be illegible. `createExtractPaletteCommand` merges
+`item.palette` entries by hex across every source item (summing weight, not just concatenating)
+before taking the top 5–8, so extracting from several similar photos doesn't produce five near-
+duplicate swatches. Named via the existing `colorFamily()` classifier (§3.2's OKLCH buckets)
+rather than left blank.
+
+Added `Platform.clipboard.writeText` (implemented for both `BrowserPlatform` and `TauriPlatform`,
+the latter already having the `@tauri-apps/plugin-clipboard-manager` import from `writeImage`/
+`readText`) for "click copies the HEX" — wired into `useEngineBindings`'s existing `select`
+handler (single-swatch selections only, so marquee-selecting a swatch alongside other items
+doesn't silently overwrite the clipboard with just the swatch's color) rather than a new binding.
+Caught and logged rather than propagated, matching `design/components/Swatch.tsx`'s own existing
+copy button — clipboard access being denied (permissions, non-secure context, or simply no
+permission grant in a test browser) shouldn't surface as an app error.
+
+Scope calls, both logged rather than silent: "Extract palette" only covers "the selection" from
+the plan's "the selection or the whole board" — the "whole board, nothing selected" case would
+need an empty-canvas context menu, which doesn't exist yet (`useContextMenu.ts` has been a
+documented no-op there since M1); and the Details panel's swatch-only "Color" field was added
+without also hiding the Type/Vibe/Movement/Tags classification fields for a swatch (harmless —
+an owner *can* tag a swatch, just not something the spec asks for — but not hidden either, for
+time's sake rather than by design).
+
 ---
 
 *(Later milestones append below this line.)*

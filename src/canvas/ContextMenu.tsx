@@ -14,6 +14,7 @@ import {
   createBoardFromItemsCommand,
   createRemoveFromBoardCommand,
 } from '@/commands/boardCommands';
+import { createExtractPaletteCommand } from '@/commands/swatchCommands';
 import { useBoardStore } from '@/state/boardStore';
 import { switchSpace } from '@/features/boards/switchSpace';
 import { useListStore } from '@/state/listStore';
@@ -126,6 +127,26 @@ export function ContextMenu({
       });
   }
 
+  function extractPalette(): void {
+    onClose();
+    if (!currentBoardId) return;
+    const isLibraryBoard = currentBoard?.kind === 'library';
+    const origin = engine?.viewportCenter() ?? { x: 0, y: 0 };
+    const { command, items } = createExtractPaletteCommand(
+      platform,
+      ids,
+      currentBoardId,
+      isLibraryBoard,
+      origin,
+    );
+    void useHistoryStore
+      .getState()
+      .execute(command)
+      .then(() => {
+        useToastStore.getState().show(`Extracted ${items.length} swatches`);
+      });
+  }
+
   function moveToTrash(): void {
     onClose();
     void useHistoryStore
@@ -188,6 +209,11 @@ export function ContextMenu({
                 id: 'back-to-inbox',
                 label: en.contextMenu.backToInbox,
                 onSelect: backToInbox,
+              },
+              {
+                id: 'extract-palette',
+                label: en.swatches.extractPalette,
+                onSelect: extractPalette,
               },
               {
                 id: 'create-board',

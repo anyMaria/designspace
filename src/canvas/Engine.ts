@@ -119,6 +119,17 @@ const CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE = 13;
 const NOTE_TEXT_PADDING_WORLD = 14;
 const NOTE_TEXT_FONT_SIZE_WORLD = 18;
 
+/** Standard relative-luminance contrast pick — dark text on a light swatch, white text on a
+ * dark one. Only swatches need this (see `syncNoteLabel`'s doc comment); notes' 5 colors are all
+ * light enough that a fixed dark ink always works. */
+function readableTextColor(packedColor: number): number {
+  const r = (packedColor >> 16) & 0xff;
+  const g = (packedColor >> 8) & 0xff;
+  const b = packedColor & 0xff;
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? noteTextColor : 0xffffff;
+}
+
 /**
  * The framework-agnostic canvas engine — §4.6. Owns the Pixi `Application`, the camera and
  * culling. React mounts it once in `<CanvasView>` and never re-renders per frame; everything
@@ -354,12 +365,13 @@ export class Engine {
         existing.width = card.w;
         existing.height = card.h;
         existing.zIndex = card.z;
-        // A note's tint IS its color (never overwritten by a loaded texture, since notes never
-        // get one — see `requestLod`), so it must track `card.dominantColor` live for the color
-        // swatch picker to work. An image's tint is `requestLod`'s to own once a real thumbnail
-        // loads (it sets it to white); re-asserting the placeholder tint here on every unrelated
-        // store write would put a color cast back over an already-loaded photo.
-        if (card.kind === 'note') existing.tint = card.dominantColor;
+        // A note's or swatch's tint IS its color (never overwritten by a loaded texture, since
+        // neither ever gets one — see `requestLod`), so it must track `card.dominantColor` live
+        // for the color picker/Extract palette to work. An image's tint is `requestLod`'s to own
+        // once a real thumbnail loads (it sets it to white); re-asserting the placeholder tint
+        // here on every unrelated store write would put a color cast back over an already-loaded
+        // photo.
+        if (card.kind === 'note' || card.kind === 'swatch') existing.tint = card.dominantColor;
       } else {
         const sprite = new Sprite(Texture.WHITE);
         sprite.tint = card.dominantColor;
@@ -381,13 +393,16 @@ export class Engine {
     this.scheduleFrame();
   }
 
-  /** Creates/updates/removes a note's plain-text snippet (§2.11) — see the constants above for
-   * why it's a sibling `Text`, not a sprite child. A no-op for every non-note card, and removes
-   * a stale label if a card ever stops being a note (kind never actually changes post-creation
-   * today, but this keeps the invariant "no label without a note card" true regardless). */
+  /** Creates/updates/removes a note or swatch card's plain-text snippet (§2.11) — see the
+   * constants above for why it's a sibling `Text`, not a sprite child. A no-op for every other
+   * card kind, and removes a stale label if a card ever stops being one of these two (kind never
+   * actually changes post-creation today, but this keeps the invariant "no label without a
+   * note/swatch card" true regardless). Text color is fixed dark for notes (their 5 colors are
+   * all light pastels, §2.11's palette), but computed per swatch — an extracted or freely-set
+   * swatch color can be anything, including near-black, where the fixed dark text would vanish. */
   private syncNoteLabel(card: ItemCard): void {
     if (!this.itemsLayer) return;
-    if (card.kind !== 'note') {
+    if (card.kind !== 'note' && card.kind !== 'swatch') {
       const stale = this.noteLabels.get(card.id);
       if (stale) {
         stale.destroy();
@@ -398,10 +413,12 @@ export class Engine {
     const wrapWidth = Math.max(card.w - NOTE_TEXT_PADDING_WORLD * 2, 1);
     const x = card.x + NOTE_TEXT_PADDING_WORLD;
     const y = card.y + NOTE_TEXT_PADDING_WORLD;
+    const fill = card.kind === 'swatch' ? readableTextColor(card.dominantColor) : noteTextColor;
     const existing = this.noteLabels.get(card.id);
     if (existing) {
       existing.text = card.noteText ?? '';
       existing.style.wordWrapWidth = wrapWidth;
+      existing.style.fill = fill;
       existing.position.set(x, y);
       existing.zIndex = card.z + 0.5;
     } else {
@@ -409,7 +426,7 @@ export class Engine {
         text: card.noteText ?? '',
         style: {
           fontSize: NOTE_TEXT_FONT_SIZE_WORLD,
-          fill: noteTextColor,
+          fill,
           wordWrap: true,
           wordWrapWidth: wrapWidth,
           breakWords: true,

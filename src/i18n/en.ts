@@ -38,6 +38,13 @@ export const en = {
   notes: {
     colorLabel: (name: string) => `${name.charAt(0).toUpperCase()}${name.slice(1)} note color`,
   },
+  swatches: {
+    add: 'Swatch',
+    extractPalette: 'Extract palette',
+    copied: (hex: string) => `Copied ${hex}`,
+    colorField: 'Color',
+    namePlaceholder: 'Swatch name (optional)',
+  },
   inbox: {
     chip: (count: number) => `Inbox ${count}`,
     zero: 'Inbox zero ✦',
@@ -141,6 +148,8 @@ export const en = {
     files: 'Files…',
     folder: 'Folder…',
     paste: 'Paste',
+    note: 'Note',
+    swatch: 'Swatch',
   },
   zoomMenu: {
     label: 'Zoom',

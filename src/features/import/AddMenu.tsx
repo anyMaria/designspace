@@ -9,6 +9,11 @@ import { importFiles, importPaths } from './importItems';
 import { isSupportedImage } from '@/lib/fileKinds';
 import { useToastStore } from '@/state/toastStore';
 import { useAddMenuStore } from '@/state/addMenuStore';
+import { useBoardStore } from '@/state/boardStore';
+import { useHistoryStore } from '@/commands/history';
+import { createCreateNoteCommand } from '@/commands/noteCommands';
+import { createCreateSwatchCommand } from '@/commands/swatchCommands';
+import { useNoteEditStore } from '@/state/noteEditStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
 
 const IMAGE_FILTERS: FileFilter[] = [
@@ -73,6 +78,48 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     await importFiles(platform, [file], dropPoint(), flyTo);
   }
 
+  function currentSpace(): { boardId: string; isLibraryBoard: boolean } | null {
+    const boardId = useBoardStore.getState().currentBoardId;
+    if (!boardId) return null;
+    const isLibraryBoard = useBoardStore.getState().boards.get(boardId)?.kind === 'library';
+    return { boardId, isLibraryBoard };
+  }
+
+  function handleAddNote(): void {
+    setOpen(false);
+    const space = currentSpace();
+    if (!space) return;
+    const point = dropPoint();
+    const { command, item } = createCreateNoteCommand(
+      platform,
+      space.boardId,
+      space.isLibraryBoard,
+      point.x,
+      point.y,
+      '',
+      'cream',
+    );
+    void useHistoryStore
+      .getState()
+      .execute(command)
+      .then(() => useNoteEditStore.getState().open(item.id));
+  }
+
+  function handleAddSwatch(): void {
+    setOpen(false);
+    const space = currentSpace();
+    if (!space) return;
+    const point = dropPoint();
+    const { command } = createCreateSwatchCommand(
+      platform,
+      space.boardId,
+      space.isLibraryBoard,
+      point.x,
+      point.y,
+    );
+    void useHistoryStore.getState().execute(command);
+  }
+
   function onFilesInputChange(e: ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
@@ -95,15 +142,28 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
   }
 
   useEffect(() => {
+    function isTypingTarget(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) return false;
+      return (
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+      );
+    }
     function onKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         void handleFiles();
+        return;
+      }
+      // "Note (N)" (§2.3) — only outside any text-entry surface, so typing the letter "n" in the
+      // note editor itself (or any other field) doesn't spawn a second note.
+      if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'n' && !isTypingTarget(e.target)) {
+        e.preventDefault();
+        handleAddNote();
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleFiles closes over platform/engine, both stable per Shell render
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handlers close over platform/engine, both stable per Shell render
   }, [platform, engine]);
 
   return (
@@ -133,6 +193,8 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
                   { id: 'files', label: en.addMenu.files, onSelect: () => void handleFiles() },
                   { id: 'folder', label: en.addMenu.folder, onSelect: () => void handleFolder() },
                   { id: 'paste', label: en.addMenu.paste, onSelect: () => void handlePaste() },
+                  { id: 'note', label: en.addMenu.note, onSelect: handleAddNote },
+                  { id: 'swatch', label: en.addMenu.swatch, onSelect: handleAddSwatch },
                 ]}
               />
             </Popover>

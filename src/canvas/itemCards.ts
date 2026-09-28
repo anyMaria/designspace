@@ -38,6 +38,23 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     };
   }
 
+  if (item.kind === 'swatch') {
+    return {
+      id: item.id,
+      x: placement.x,
+      y: placement.y,
+      w: placement.w,
+      h: placement.h,
+      z: placement.z,
+      kind: 'swatch',
+      dominantColor: item.color ? hexToInt(item.color) : FALLBACK_COLOR,
+      thumbUrl128: null,
+      thumbUrl512: null,
+      // "Color block with its HEX and an optional name" (§2.11's spec table).
+      noteText: [item.title || null, item.color?.toUpperCase() ?? null].filter(Boolean).join('\n'),
+    };
+  }
+
   const dominantColor = item.palette?.[0]?.hex ? hexToInt(item.palette[0].hex) : FALLBACK_COLOR;
   const ready = item.status === 'ok';
   return {

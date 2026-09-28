@@ -5,6 +5,19 @@ import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useHistoryStore } from '@/commands/history';
 import { createMoveItemsCommand, createResizeItemCommand } from '@/commands/itemCommands';
+import { useToastStore } from '@/state/toastStore';
+import { en } from '@/i18n/en';
+import { logger } from '@/lib/logger';
+
+/** Clipboard access can be denied (permissions, non-secure context) — the swatch selection still
+ * shows the toast either way, matching `design/components/Swatch.tsx`'s own copy button. */
+async function copySwatchHex(platform: Platform, hex: string): Promise<void> {
+  try {
+    await platform.clipboard.writeText(hex);
+  } catch (err) {
+    logger.error('Copy swatch HEX failed', err);
+  }
+}
 
 /** Wires the engine to the library store and the undo/redo history — §4.6, §4.11. Selecting on
  * the canvas updates the store (and vice versa, e.g. Ctrl+A); drags and resizes commit exactly
@@ -32,6 +45,16 @@ export function useEngineBindings(engine: Engine | null, platform: Platform): vo
 
     const offSelect = engine.on('select', (ids) => {
       useLibraryStore.getState().setSelection(ids);
+      // "Click copies the HEX" (§2.11's Swatch spec) — only a single-swatch selection, so
+      // marquee-selecting a swatch along with other items doesn't silently overwrite the
+      // clipboard with just one of them.
+      if (ids.length === 1) {
+        const item = useLibraryStore.getState().items.get(ids[0]);
+        if (item?.kind === 'swatch' && item.color) {
+          void copySwatchHex(platform, item.color);
+          useToastStore.getState().show(en.swatches.copied(item.color));
+        }
+      }
     });
     const offMove = engine.on('move', (updates) => {
       void useHistoryStore.getState().execute(createMoveItemsCommand(platform, updates));
