@@ -3,7 +3,7 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { getPlatform } from '@/platform';
 import { ensureLibraryReady, readDevUrlFlags } from '@/platform/bootstrap';
 import { seedDemoLibrary } from '@/platform/seed/demo';
-import { loadLibraryItems } from '@/state/loadLibrary';
+import { loadLibraryItems, loadFramesForBoard } from '@/state/loadLibrary';
 import { loadVocabulary } from '@/state/loadVocabulary';
 import { seedVocabulary } from '@/state/vocabularySeed';
 import { loadManualConnections } from '@/state/loadManualConnections';
@@ -51,6 +51,7 @@ export function App() {
             loadVocabulary(platform),
             loadManualConnections(platform),
             loadBoards(platform),
+            loadFramesForBoard(platform, libraryBoardId),
           ]);
           useBoardStore.getState().setCurrentBoardId(libraryBoardId);
           void resumePendingIngest(platform);
@@ -72,6 +73,7 @@ export function App() {
           loadVocabulary(platform),
           loadManualConnections(platform),
           loadBoards(platform),
+          loadFramesForBoard(platform, libraryBoardId),
         ]);
         useBoardStore.getState().setCurrentBoardId(libraryBoardId);
         void resumePendingIngest(platform);

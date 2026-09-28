@@ -60,6 +60,22 @@ export interface Placement {
   addedAt: string;
 }
 
+/** §2.11 "Frames on any space" — a labeled grouping rectangle on a board (or the Library map).
+ * Dragging a frame by its title moves every placement whose `frameId` points at it along with it
+ * (§4.9); items aren't otherwise clipped or reparented by overlapping a frame's rect. */
+export interface Frame {
+  id: string;
+  boardId: string;
+  title: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** §2.5 classification vocabulary — one row per Type/Vibe/Movement/Tag value. */
 export type Facet = 'type' | 'vibe' | 'movement' | 'tag';
 

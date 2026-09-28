@@ -13,6 +13,7 @@ import { useBoardStore } from '@/state/boardStore';
 import { useHistoryStore } from '@/commands/history';
 import { createCreateNoteCommand } from '@/commands/noteCommands';
 import { createCreateSwatchCommand } from '@/commands/swatchCommands';
+import { createCreateFrameCommand } from '@/commands/frameCommands';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
 
@@ -120,6 +121,15 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     void useHistoryStore.getState().execute(command);
   }
 
+  function handleAddFrame(): void {
+    setOpen(false);
+    const space = currentSpace();
+    if (!space) return;
+    const point = dropPoint();
+    const { command } = createCreateFrameCommand(platform, space.boardId, point.x, point.y);
+    void useHistoryStore.getState().execute(command);
+  }
+
   function onFilesInputChange(e: ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
@@ -195,6 +205,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
                   { id: 'paste', label: en.addMenu.paste, onSelect: () => void handlePaste() },
                   { id: 'note', label: en.addMenu.note, onSelect: handleAddNote },
                   { id: 'swatch', label: en.addMenu.swatch, onSelect: handleAddSwatch },
+                  { id: 'frame', label: en.addMenu.frame, onSelect: handleAddFrame },
                 ]}
               />
             </Popover>

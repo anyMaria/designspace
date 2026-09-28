@@ -4,6 +4,7 @@ import { ensureLibraryReady } from '@/platform/bootstrap';
 import { seedVocabulary } from '@/state/vocabularySeed';
 import { loadVocabulary } from '@/state/loadVocabulary';
 import { loadBoards } from '@/state/loadBoards';
+import { loadFramesForBoard } from '@/state/loadLibrary';
 import { useBoardStore } from '@/state/boardStore';
 import { en } from '@/i18n/en';
 import { Button } from '@/design/components';
@@ -35,6 +36,7 @@ export function Onboarding({ platform, onReady }: OnboardingProps) {
       await seedVocabulary(platform);
       await loadVocabulary(platform);
       await loadBoards(platform);
+      await loadFramesForBoard(platform, libraryBoardId);
       useBoardStore.getState().setCurrentBoardId(libraryBoardId);
       onReady(library, libraryBoardId);
     } catch (err) {

@@ -38,6 +38,13 @@ export const en = {
   notes: {
     colorLabel: (name: string) => `${name.charAt(0).toUpperCase()}${name.slice(1)} note color`,
   },
+  frames: {
+    add: 'Frame',
+    untitled: 'Untitled frame',
+    renameTitle: 'Rename frame',
+    namePlaceholder: 'Frame name',
+    save: 'Save',
+  },
   swatches: {
     add: 'Swatch',
     extractPalette: 'Extract palette',
@@ -150,6 +157,7 @@ export const en = {
     paste: 'Paste',
     note: 'Note',
     swatch: 'Swatch',
+    frame: 'Frame',
   },
   zoomMenu: {
     label: 'Zoom',

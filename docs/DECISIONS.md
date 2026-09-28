@@ -1349,6 +1349,48 @@ without also hiding the Type/Vibe/Movement/Tags classification fields for a swat
 an owner *can* tag a swatch, just not something the spec asks for — but not hidden either, for
 time's sake rather than by design).
 
+### M4-6: Frames on any space
+The plan's own spec for this bullet is one line ("Frames on any space"), so the design decisions
+here are mine, logged for reference. A `Frame` is architecturally distinct from an `Item` — it has
+its own `frames` table (already scaffolded from M0) rather than being another `items.kind` — so it
+needed its own store (`frameStore`, mirroring `libraryStore.placements`'s "swapped wholesale on
+switch space" shape), its own commands, and, since Engine's selection/hit-test/resize machinery is
+built entirely around `ItemCard`s, its own parallel (not integrated) interaction path rather than
+trying to make a frame masquerade as a card.
+
+Rendering: a frame is a dashed-alpha outline `Graphics` plus a `Text` title sitting just *above*
+its top-left corner (not inside it), so the label never overlaps whatever's placed inside — both
+drawn in `itemsLayer` at `zIndex = frame.z - 1_000_000`, reliably behind every item regardless of
+its own z (a "send to back" only zeroes an item's own z, so a large fixed offset was simpler and
+more robust than tracking the current minimum item z). Interaction is title-bar-only, matching how
+Figma/Miro frames work: the frame body itself stays fully click-through for whatever's placed
+inside it, and only the title (click to select, drag to move — the frame *and* every placement
+whose `frameId` points at it, computed once at drag-start from a new `ItemCard.frameId` field
+mirroring `placement.frameId`) and a single bottom-right corner handle (free resize, no aspect
+lock) are interactive. Double-clicking the title opens a rename dialog (`FrameRenameDialog`,
+copy-pasted from `ConnectionLabelDialog`'s already-established shape) rather than an inline
+DOM-overlay editor like `NoteEditor`'s — a frame's title is a single line with no rich formatting,
+so the extra positioning machinery an inline overlay needs wasn't worth it here.
+
+Deleting a frame un-parents its members (`placement.frame_id = NULL`) rather than trashing or
+removing them — "Frames on any space" groups items, it doesn't own them, matching how the plan's
+own board-delete section already treats board-only notes/swatches as owned (trashed with the
+board) while never implying the same for a *board's own* items (never owned, never trashed by
+deleting the board). Move/resize are their own two-message flow — Engine live-updates the visual
+during the drag (frame outline + member card positions, purely in Engine's own state, no store
+writes) and emits one `frameMove`/`frameResize` event on release with the total delta/final rect,
+which `useFrameCanvasBinding` turns into exactly one undoable command — the same "live preview,
+one command on release" shape `move`/`resize` already use for items.
+
+Also caught and fixed here: GitHub Actions CI (unlike this sandbox's local Playwright run) denies
+`navigator.clipboard.writeText` by default, so M4-5's swatch-selection copy — landed the previous
+commit — was throwing `NotAllowedError` in CI only. It was logged via `logger.error`, which every
+e2e test's own `page.on('console')` listener treats as a real console error, so
+`smoke-m4-swatches.spec.ts` failed in CI while passing locally. Fixed by removing the log entirely
+(silently ignoring the failure), matching `design/components/Swatch.tsx`'s own established copy
+button, which never logged in the first place — clipboard permission being denied isn't something
+the owner can act on, so it was never worth surfacing as an error to begin with.
+
 ---
 
 *(Later milestones append below this line.)*

@@ -4,6 +4,7 @@ import type {
   BoardCamera,
   BoardKind,
   Facet,
+  Frame,
   Item,
   ItemKind,
   ItemStatus,
@@ -79,6 +80,22 @@ export function rowToPlacement(row: DbRow): Placement {
     z: Number(row.z ?? 0),
     frameId: asNullableString(row.frame_id),
     addedAt: asString(row.added_at),
+  };
+}
+
+/** Maps one row from `SELECT * FROM frames`. */
+export function rowToFrame(row: DbRow): Frame {
+  return {
+    id: asString(row.id),
+    boardId: asString(row.board_id),
+    title: asString(row.title),
+    x: Number(row.x),
+    y: Number(row.y),
+    w: Number(row.w),
+    h: Number(row.h),
+    z: Number(row.z ?? 0),
+    createdAt: asString(row.created_at),
+    updatedAt: asString(row.updated_at),
   };
 }
 

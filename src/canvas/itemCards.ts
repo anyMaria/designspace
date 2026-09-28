@@ -35,6 +35,7 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       thumbUrl128: null,
       thumbUrl512: null,
       noteText: noteBodyToPlainText(item.body),
+      frameId: placement.frameId,
     };
   }
 
@@ -52,6 +53,7 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       thumbUrl512: null,
       // "Color block with its HEX and an optional name" (§2.11's spec table).
       noteText: [item.title || null, item.color?.toUpperCase() ?? null].filter(Boolean).join('\n'),
+      frameId: placement.frameId,
     };
   }
 
@@ -69,5 +71,6 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     thumbUrl128: ready ? platform.cache.url(`t128/${item.id}`) : null,
     thumbUrl512: ready ? platform.cache.url(`t512/${item.id}`) : null,
     noteText: null,
+    frameId: placement.frameId,
   };
 }

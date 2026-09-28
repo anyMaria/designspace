@@ -7,15 +7,17 @@ import { useHistoryStore } from '@/commands/history';
 import { createMoveItemsCommand, createResizeItemCommand } from '@/commands/itemCommands';
 import { useToastStore } from '@/state/toastStore';
 import { en } from '@/i18n/en';
-import { logger } from '@/lib/logger';
 
-/** Clipboard access can be denied (permissions, non-secure context) — the swatch selection still
- * shows the toast either way, matching `design/components/Swatch.tsx`'s own copy button. */
+/** Clipboard access can be denied (permissions, non-secure context — this is expected and not
+ * actionable by the owner, e.g. it's denied by default in a headless CI browser) — silently
+ * ignored, matching `design/components/Swatch.tsx`'s own copy button exactly (no `logger.error`,
+ * which would otherwise fail every e2e test's "no console errors" assertion in CI). The swatch
+ * selection still shows the toast either way. */
 async function copySwatchHex(platform: Platform, hex: string): Promise<void> {
   try {
     await platform.clipboard.writeText(hex);
-  } catch (err) {
-    logger.error('Copy swatch HEX failed', err);
+  } catch {
+    // Nothing to do — see doc comment above.
   }
 }
 

@@ -51,6 +51,8 @@ import { BoardsGallery } from '@/features/boards/BoardsGallery';
 import { useBoardUiStore } from '@/state/boardUiStore';
 import { useNoteCanvasBinding } from '@/canvas/useNoteCanvasBinding';
 import { NoteEditor } from '@/features/notes/NoteEditor';
+import { useFrameCanvasBinding } from '@/canvas/useFrameCanvasBinding';
+import { FrameRenameDialog } from '@/features/frames/FrameRenameDialog';
 import {
   Dock,
   DockDivider,
@@ -114,6 +116,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
   useFocusViewBinding(engine);
   useNoteCanvasBinding(engine, platform);
+  useFrameCanvasBinding(engine, platform);
   useSearchBinding(engine);
   useConnectionsBinding(engine);
   useManualConnectionsBinding(engine, platform);
@@ -421,6 +424,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       <ShortcutListOverlay />
       <ConnectionTooltip engine={engine} />
       <ConnectionLabelDialog platform={platform} />
+      <FrameRenameDialog platform={platform} />
     </div>
   );
 }
