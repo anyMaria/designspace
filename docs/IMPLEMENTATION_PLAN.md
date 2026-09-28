@@ -1272,7 +1272,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] Suggestions (zero-shot + personal blend) in Details and Triage: accept, dismiss, Accept all.
 - [x] Find similar, the Similar look criterion, search by meaning, and similarity in board suggestions.
 - [x] Settings → AI.
-- [ ] Check that there are zero network requests at runtime (DevTools network panel on Windows, with the CSP in place).
+- [x] Check that there are zero network requests at runtime (DevTools network panel on Windows, with the CSP in place).
 
 **Acceptance:**
 - A new image gets suggestions within about 2 s.

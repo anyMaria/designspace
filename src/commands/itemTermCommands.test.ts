@@ -119,6 +119,25 @@ describe('createSetItemTypeCommand', () => {
     await command.undo();
     expect(useLibraryStore.getState().items.get('i1')?.sortedAt).toBe('2025-01-01T00:00:00.000Z');
   });
+
+  it("saves via = 'ai' when accepting an AI suggestion, and 'user' by default", async () => {
+    useLibraryStore.getState().upsertItem(makeItem());
+    useTermStore.getState().upsertTerm(makeTerm());
+    const platform = makePlatform();
+
+    await createSetItemTypeCommand(platform, 'i1', { id: 't1' }, 'ai').do();
+    expect(platform.db.execute).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT OR IGNORE INTO item_terms'),
+      expect.arrayContaining(['ai']),
+    );
+
+    vi.mocked(platform.db.execute).mockClear();
+    await createSetItemTypeCommand(platform, 'i1', { id: 't1' }).do();
+    expect(platform.db.execute).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT OR IGNORE INTO item_terms'),
+      expect.arrayContaining(['user']),
+    );
+  });
 });
 
 describe('createAddItemTermCommand', () => {

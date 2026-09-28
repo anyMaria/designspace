@@ -50,10 +50,11 @@ export function useSuggestions(platform: Platform, itemId: string | null): UseSu
 
   function accept(facet: Facet, termId: string): void {
     if (!itemId) return;
+    // §4.10/§8's M6 acceptance: "Accepted values are saved with via = 'ai'".
     const command =
       facet === 'type'
-        ? createSetItemTypeCommand(platform, itemId, { id: termId })
-        : createAddItemTermCommand(platform, itemId, facet, { id: termId });
+        ? createSetItemTypeCommand(platform, itemId, { id: termId }, 'ai')
+        : createAddItemTermCommand(platform, itemId, facet, { id: termId }, 'ai');
     void useHistoryStore.getState().execute(command);
     remove(termId);
   }

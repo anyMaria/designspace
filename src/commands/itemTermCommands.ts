@@ -4,7 +4,7 @@ import { useTermStore } from '@/state/termStore';
 import { normalize } from '@/lib/normalize';
 import { newId } from '@/lib/ids';
 import type { Command } from './types';
-import type { Facet } from '@/state/types';
+import type { Facet, TermVia } from '@/state/types';
 
 /** Classification commands — §2.5, §2.6. Each is one undoable Command; "setting a Type or a
  * Vibe marks the item sorted" (the Inbox rule) is folded in here rather than layered on top,
@@ -51,11 +51,16 @@ async function removeTermIfOrphaned(platform: Platform, termId: string): Promise
   await platform.db.execute('DELETE FROM terms WHERE id = ?', [termId]);
 }
 
-async function linkItemTerm(platform: Platform, itemId: string, termId: string): Promise<void> {
+async function linkItemTerm(
+  platform: Platform,
+  itemId: string,
+  termId: string,
+  via: TermVia = 'user',
+): Promise<void> {
   useTermStore.getState().addItemTerm(itemId, termId);
   await platform.db.execute(
     'INSERT OR IGNORE INTO item_terms (item_id, term_id, via, added_at) VALUES (?, ?, ?, ?)',
-    [itemId, termId, 'user', new Date().toISOString()],
+    [itemId, termId, via, new Date().toISOString()],
   );
 }
 
@@ -89,6 +94,7 @@ export function createSetItemTypeCommand(
   platform: Platform,
   itemId: string,
   term: { id: string } | { name: string },
+  via: TermVia = 'user',
 ): Command {
   const previousTermIds = useTermStore.getState().itemTermIdsForFacet(itemId, 'type');
   const wasUnsorted = !useLibraryStore.getState().items.get(itemId)?.sortedAt;
@@ -104,7 +110,7 @@ export function createSetItemTypeCommand(
     resolvedId = resolved.id;
     createdNew = resolved.created;
     for (const id of previousTermIds) await unlinkItemTerm(platform, itemId, id);
-    await linkItemTerm(platform, itemId, resolved.id);
+    await linkItemTerm(platform, itemId, resolved.id, via);
     await markSortedIfNeeded(platform, itemId);
   }
 
@@ -127,6 +133,7 @@ export function createAddItemTermCommand(
   itemId: string,
   facet: Facet,
   term: { id: string } | { name: string },
+  via: TermVia = 'user',
 ): Command {
   const wasUnsorted = !useLibraryStore.getState().items.get(itemId)?.sortedAt;
   let resolvedId: string | null = null;
@@ -139,7 +146,7 @@ export function createAddItemTermCommand(
         : await findOrCreateTerm(platform, facet, term.name);
     resolvedId = resolved.id;
     createdNew = resolved.created;
-    await linkItemTerm(platform, itemId, resolved.id);
+    await linkItemTerm(platform, itemId, resolved.id, via);
     if (facet === 'vibe') await markSortedIfNeeded(platform, itemId);
   }
 

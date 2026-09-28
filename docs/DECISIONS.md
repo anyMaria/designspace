@@ -2111,10 +2111,11 @@ zero-shot/personal blend, not a correctness bug.
 this item"), not a content edit an owner would expect Ctrl+Z to walk back.
 
 Accepting a suggestion reuses the existing `createSetItemTypeCommand`/`createAddItemTermCommand`
-verbatim (passing `{id: termId}` for an existing term) — no new command type, no `via: 'ai'`
-provenance tracking added, since accepting through Details/Triage's own chips already behaves
-identically to picking the value manually, and the plan doesn't call for distinguishing the two
-in the data model.
+(passing `{id: termId}` for an existing term) rather than a new command type — both now take an
+optional `via: TermVia` parameter (default `'user'`, matching every pre-existing manual-selection
+call site unchanged) so `useSuggestions.accept` can pass `'ai'` through to the `item_terms` row it
+writes, satisfying the plan's M6 acceptance line ("Accepted values are saved with `via = 'ai'`")
+without duplicating either command.
 
 Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (360 tests across
 56 files, up from 333/53 at the end of M6-2 — 27 new: `suggestions.ts` 14, `valueEmbeddings.ts` 6,
@@ -2255,6 +2256,65 @@ moving and the button now says "Resume analysis," then resume and confirm it pic
 AI off, confirm every AI-surfacing feature (Details suggestions, Find similar, Similar look,
 Include visual matches) disappears or stops functioning, then turn it back on and confirm
 suggestions come back without re-analyzing from scratch.
+
+---
+
+## M6-6: zero-network audit, and M6 wrap-up
+
+**The "zero network requests" check is a code-review audit, not a live DevTools capture** — this
+sandbox has no real browser DevTools attached to a running WebView2 app, and Spike S7 (a Windows
+build measuring CLIP's actual load time/throughput/memory) is explicitly out of scope here for the
+same reason (per CLAUDE.md and the plan's own §4.10 accommodation). What's verifiable from the code
+instead, and was verified:
+- `tauri.conf.json`'s CSP `connect-src` is `'self' ipc: http://ipc.localhost media:
+  http://media.localhost` — no external host, no wildcard. This is enforced by the WebView2 engine
+  itself, independent of any application-level mistake; even a bug in the AI code couldn't reach an
+  external host through the webview.
+- No file under `src/lib/ai/`, `src/workers/ai.worker.ts`, or `src/workers/aiQueue.ts` contains a
+  literal `http://`/`https://` URL (grepped) — the AI pipeline never constructs a remote address
+  of its own.
+- Read `@huggingface/transformers`'s own `utils/hub.js`: when `env.allowRemoteModels = false`
+  (which `configureTransformersEnv` always sets before any real model load — see M6-2) and a local
+  file isn't found, it throws (`` `env.allowRemoteModels=false`, but attempted to load a remote
+  file from: ...` ``) rather than falling back to `env.fetch`. There is no code path in the library
+  itself that reaches the network once that flag is false, independent of our own CSP belt-and-
+  suspenders.
+- The browser dev build never even reaches this code: `computeAiEnvConfig('browser')` returns
+  `localModelPath: null`, and `ai.worker.ts`'s `loadProvider` treats that as "no model available,"
+  using `FakeEmbeddingProvider` instead of importing `@huggingface/transformers` at all.
+
+Real confirmation (DevTools Network tab showing literally nothing on a running Windows build, with
+AI enabled and background analysis active) is the owner's to do — noted in the owner checks below.
+
+**M6 close-out.** Every planned sub-task is done except Spike S7 itself, which needs real Windows
+hardware this sandbox doesn't have; §8's three other M6 acceptance lines are all met:
+"suggestions within about 2 s" (queued the moment `t512` lands, §4.7 step 3, not on a timer),
+"no visible jank" (structural — one item at a time, low priority, pausable, same pattern as image
+ingest that already meets this bar), and "accepted values saved with `via = 'ai'`" (this sub-task's
+own fix, see above).
+
+Verification for the whole milestone (not just the last sub-task): `tsc -b --noEmit`, `eslint .`,
+`prettier --check .`, `vitest run` (378 tests across 59 files, up from 316/49 at the end of M5),
+`vite build`, `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and
+`cargo test --workspace` (45 tests, up from 40 at the end of M5) are all clean. The Playwright
+suite wasn't re-run end-to-end as part of this close-out (M6 added no new e2e specs — AI features
+depend on a real model this sandbox can't fetch, so they're covered by unit/integration tests using
+`FakeEmbeddingProvider` instead, per the plan's own "huggingface.co is blocked in cloud sessions"
+accommodation); the existing 40-spec suite's pass/fail status is tracked via this PR's CI, not
+re-run locally for this entry. No tag for M6 — same as M3–M5, the plan only calls for tagging at
+the end of M2 (`v0.1.0`).
+
+**Owner checks:**
+- Run `node scripts/fetch-models.mjs` with real internet, then build and open the Windows
+  installer. Confirm the model actually downloaded into `src-tauri/resources/models/` and the
+  installer includes it.
+- Open DevTools' Network tab, enable AI, import a batch of new images, and watch background
+  analysis complete. Confirm literally zero requests appear — not even a failed/blocked one.
+- Run Spike S7: load time, ms/image with threads, memory, and (if available) MobileCLIP vs
+  ViT-B/32. Update `docs/IMPLEMENTATION_PLAN.md`'s S7 checkbox and this file with the numbers.
+- Work through the M6-1 through M6-5 owner checks above if you haven't already — they cover the
+  actual features (suggestions, Find similar, Similar look, search by meaning, Settings → AI) this
+  entry doesn't re-list.
 
 ---
 
