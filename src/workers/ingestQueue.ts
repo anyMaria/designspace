@@ -2,6 +2,7 @@ import type { DbRow, Platform } from '@/platform';
 import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
 import type { IngestRequest, IngestResponse } from './ingest.worker';
+import { queueAiAnalysis } from './aiQueue';
 
 /** Minimal Worker surface this module needs — lets tests inject a fake. */
 export interface WorkerLike {
@@ -120,6 +121,7 @@ export class IngestQueue {
 
     await this.platform.cache.put(`t128/${result.itemId}`, new Uint8Array(result.t128));
     await this.platform.cache.put(`t512/${result.itemId}`, new Uint8Array(result.t512));
+    queueAiAnalysis(this.platform, result.itemId);
     await this.platform.db.execute(
       `UPDATE items SET width = ?, height = ?, palette = ?, color_families = ?, phash = ?,
        status = 'ok', derived_v = ?, updated_at = ? WHERE id = ?`,

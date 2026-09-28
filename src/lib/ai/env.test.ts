@@ -32,7 +32,7 @@ describe('configureTransformersEnv', () => {
     expect(env.localModelPath).toBe('http://media.localhost/models');
     expect(env.useBrowserCache).toBe(false);
     expect(env.useFSCache).toBe(false);
-    expect(env.backends.onnx.wasm.wasmPaths).toBe('/ort/');
+    expect(env.backends.onnx.wasm?.wasmPaths).toBe('/ort/');
   });
 
   it('falls back to a single thread outside cross-origin isolation', () => {
@@ -40,7 +40,7 @@ describe('configureTransformersEnv', () => {
     const original = globalThis.crossOriginIsolated;
     Object.defineProperty(globalThis, 'crossOriginIsolated', { value: false, configurable: true });
     configureTransformersEnv(env, { localModelPath: null, wasmPaths: '/ort/' });
-    expect(env.backends.onnx.wasm.numThreads).toBe(1);
+    expect(env.backends.onnx.wasm?.numThreads).toBe(1);
     Object.defineProperty(globalThis, 'crossOriginIsolated', {
       value: original,
       configurable: true,

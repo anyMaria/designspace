@@ -14,10 +14,7 @@ import type {
   LinkMeta,
   Platform,
 } from '@/platform/types';
-
-function notYet(feature: string, milestone: string): never {
-  throw new Error(`${feature} lands in ${milestone} — see docs/IMPLEMENTATION_PLAN.md §8.`);
-}
+import { base64ToBytes, bytesToBase64 } from '@/lib/base64';
 
 /** Talks to the Rust backend over `invoke` and the `media://` protocol. See §4.4–4.5.
  * M0 wires up the library/db/media-url surface; import, cache, embeddings, backups, net and
@@ -90,10 +87,38 @@ export class TauriPlatform implements Platform {
   };
 
   embeddings = {
-    put: (model: string, _entries: [string, Float32Array][]): Promise<void> =>
-      notYet(`embeddings.put(${model})`, 'M6'),
-    load: (model: string): Promise<Map<string, Float32Array>> =>
-      notYet(`embeddings.load(${model})`, 'M6'),
+    put: async (model: string, entries: [string, Float32Array][]): Promise<void> => {
+      if (entries.length === 0) return;
+      const dims = entries[0][1].length;
+      const itemIds = entries.map(([id]) => id);
+      const packed = new Uint8Array(entries.length * dims * 4);
+      entries.forEach(([, vector], i) => {
+        packed.set(
+          new Uint8Array(vector.buffer, vector.byteOffset, vector.byteLength),
+          i * dims * 4,
+        );
+      });
+      await invoke<void>('embeddings_put', {
+        model,
+        itemIds,
+        dims,
+        vectorsB64: bytesToBase64(packed),
+      });
+    },
+    load: async (model: string): Promise<Map<string, Float32Array>> => {
+      const result = await invoke<{ itemIds: string[]; dims: number; vectorsB64: string }>(
+        'embeddings_load',
+        { model },
+      );
+      const bytes = base64ToBytes(result.vectorsB64);
+      const map = new Map<string, Float32Array>();
+      result.itemIds.forEach((id, i) => {
+        const start = i * result.dims * 4;
+        const vector = new Float32Array(bytes.buffer.slice(start, start + result.dims * 4));
+        map.set(id, vector);
+      });
+      return map;
+    },
   };
 
   backups = {

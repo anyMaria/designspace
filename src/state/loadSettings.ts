@@ -5,6 +5,7 @@ import { useSettingsStore } from './settingsStore';
  * milestone can add a key without a migration. */
 interface LibrarySettingsJson {
   offlineMode?: boolean;
+  aiEnabled?: boolean;
 }
 
 async function readSettingsJson(platform: Platform): Promise<LibrarySettingsJson> {
@@ -21,7 +22,10 @@ async function readSettingsJson(platform: Platform): Promise<LibrarySettingsJson
 /** Loads `meta.settings` into `useSettingsStore` — call once at startup after the library opens. */
 export async function loadSettings(platform: Platform): Promise<void> {
   const parsed = await readSettingsJson(platform);
-  useSettingsStore.setState({ offlineMode: parsed.offlineMode ?? false });
+  useSettingsStore.setState({
+    offlineMode: parsed.offlineMode ?? false,
+    aiEnabled: parsed.aiEnabled ?? true,
+  });
 }
 
 /** §7's "Offline mode, which turns [link previews and image downloads] off" (Settings →
@@ -35,4 +39,17 @@ export async function setOfflineMode(platform: Platform, value: boolean): Promis
     [JSON.stringify(parsed)],
   );
   useSettingsStore.setState({ offlineMode: value });
+}
+
+/** §4.10's Settings → AI toggle (M6-5). Turning AI off doesn't delete existing embeddings or
+ * suggestions already shown — it just stops the background analysis queue and hides AI features,
+ * matching Offline mode's "no separate Save step" convention. */
+export async function setAiEnabled(platform: Platform, value: boolean): Promise<void> {
+  const parsed = await readSettingsJson(platform);
+  parsed.aiEnabled = value;
+  await platform.db.execute(
+    "INSERT INTO meta (key, value) VALUES ('settings', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    [JSON.stringify(parsed)],
+  );
+  useSettingsStore.setState({ aiEnabled: value });
 }

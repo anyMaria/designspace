@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-embeddings-put"
+description = "Enables the embeddings_put command without any pre-configured scope."
+commands.allow = ["embeddings_put"]
+
+[[permission]]
+identifier = "deny-embeddings-put"
+description = "Denies the embeddings_put command without any pre-configured scope."
+commands.deny = ["embeddings_put"]

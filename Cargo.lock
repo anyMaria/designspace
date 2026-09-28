@@ -921,6 +921,7 @@ dependencies = [
 name = "designspace"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "designspace-core",
  "futures-util",

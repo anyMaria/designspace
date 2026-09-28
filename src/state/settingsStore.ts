@@ -6,8 +6,12 @@ import { create } from 'zustand';
  * for the DB read/write. */
 interface SettingsState {
   offlineMode: boolean;
+  /** §4.10: AI (background analysis, suggestions, Find similar, search by meaning). On by
+   * default — an owner who wants it off finds the switch in Settings → AI (M6-5). */
+  aiEnabled: boolean;
 }
 
 export const useSettingsStore = create<SettingsState>(() => ({
   offlineMode: false,
+  aiEnabled: true,
 }));

@@ -3,6 +3,7 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
 import { extractFontDerivatives } from '@/lib/fontRender';
 import { CURRENT_DERIVED_V } from './ingestQueue';
+import { queueAiAnalysis } from './aiQueue';
 
 export interface FontQueueItem {
   itemId: string;
@@ -55,6 +56,7 @@ export class FontIngestQueue {
 
       await this.platform.cache.put(`t128/${item.itemId}`, new Uint8Array(t128));
       await this.platform.cache.put(`t512/${item.itemId}`, new Uint8Array(t512));
+      queueAiAnalysis(this.platform, item.itemId);
       await this.platform.db.execute(
         `UPDATE items SET font_meta = ?, status = 'ok', derived_v = ?, updated_at = ? WHERE id = ?`,
         [JSON.stringify(meta), CURRENT_DERIVED_V, now, item.itemId],

@@ -52,16 +52,12 @@ function progress(data) {
 
 async function main() {
   console.log(`Fetching ${MODEL_ID} into ${MODELS_DIR}`);
+  // No explicit `dtype` — transformers.js already defaults to `q8` (quantized) on the `wasm`
+  // device, which is the only device this app ever runs on (§4.10).
   console.log('Vision encoder + projection…');
-  await CLIPVisionModelWithProjection.from_pretrained(MODEL_ID, {
-    quantized: true,
-    progress_callback: progress,
-  });
+  await CLIPVisionModelWithProjection.from_pretrained(MODEL_ID, { progress_callback: progress });
   console.log('Text encoder + projection…');
-  await CLIPTextModelWithProjection.from_pretrained(MODEL_ID, {
-    quantized: true,
-    progress_callback: progress,
-  });
+  await CLIPTextModelWithProjection.from_pretrained(MODEL_ID, { progress_callback: progress });
   console.log('Image processor…');
   await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: progress });
   console.log('Tokenizer…');

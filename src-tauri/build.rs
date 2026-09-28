@@ -30,6 +30,8 @@ const APP_COMMANDS: &[&str] = &[
     "dialog_save_file",
     "net_link_meta",
     "net_download_image",
+    "embeddings_put",
+    "embeddings_load",
 ];
 
 fn main() {

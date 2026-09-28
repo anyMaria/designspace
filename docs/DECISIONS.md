@@ -1972,6 +1972,85 @@ back to `FakeEmbeddingProvider` whenever it's null, never attempting a real mode
 **Owner checks:** none yet — this sub-task is pure infrastructure with no visible surface. The
 next sub-task (the AI worker) is where suggestions start actually appearing.
 
+## M6-2: the AI worker, embeddings storage, background analysis
+
+**`embeddings_put`/`embeddings_load`: base64-over-JSON, not raw binary IPC.** The plan calls for
+"binary IPC, so vectors never go through JSON" — a full library's worth of vectors (10,000 × 512
+floats ≈ 20 MB) as a JSON array of numbers would run several times that in transit and be slow to
+parse. Tauri 2 does have a raw-request-body IPC path that would avoid even the base64 overhead,
+but its exact JS-side surface (a raw `ArrayBuffer` body alongside the `model`/`itemIds` metadata
+this command also needs) isn't something this sandbox can exercise against a real WebView2 host to
+be sure it's wired correctly, and getting it subtly wrong would only surface once the owner tries
+it on Windows. Base64-over-JSON is the documented middle ground instead: a single string field,
+~33% bigger than raw bytes rather than the 4-8x a JSON number array would cost, built entirely from
+APIs this app already exercises elsewhere (`invoke` with plain JSON args, matching `cache_put`'s
+existing `Array.from(bytes)` precedent — except here the payload is base64'd instead of turned
+into a JSON array, since embeddings are the one payload in this app large enough for that
+difference to matter). `src/lib/base64.ts` chunks the encode/decode (`String.fromCharCode` blows
+the call stack past ~100K elements passed as spread arguments) — tested with a 200,000-byte buffer.
+Rust-side, `put`/`load` are thin command wrappers around pure functions (`put_embeddings`/
+`load_embeddings`, taking a `&Connection` directly) tested against an in-memory SQLite DB, mirroring
+`media.rs`'s existing pattern of testing the pure logic rather than the `#[tauri::command]`
+wrapper (constructing a real `State<'_, AppState>` in a unit test isn't practical outside a running
+app).
+
+**`quantized: true` was already wrong in M6-1's `fetch-models.mjs`, caught only once `tsc` had a
+real call site to check against.** `@huggingface/transformers` 4.x renamed the old `@xenova/
+transformers` `quantized` boolean to a `dtype` string (`'fp32' | 'fp16' | 'q8' | ...`); passing
+`quantized: true` is silently ignored by the new API rather than erroring, so M6-1's fetch script
+would have downloaded full fp32 weights (~4x the intended size) without complaint. Caught only when
+`clipEmbeddingProvider.ts` used the same option and `tsc` flagged it — JS scripts aren't
+typechecked, so the pre-existing bug in `fetch-models.mjs` needed a manual audit once the same
+mistake surfaced in typed code, not a compiler error of its own. Fixed by removing the option
+entirely: reading `utils/dtypes.js`'s own `DEVICE_DTYPE_MAPPING`, the `wasm` device (the only
+device this app ever runs on) already defaults to `q8` — exactly what `quantized: true` used to
+request — so there's nothing to pass.
+
+**The embedding provider takes raw image bytes, not an `ImageBitmap`** (`EmbeddingProvider.
+embedImage(bytes, mime)`), matching `ingest.worker.ts`'s existing convention — `ImageBitmap` isn't
+constructible in a fake/test context without a real browser, while an `ArrayBuffer` is exactly
+what a `fetch()` of the cached `t512` derivative already returns, and it transfers to a worker with
+zero copy. `FakeEmbeddingProvider` decodes those bytes as UTF-8 text to get a seed: meaningless for
+real image bytes (production never routes real images through the fake provider), but it means
+tests can pass plain descriptive strings as "image bytes" and get controllable similarity — a bag-
+of-tokens hash embedding where shared words add constructively (verified: "a golden retriever
+puppy in a park" scores higher against "a golden retriever puppy running outside" than against "a
+stack of blueprints on a desk"), which is what the plan's "deterministic vectors with controllable
+similarity" asks for without needing a real model.
+
+**`ai.worker.ts` degrades to the fake provider automatically, not just in tests.** `computeAiEnvConfig`
+returns `localModelPath: null` in the browser dev build (no models are ever bundled there — hugging
+face.co is blocked in cloud sessions per CLAUDE.md), and the worker's `loadProvider` treats a null
+path as "no model available" rather than a caller error, falling back to `FakeEmbeddingProvider`
+transparently. This means the whole AI pipeline (background analysis, embeddings storage,
+suggestions once M6-3 lands) is exercisable end-to-end in the browser dev build and in Vitest/
+Playwright without ever touching the real model — only Spike S7's actual load-time/memory/ms-per-
+image numbers require a real Windows build, exactly as the plan anticipates.
+
+**`AiQueue.getAiQueue` fails soft, not loud, if a `Worker` can't be constructed.** Wiring
+`queueAiAnalysis` into every ingest queue's persist step (image/video/PDF/font — links reuse the
+image queue for their downloaded cover, so no separate wiring was needed there) means it now runs
+inside `ingestQueue.test.ts`'s existing `persist()` unit test, which calls a plain `Connection`-less
+fake `Platform` with no real `Worker` global (jsdom doesn't implement one). Rather than special-case
+the test environment, `getAiQueue` catches a failed `new Worker(...)` and logs + returns `null`:
+ingest must never fail because AI analysis couldn't start, in a test runner or (defensively) in any
+real environment that somehow lacks `Worker`. Every real target this app ships to (WebView2,
+Playwright's Chromium, the browser dev build) has `Worker`, so this never triggers outside tests.
+
+Verification for this sub-task: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run`
+(333 tests across 53 files, up from 316/49 at the end of M5), `vite build` (confirms the CLIP/
+transformers.js import graph — 586 KB minified — lands in `ai.worker`'s own chunk via the worker's
+dynamic `import()`, not inflating the main bundle, and that the ~26 MB ONNX WASM binary lands in
+`dist/assets` via the `prebuild` hook), `cargo fmt --check`, `cargo clippy --workspace
+--all-targets -- -D warnings`, and `cargo test --workspace` (45 tests, up from 40 — 5 new for
+`embeddings.rs`) are all clean.
+
+**Owner checks:** none surfacing yet — Details/Triage suggestions, Find similar, and Settings → AI
+land in the next few sub-tasks. What is verifiable now, on your Windows build once you've run
+`node scripts/fetch-models.mjs` with real internet: import a few images and confirm (via a debugger
+or a temporary log) that `embeddings` rows appear for them within a few seconds without any visible
+UI change yet.
+
 ---
 
 *(Later milestones append below this line.)*

@@ -3,6 +3,7 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
 import { extractVideoDerivatives } from '@/lib/videoFrame';
 import { CURRENT_DERIVED_V } from './ingestQueue';
+import { queueAiAnalysis } from './aiQueue';
 
 export interface VideoQueueItem {
   itemId: string;
@@ -57,6 +58,7 @@ export class VideoIngestQueue {
 
       await this.platform.cache.put(`t128/${item.itemId}`, new Uint8Array(derived.t128));
       await this.platform.cache.put(`t512/${item.itemId}`, new Uint8Array(derived.t512));
+      queueAiAnalysis(this.platform, item.itemId);
       await this.platform.db.execute(
         `UPDATE items SET width = ?, height = ?, duration_ms = ?, poster_ms = ?, palette = ?,
          color_families = ?, status = 'ok', derived_v = ?, updated_at = ? WHERE id = ?`,

@@ -35,6 +35,8 @@
     "allow-open-logs",
     "allow-dialog-save-file",
     "allow-net-link-meta",
-    "allow-net-download-image"
+    "allow-net-download-image",
+    "allow-embeddings-put",
+    "allow-embeddings-load"
   ]
 }

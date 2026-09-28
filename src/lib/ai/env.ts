@@ -32,7 +32,7 @@ export interface TransformersEnvLike {
   localModelPath: string;
   useBrowserCache: boolean;
   useFSCache: boolean;
-  backends: { onnx: { wasm: { wasmPaths: string; numThreads?: number } } };
+  backends: { onnx: { wasm?: { wasmPaths?: string; numThreads?: number } } };
 }
 
 /** Local-only, offline env (§4.10): no remote fetches, no browser/FS caching of remote content —
@@ -43,6 +43,7 @@ export function configureTransformersEnv(env: TransformersEnvLike, config: AiEnv
   env.localModelPath = config.localModelPath ?? '';
   env.useBrowserCache = false;
   env.useFSCache = false;
+  env.backends.onnx.wasm ??= {};
   env.backends.onnx.wasm.wasmPaths = config.wasmPaths;
   env.backends.onnx.wasm.numThreads = threadCount();
 }
