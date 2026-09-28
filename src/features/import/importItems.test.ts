@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLibraryStore } from '@/state/libraryStore';
+import { useBoardStore } from '@/state/boardStore';
 import { useImportStore } from '@/state/importStore';
 import { useToastStore } from '@/state/toastStore';
 import { useHistoryStore } from '@/commands/history';
-import type { DbRow, Platform } from '@/platform/types';
+import type { DbRow, DbStatement, Platform } from '@/platform/types';
 
 vi.mock('@/workers/ingestQueue', () => ({
   getIngestQueue: () => ({ enqueue: vi.fn() }),
@@ -57,6 +58,7 @@ beforeEach(() => {
     placements: new Map(),
     selection: new Set(),
   });
+  useBoardStore.setState({ boards: new Map(), currentBoardId: null });
   useImportStore.setState({ active: false, total: 0, done: 0, cancelRequested: false });
   useToastStore.setState({ toasts: [] });
   useHistoryStore.setState({ past: [], future: [] });
@@ -141,6 +143,37 @@ describe('importFiles', () => {
         expect(overlap).toBe(false);
       }
     }
+  });
+
+  it('also lands on the Library map when dropped while a board is open (§2.3)', async () => {
+    useBoardStore.setState({ currentBoardId: 'board-1' });
+    const platform = makePlatform();
+    await importFiles(platform, [makeFile('sunset.png')], { x: 500, y: 500 });
+
+    // The live store (scoped to the currently open space) only shows the board's own placement.
+    const placements = [...useLibraryStore.getState().placements.values()];
+    expect(placements).toHaveLength(1);
+    // findFreeSpot centers the placeholder on the drop point, not its top-left corner.
+    expect(placements[0]).toMatchObject({ boardId: 'board-1', x: 340, y: 340 });
+
+    // A second, DB-only placement row was written for the Library board too.
+    const batchCall = (platform.db.batch as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as DbStatement[];
+    const placementInserts = batchCall.filter((s) => s.sql.includes('INSERT INTO placements'));
+    expect(placementInserts).toHaveLength(2);
+    expect(placementInserts[0].params?.[0]).toBe('board-1');
+    expect(placementInserts[1].params?.[0]).toBe('lib-board');
+  });
+
+  it('does not duplicate onto the Library map while the Library map itself is open', async () => {
+    useBoardStore.setState({ currentBoardId: 'lib-board' });
+    const platform = makePlatform();
+    await importFiles(platform, [makeFile('sunset.png')], { x: 0, y: 0 });
+
+    const batchCall = (platform.db.batch as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
+      sql: string;
+    }[];
+    expect(batchCall.filter((s) => s.sql.includes('INSERT INTO placements'))).toHaveLength(1);
   });
 });
 

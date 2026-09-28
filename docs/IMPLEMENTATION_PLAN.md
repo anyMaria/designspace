@@ -1233,11 +1233,11 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] Spike **S4 Notes on the canvas:** `HTMLText` vs `pixi.js/html-source` vs a canvas layout (crispness, speed, handing off to the editor).
 - [x] Boards: the space switcher, the Boards gallery with covers, rename, duplicate, delete/restore.
 - [x] Create a board from a selection, from search results, or empty; justified-row layout; save the source filter.
-- [ ] The board canvas:
+- [x] The board canvas:
   - [x] remove from board vs move to Trash;
   - [x] the List's [This board | Library] switch with drag-to-add;
   - [x] search within the board;
-  - [ ] media dropped on a board also land on the Library map (it always lands on the Library map today; it doesn't yet *also* land on whichever board is currently open).
+  - [x] media dropped on a board also land on the Library map (it always lands on the Library map today; it doesn't yet *also* land on whichever board is currently open).
 - [x] Notes: TipTap editing in place (DOM overlay), colors, sanitized rendering, searchable; double-click the empty canvas; pasted text becomes a note.
 - [x] Swatches and Extract palette.
 - [x] Frames on any space.

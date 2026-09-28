@@ -1467,6 +1467,33 @@ drop) never trigger on each other's gesture. Dropping an item already on the boa
 `libraryStore.placements`, which is always scoped to the current space) shows a toast instead of
 duplicating the placement.
 
+### M4-9: Media dropped on a board also lands on the Library map
+The last of M4-3's two deferred board-canvas follow-ups. `importItems.ts` always wrote exactly one
+placement row, on the Library board, for every imported item — so this half already held
+("nothing dropped is ever *only* on a board", since it was never on a board at all). What was
+missing: dropping *while a board is open* should also place the item on that board, at the drop
+point, in addition to the Library map.
+
+The real complication was `libraryStore.placements`: it's always scoped to whichever space is
+*currently open* (§4.3's architecture, since M4-3), so while a board is open it holds that board's
+rows, not the Library's. The existing collision-avoidance helpers (`isOccupied`/`nextZ`, used to
+find a free spot for the drop-point placement) read straight from that live map — fine for the
+placement that's actually visible right now, but useless for the *other* placement this feature
+needs to also write, since the Library's own occupied rects simply aren't loaded. Generalized both
+helpers to take an explicit occupied-rects list instead of reading the store directly, and added
+one extra query (`fetchPlacementSnapshot`) to fetch the Library board's placements straight from
+the DB only when they're actually needed (i.e. only while a non-Library board is open) — a board
+drop that never had this problem (a Library-map drop, or a board isn't open) costs nothing extra.
+
+`createRow` now takes a `primary` placement target (always written to the live store, since it's
+the one that matches the space actually on screen) and an optional `extra` one (DB-only — it loads
+normally the next time the owner opens the Library map). The plan's "arrival area" spirals out from
+"the last arrival point, or the viewport center" (§4.9), which only means something while the
+Library map itself is visible; there's no such point to reuse for the Library-only half of a board
+drop, so it simply spirals out from world origin instead — a deliberate simplification, logged here
+rather than building "last arrival point" tracking for a case the owner never actually looks at
+during the drop itself.
+
 ---
 
 *(Later milestones append below this line.)*
