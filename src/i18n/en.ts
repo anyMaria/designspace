@@ -49,6 +49,15 @@ export const en = {
     setCoverFrame: 'Set cover frame',
     playerFallback: "This browser can't play this video.",
   },
+  pdf: {
+    unsupportedFallback: "Can't open this PDF",
+    setAsCover: 'Set as cover',
+    prevPage: 'Previous page',
+    nextPage: 'Next page',
+    pageOf: (page: number, total: number) => `Page ${page} of ${total}`,
+    splitIntoPages: 'Split into pages',
+    splitDone: (count: number) => `Split into ${count} pages`,
+  },
   frames: {
     add: 'Frame',
     untitled: 'Untitled frame',

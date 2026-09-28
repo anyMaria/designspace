@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { detectMediaKind, extensionOf, isSupportedImage, isSupportedVideo } from './fileKinds';
+import {
+  detectMediaKind,
+  extensionOf,
+  isSupportedImage,
+  isSupportedPdf,
+  isSupportedVideo,
+} from './fileKinds';
 
 describe('extensionOf', () => {
   it('lowercases and strips the leading dot', () => {
@@ -28,6 +34,12 @@ describe('isSupportedImage / isSupportedVideo', () => {
     expect(isSupportedVideo('a.png')).toBe(false);
     expect(isSupportedImage('a.mp4')).toBe(false);
   });
+
+  it('recognizes the pdf extension', () => {
+    expect(isSupportedPdf('doc.pdf')).toBe(true);
+    expect(isSupportedPdf('doc.PDF')).toBe(true);
+    expect(isSupportedPdf('a.png')).toBe(false);
+  });
 });
 
 describe('detectMediaKind', () => {
@@ -39,8 +51,11 @@ describe('detectMediaKind', () => {
     expect(detectMediaKind('clip.mp4')).toBe('video');
   });
 
+  it("returns 'pdf' for a pdf extension", () => {
+    expect(detectMediaKind('doc.pdf')).toBe('pdf');
+  });
+
   it('returns null for anything unsupported', () => {
     expect(detectMediaKind('notes.txt')).toBeNull();
-    expect(detectMediaKind('doc.pdf')).toBeNull();
   });
 });

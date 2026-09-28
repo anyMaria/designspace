@@ -1656,6 +1656,60 @@ WebM fixture (`tests/e2e/fixtures/sample.webm`, a 1-second VP8+Vorbis clip gener
 `ffmpeg`, `apt`-installed in this sandbox for exactly this) rather than an MP4 — MP4/H.264 and
 `.mov` playback still needs the owner's real Windows/WebView2 verification per CLAUDE.md.
 
+### M5-3: PDFs
+Import, page-count metadata, the "PDF · N p" corner badge, "Set as cover", the Focus viewer
+(page-by-page canvas nav) and "Split into pages" all shipped. **The Focus viewer has no
+pan/zoom/fit-vs-1:1 toggle** (each page is rendered fit-to-width at a fixed long side) and there's
+no separate thumbnail-strip cover-page picker — "Set as cover" is a single button in the Focus
+viewer acting on whichever page is currently shown, per the scope trim decided before writing any
+code. The plan's checkbox is ticked for the full line ("PDFs: import, the cover-page picker, split
+into pages (pdf-lib), the Focus viewer") since every named deliverable landed; the pan/zoom
+simplification is the same kind of "basic Focus viewer" trim M1's image Focus view already took
+(logged there), not a missing item.
+
+**Ingest architecture mirrors M5-2's video pattern almost exactly.** Rasterizing a PDF page to a
+canvas needs the DOM (`page.render({canvasContext, viewport})`), so — like video's cover-frame
+extraction — it can't run in a Worker; `lib/pdfRender.ts`'s `extractPdfDerivatives` runs on the
+main thread, and `PdfIngestQueue` (`workers/pdfIngestQueue.ts`) processes one document at a time,
+same shape as `VideoIngestQueue`. pdf.js already parses PDF structure off-thread via its own
+internal Worker (`pdf.worker.mjs`, pointed at via `GlobalWorkerOptions.workerSrc` using
+`import.meta.url` so Vite bundles it as its own asset) — that doesn't cover page rendering, which
+is what actually needs the main thread here. The cover page's rendered canvas is reused for the
+palette sample (`squareSample`, matching `videoFrame.ts`'s `drawSquareSample`/the image worker's
+`sampleRgba`), so PDFs are searchable/connectable by color exactly like images and videos.
+`page_count`/`cover_page` DB columns already existed in `001_init.sql` from M0 and only needed
+TS/`rowMapping` wiring, same as `duration_ms`/`poster_ms` did for M5-2.
+
+**A real pdf.js bug, found and worked around (not a codec-support gap this time).** The default
+`pdfjs-dist` entry point (`pdfjs-dist` / `build/pdf.mjs`) calls
+`Map.prototype.getOrInsertComputed(...)` internally (`getOptionalContentConfig`, hit on every
+page render) — a JS engine built-in that, verified empirically, is `undefined` in *both* this
+sandbox's Chromium 141 and Node 22 (`typeof Map.prototype.getOrInsertComputed === 'undefined'` in
+both). Rendering any page threw `TypeError: ... getOrInsertComputed is not a function` and the
+item landed `status: 'unsupported'` for every single PDF, including trivially valid ones. Fixed by
+importing from pdfjs-dist's `legacy` build instead (`pdfjs-dist/legacy/build/pdf.mjs` and its
+matching `pdf.worker.mjs`), which ships its own polyfill for exactly this gap for environments
+lacking newer engine built-ins — same import swap needed for the worker URL. Unlike S5's video-
+codec finding, this isn't a "sandbox is unrepresentative" situation: the built-in genuinely isn't
+shipped anywhere yet, so the `legacy` build is the correct long-term choice here, not a sandbox-
+only workaround — re-verify on the owner's Windows/WebView2 build regardless, per CLAUDE.md, since
+WebView2's underlying Chromium version differs from both environments checked here.
+
+**"Set as cover" and "Split into pages" reuse existing machinery rather than inventing new UI.**
+"Set as cover" (`setPdfCoverPage`, `workers/pdfIngestQueue.ts`) factors the import path's
+derive-and-persist logic into a shared function so re-rendering a chosen page for the thumbnail is
+one call, not a duplicated pipeline; it's deliberately *not* wrapped in an undo command — like
+Swatches' "Extract palette," refreshing derived metadata isn't a content edit the owner would
+expect Ctrl+Z to walk back. "Split into pages" (`features/focus/splitPdfIntoPages.ts`) uses
+`pdf-lib` (already a dependency, per the plan) to write each page out as its own single-page PDF
+`File`, then hands the whole batch to the existing `importFiles` pipeline — full dedupe, placement
+and ingest for free, the same way pasting several files at once already works, rather than a
+bespoke import path.
+
+**e2e fixture.** `tests/e2e/fixtures/sample.pdf` is a 3-page, ~1.4KB PDF generated with `pdf-lib`
+directly (solid-colored pages with a page-number label) — no external tool needed, unlike the video
+fixture's `ffmpeg` dependency.
+
 ---
 
 *(Later milestones append below this line.)*

@@ -39,6 +39,7 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
+      pageCount: null,
     };
   }
 
@@ -59,12 +60,22 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
+      pageCount: null,
     };
   }
 
   const dominantColor = item.palette?.[0]?.hex ? hexToInt(item.palette[0].hex) : FALLBACK_COLOR;
   const ready = item.status === 'ok';
-  const unsupportedVideo = item.kind === 'video' && item.status === 'unsupported';
+  const unsupported = item.status === 'unsupported';
+  // Reuses the note/swatch label's Text-overlay machinery for a video whose codec/container
+  // `<video>` couldn't decode, or a PDF pdf.js couldn't parse (§2.4's fallback tile) rather than
+  // leaving it an indefinite placeholder that looks like it's still loading.
+  const fallbackText =
+    item.kind === 'video' && unsupported
+      ? en.video.unsupportedFallback
+      : item.kind === 'pdf' && unsupported
+        ? en.pdf.unsupportedFallback
+        : null;
   return {
     id: item.id,
     x: placement.x,
@@ -76,13 +87,11 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     dominantColor,
     thumbUrl128: ready ? platform.cache.url(`t128/${item.id}`) : null,
     thumbUrl512: ready ? platform.cache.url(`t512/${item.id}`) : null,
-    // Reuses the note/swatch label's Text-overlay machinery for a video whose codec/container
-    // `<video>` couldn't decode (§2.4's fallback tile) rather than leaving it an indefinite
-    // placeholder that looks like it's still loading.
-    noteText: unsupportedVideo ? en.video.unsupportedFallback : null,
+    noteText: fallbackText,
     frameId: placement.frameId,
     durationMs: item.kind === 'video' ? (item.durationMs ?? null) : null,
     videoUrl:
       item.kind === 'video' && item.filePath ? platform.media.originalUrl(item.filePath) : null,
+    pageCount: item.kind === 'pdf' ? (item.pageCount ?? null) : null,
   };
 }

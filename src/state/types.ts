@@ -51,6 +51,11 @@ export interface Item {
    * pre-M5 `Item`-literal reason `body`/`color` above are. */
   durationMs?: number | null;
   posterMs?: number | null;
+  /** §2.4/§5.2 PDF fields (M5). `pageCount` is the document's total page count; `coverPage` is the
+   * 1-based page rendered as the thumbnail — automatic (page 1) on import, changeable via "Set as
+   * cover". Optional for the same pre-M5 `Item`-literal reason as the video fields above. */
+  pageCount?: number | null;
+  coverPage?: number | null;
 }
 
 export interface Placement {

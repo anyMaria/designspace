@@ -20,6 +20,7 @@ import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDia
 const MEDIA_FILTERS: FileFilter[] = [
   { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg'] },
   { name: 'Videos', extensions: ['mp4', 'webm', 'm4v', 'mov'] },
+  { name: 'PDFs', extensions: ['pdf'] },
 ];
 
 export interface AddMenuProps {
@@ -218,7 +219,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
         ref={filesInputRef}
         type="file"
         multiple
-        accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v"
+        accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v,application/pdf"
         style={{ display: 'none' }}
         onChange={onFilesInputChange}
       />

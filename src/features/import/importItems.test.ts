@@ -8,11 +8,15 @@ import type { DbRow, DbStatement, Platform } from '@/platform/types';
 
 const enqueueImage = vi.fn();
 const enqueueVideo = vi.fn();
+const enqueuePdf = vi.fn();
 vi.mock('@/workers/ingestQueue', () => ({
   getIngestQueue: () => ({ enqueue: enqueueImage }),
 }));
 vi.mock('@/workers/videoIngestQueue', () => ({
   getVideoIngestQueue: () => ({ enqueue: enqueueVideo }),
+}));
+vi.mock('@/workers/pdfIngestQueue', () => ({
+  getPdfIngestQueue: () => ({ enqueue: enqueuePdf }),
 }));
 
 // Imported after the mocks above so `importItems.ts` picks up the mocked ingest queues.
@@ -69,6 +73,7 @@ beforeEach(() => {
   useHistoryStore.setState({ past: [], future: [] });
   enqueueImage.mockClear();
   enqueueVideo.mockClear();
+  enqueuePdf.mockClear();
 });
 
 describe('importFiles', () => {
@@ -173,6 +178,30 @@ describe('importFiles', () => {
       { itemId: items[0].id, relPath: 'media/2026/01/clip-a.mp4', mime: 'video/mp4' },
     ]);
     expect(enqueueImage).not.toHaveBeenCalled();
+  });
+
+  it('routes a PDF file to the pdf ingest queue, with kind set to pdf', async () => {
+    const platform = makePlatform({
+      media: {
+        ...makePlatform().media,
+        importFile: vi.fn().mockResolvedValue({
+          relPath: 'media/2026/01/doc-a.pdf',
+          hash: 'hash-doc',
+          size: 80,
+          mime: 'application/pdf',
+        }),
+      },
+    });
+    await importFiles(platform, [makeFile('doc.pdf', 'x', 'application/pdf')], { x: 0, y: 0 });
+
+    const items = [...useLibraryStore.getState().items.values()];
+    expect(items).toHaveLength(1);
+    expect(items[0].kind).toBe('pdf');
+    expect(enqueuePdf).toHaveBeenCalledWith([
+      { itemId: items[0].id, relPath: 'media/2026/01/doc-a.pdf' },
+    ]);
+    expect(enqueueImage).not.toHaveBeenCalled();
+    expect(enqueueVideo).not.toHaveBeenCalled();
   });
 
   it('also lands on the Library map when dropped while a board is open (§2.3)', async () => {

@@ -67,6 +67,8 @@ export function rowToItem(row: DbRow): Item {
     originBoardId: asNullableString(row.origin_board_id),
     durationMs: asNullableNumber(row.duration_ms),
     posterMs: asNullableNumber(row.poster_ms),
+    pageCount: asNullableNumber(row.page_count),
+    coverPage: asNullableNumber(row.cover_page),
   };
 }
 

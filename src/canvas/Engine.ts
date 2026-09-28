@@ -69,6 +69,8 @@ export interface ItemCard {
    * (unlike `thumbUrl128/512`, a cached derivative), since the preview plays the real video, not
    * a still. `null` for every non-video kind, or before the original is available. */
   videoUrl: string | null;
+  /** §2.4 PDF page-count badge — `null` until ingest reports it (or for every non-pdf kind). */
+  pageCount: number | null;
 }
 
 interface EngineEvents {
@@ -147,8 +149,8 @@ const CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE = 13;
 const NOTE_TEXT_PADDING_WORLD = 14;
 const NOTE_TEXT_FONT_SIZE_WORLD = 18;
 
-// §2.4 video duration badge — bottom-right corner, world units for the same reason as the note
-// snippet above.
+// §2.4 corner badge (video duration / PDF page count) — bottom-right corner, world units for the
+// same reason as the note snippet above.
 const VIDEO_BADGE_PADDING_WORLD = 10;
 // §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview" — the plan's own threshold.
 const VIDEO_HOVER_ZOOM_THRESHOLD = 0.6;
@@ -203,7 +205,8 @@ export class Engine {
   private cards = new Map<string, ItemCard>();
   private sprites = new Map<string, Sprite>();
   private noteLabels = new Map<string, Text>(); // §2.11 — a note card's plain-text snippet
-  private videoBadges = new Map<string, Text>(); // §2.4 — a video card's "▶ mm:ss" duration badge
+  // §2.4 — a video card's "▶ mm:ss" duration badge, or a PDF card's "PDF · N p" page-count badge.
+  private cornerBadges = new Map<string, Text>();
 
   // §2.11 frames.
   private frames = new Map<string, Frame>();
@@ -427,10 +430,10 @@ export class Engine {
           label.destroy();
           this.noteLabels.delete(id);
         }
-        const badge = this.videoBadges.get(id);
+        const badge = this.cornerBadges.get(id);
         if (badge) {
           badge.destroy();
-          this.videoBadges.delete(id);
+          this.cornerBadges.delete(id);
         }
       }
     }
@@ -469,18 +472,20 @@ export class Engine {
     this.scheduleFrame();
   }
 
-  /** Creates/updates/removes a note or swatch card's plain-text snippet (§2.11), or a video's
-   * "can't play this" fallback message (§2.4, when `card.noteText` is set) — see the constants
-   * above for why it's a sibling `Text`, not a sprite child. A no-op for every other card, and
-   * removes a stale label once a card stops needing one (kind never actually changes
-   * post-creation, but a video's `noteText` does, the moment ingest finishes or fails). Text
+  /** Creates/updates/removes a note or swatch card's plain-text snippet (§2.11), or a video/PDF's
+   * "can't play/open this" fallback message (§2.4, when `card.noteText` is set) — see the
+   * constants above for why it's a sibling `Text`, not a sprite child. A no-op for every other
+   * card, and removes a stale label once a card stops needing one (kind never actually changes
+   * post-creation, but a video/PDF's `noteText` does, the moment ingest finishes or fails). Text
    * color is fixed dark for notes (their 5 colors are all light pastels, §2.11's palette), but
-   * computed everywhere else — an extracted/freely-set swatch color, or a video's placeholder
+   * computed everywhere else — an extracted/freely-set swatch color, or a video/PDF's placeholder
    * tint, can be anything, including near-black, where the fixed dark text would vanish. */
   private syncNoteLabel(card: ItemCard): void {
     if (!this.itemsLayer) return;
     const wantsLabel =
-      card.kind === 'note' || card.kind === 'swatch' || (card.kind === 'video' && !!card.noteText);
+      card.kind === 'note' ||
+      card.kind === 'swatch' ||
+      ((card.kind === 'video' || card.kind === 'pdf') && !!card.noteText);
     if (!wantsLabel) {
       const stale = this.noteLabels.get(card.id);
       if (stale) {
@@ -517,27 +522,32 @@ export class Engine {
       this.itemsLayer.addChild(label);
       this.noteLabels.set(card.id, label);
     }
-    this.syncVideoBadge(card);
+    this.syncCornerBadge(card);
   }
 
-  /** The "▶ mm:ss" duration badge (§2.4) at a video card's bottom-right corner. Called from
-   * `syncNoteLabel` (same "diff on every card sync" shape, just a second small `Text` sibling) —
-   * a video with an unsupported-codec fallback message never has a duration (ingest never
-   * finished), so the two labels never overlap. */
-  private syncVideoBadge(card: ItemCard): void {
+  /** The "▶ mm:ss" duration badge or "PDF · N p" page-count badge (§2.4) at a card's bottom-right
+   * corner. Called from `syncNoteLabel` (same "diff on every card sync" shape, just a second
+   * small `Text` sibling) — an unsupported video/PDF's fallback message never has a
+   * duration/page-count (ingest never finished), so the two labels never overlap. */
+  private syncCornerBadge(card: ItemCard): void {
     if (!this.itemsLayer) return;
-    if (card.kind !== 'video' || card.durationMs === null) {
-      const stale = this.videoBadges.get(card.id);
+    const text =
+      card.kind === 'video' && card.durationMs !== null
+        ? `▶ ${formatDuration(card.durationMs)}`
+        : card.kind === 'pdf' && card.pageCount !== null
+          ? `PDF · ${card.pageCount}p`
+          : null;
+    if (text === null) {
+      const stale = this.cornerBadges.get(card.id);
       if (stale) {
         stale.destroy();
-        this.videoBadges.delete(card.id);
+        this.cornerBadges.delete(card.id);
       }
       return;
     }
-    const text = `▶ ${formatDuration(card.durationMs)}`;
     const x = card.x + card.w - VIDEO_BADGE_PADDING_WORLD;
     const y = card.y + card.h - VIDEO_BADGE_PADDING_WORLD;
-    const existing = this.videoBadges.get(card.id);
+    const existing = this.cornerBadges.get(card.id);
     if (existing) {
       existing.text = text;
       existing.position.set(x, y);
@@ -552,7 +562,7 @@ export class Engine {
       badge.zIndex = card.z + 0.5;
       badge.eventMode = 'none';
       this.itemsLayer.addChild(badge);
-      this.videoBadges.set(card.id, badge);
+      this.cornerBadges.set(card.id, badge);
     }
   }
 
@@ -983,8 +993,8 @@ export class Engine {
     this.sprites.clear();
     for (const label of this.noteLabels.values()) label.destroy();
     this.noteLabels.clear();
-    for (const badge of this.videoBadges.values()) badge.destroy();
-    this.videoBadges.clear();
+    for (const badge of this.cornerBadges.values()) badge.destroy();
+    this.cornerBadges.clear();
     this.cards.clear();
     this.itemIndex.clear();
     this.itemVisible.clear();
@@ -1959,7 +1969,7 @@ export class Engine {
         }
         const label = this.noteLabels.get(id);
         if (label) label.visible = false;
-        const badge = this.videoBadges.get(id);
+        const badge = this.cornerBadges.get(id);
         if (badge) badge.visible = false;
       }
     }
@@ -1974,7 +1984,7 @@ export class Engine {
       sprite.renderable = !hidden;
       const label = this.noteLabels.get(id);
       if (label) label.visible = !hidden;
-      const badge = this.videoBadges.get(id);
+      const badge = this.cornerBadges.get(id);
       if (badge) badge.visible = !hidden;
       if (!hidden && !this.itemVisible.has(id)) this.requestLod(card, sprite);
     }
@@ -2059,7 +2069,7 @@ export class Engine {
       }
       const label = this.noteLabels.get(id);
       if (label) label.visible = true;
-      const badge = this.videoBadges.get(id);
+      const badge = this.cornerBadges.get(id);
       if (badge) badge.visible = true;
     }
   }

@@ -8,6 +8,7 @@ import { useHistoryStore } from '@/commands/history';
 import { createAddItemsCommand, createRestoreItemCommand } from '@/commands/itemCommands';
 import { getIngestQueue } from '@/workers/ingestQueue';
 import { getVideoIngestQueue } from '@/workers/videoIngestQueue';
+import { getPdfIngestQueue } from '@/workers/pdfIngestQueue';
 import { findFreeSpot, justifiedRows } from '@/lib/packing';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { extensionOf, detectMediaKind } from '@/lib/fileKinds';
@@ -201,7 +202,7 @@ async function findLibraryBoardId(platform: Platform): Promise<string> {
 }
 
 interface NewRow {
-  kind: 'image' | 'video';
+  kind: 'image' | 'video' | 'pdf';
   relPath: string;
   fileName: string;
   hash: string;
@@ -320,6 +321,8 @@ async function createRow(
   useLibraryStore.getState().upsertPlacement(placement);
   if (row.kind === 'video') {
     getVideoIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath, mime: row.mime }]);
+  } else if (row.kind === 'pdf') {
+    getPdfIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath }]);
   } else {
     getIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath, mime: row.mime }]);
   }
@@ -383,7 +386,7 @@ export async function importFiles(
           platform,
           { boardId: plan.primaryBoardId, rect: plan.primaryRects[i], z: z++ },
           {
-            kind: detectMediaKind(file.name) === 'video' ? 'video' : 'image',
+            kind: detectMediaKind(file.name) ?? 'image',
             relPath: result.relPath,
             fileName: file.name,
             hash: result.hash,
@@ -436,7 +439,7 @@ export async function importPaths(
           platform,
           { boardId: plan.primaryBoardId, rect: plan.primaryRects[i], z: z++ },
           {
-            kind: detectMediaKind(fileName) === 'video' ? 'video' : 'image',
+            kind: detectMediaKind(fileName) ?? 'image',
             relPath: result.relPath,
             fileName,
             hash: result.hash,

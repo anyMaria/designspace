@@ -40,6 +40,8 @@ describe('rowToItem', () => {
       origin_board_id: null,
       duration_ms: null,
       poster_ms: null,
+      page_count: null,
+      cover_page: null,
     });
 
     expect(item).toEqual({
@@ -73,6 +75,8 @@ describe('rowToItem', () => {
       originBoardId: null,
       durationMs: null,
       posterMs: null,
+      pageCount: null,
+      coverPage: null,
     });
   });
 
