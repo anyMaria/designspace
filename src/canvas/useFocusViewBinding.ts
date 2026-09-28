@@ -3,10 +3,9 @@ import type { Engine } from './Engine';
 import { useFocusStore } from '@/state/focusStore';
 import { useLibraryStore } from '@/state/libraryStore';
 
-/** Double-click on an image, video, PDF or font opens Focus view (§2.2, §2.12); double-click on
- * empty canvas creates a note (`useNoteCanvasBinding`, M4), and double-click on a note opens its
- * own in-place editor (also `useNoteCanvasBinding`) rather than Focus view. Links get their own
- * Focus view with the milestone that adds them. */
+/** Double-click on an image, video, PDF, font or link opens Focus view (§2.2, §2.12); double-click
+ * on empty canvas creates a note (`useNoteCanvasBinding`, M4), and double-click on a note opens
+ * its own in-place editor (also `useNoteCanvasBinding`) rather than Focus view. */
 export function useFocusViewBinding(engine: Engine | null): void {
   useEffect(() => {
     if (!engine) return;
@@ -17,7 +16,8 @@ export function useFocusViewBinding(engine: Engine | null): void {
         item?.kind === 'image' ||
         item?.kind === 'video' ||
         item?.kind === 'pdf' ||
-        item?.kind === 'font'
+        item?.kind === 'font' ||
+        item?.kind === 'link'
       )
         useFocusStore.getState().open(id);
     });

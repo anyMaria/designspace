@@ -6,6 +6,7 @@ mod error;
 mod library;
 mod media;
 mod media_protocol;
+mod net;
 mod state;
 
 use state::AppState;
@@ -46,6 +47,8 @@ pub fn run() {
             app_info::app_paths,
             app_info::open_logs,
             dialogs::dialog_save_file,
+            net::net_link_meta,
+            net::net_download_image,
         ]);
 
     let builder = media_protocol::register(builder);

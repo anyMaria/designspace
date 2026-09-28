@@ -3,6 +3,7 @@
  * milestones that add them (videos/PDFs/fonts in M5, links in M5, notes/swatches in M4). */
 
 import type { FontMeta } from '@/lib/fontRender';
+import type { LinkMeta } from '@/platform/types';
 
 export type ItemKind = 'image' | 'video' | 'pdf' | 'font' | 'link' | 'note' | 'swatch';
 export type ItemStatus = 'pending' | 'ok' | 'unsupported' | 'error';
@@ -62,6 +63,17 @@ export interface Item {
    * recomputed, unlike video/PDF's re-derivable cover frame/page. Optional for the same pre-M5
    * `Item`-literal reason as the video/PDF fields above. */
   fontMeta?: FontMeta | null;
+  /** §2.4/§5.2 link fields (M5). `url` is the link's target (redirect-resolved, once metadata
+   * fetch finishes); `coverPath` is the downloaded `og:image`, relative to the library root, like
+   * `filePath` for every other kind but kept as its own column since a link's "original" is the
+   * webpage, not a local file — `filePath` stays null for links (nothing to reveal in Explorer or
+   * send to the Recycle Bin). `linkMeta` is the raw fetched metadata (title/description/siteName/
+   * faviconUrl), kept even after `title` is copied onto the item's own field so the Focus view can
+   * show description/site name too. Optional for the same pre-M5 `Item`-literal reason as the
+   * other M5 kind-specific fields above. */
+  url?: string | null;
+  coverPath?: string | null;
+  linkMeta?: LinkMeta | null;
 }
 
 export interface Placement {

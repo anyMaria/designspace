@@ -43,6 +43,9 @@ describe('rowToItem', () => {
       page_count: null,
       cover_page: null,
       font_meta: null,
+      url: null,
+      cover_path: null,
+      link_meta: null,
     });
 
     expect(item).toEqual({
@@ -79,6 +82,9 @@ describe('rowToItem', () => {
       pageCount: null,
       coverPage: null,
       fontMeta: null,
+      url: null,
+      coverPath: null,
+      linkMeta: null,
     });
   });
 

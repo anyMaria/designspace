@@ -28,6 +28,8 @@ const APP_COMMANDS: &[&str] = &[
     "app_paths",
     "open_logs",
     "dialog_save_file",
+    "net_link_meta",
+    "net_download_image",
 ];
 
 fn main() {

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-net-link-meta"
+description = "Enables the net_link_meta command without any pre-configured scope."
+commands.allow = ["net_link_meta"]
+
+[[permission]]
+identifier = "deny-net-link-meta"
+description = "Denies the net_link_meta command without any pre-configured scope."
+commands.deny = ["net_link_meta"]

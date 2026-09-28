@@ -84,7 +84,7 @@ async function fetchPlacementSnapshot(
   }));
 }
 
-interface BatchPlacementPlan {
+export interface BatchPlacementPlan {
   primaryBoardId: string;
   primaryRects: Rect[];
   primaryZStart: number;
@@ -98,7 +98,7 @@ interface BatchPlacementPlan {
 /** Resolves where a batch of `count` new items lands: always on whichever space is currently
  * open (`primary*`), and, only when that's an actual board rather than the Library map, also on
  * the Library map itself (`extra*`) — see the module doc comment above. */
-async function planBatchPlacements(
+export async function planBatchPlacements(
   platform: Platform,
   dropPoint: DropPoint,
   count: number,
@@ -202,7 +202,7 @@ async function findLibraryBoardId(platform: Platform): Promise<string> {
   return row.id as string;
 }
 
-interface NewRow {
+export interface NewRow {
   kind: 'image' | 'video' | 'pdf' | 'font';
   relPath: string;
   fileName: string;
@@ -211,13 +211,13 @@ interface NewRow {
   mime: string;
 }
 
-interface PlacementTarget {
+export interface PlacementTarget {
   boardId: string;
   rect: Rect;
   z: number;
 }
 
-async function createRow(
+export async function createRow(
   platform: Platform,
   primary: PlacementTarget,
   row: NewRow,
@@ -332,7 +332,7 @@ async function createRow(
   return id;
 }
 
-async function finishBatch(platform: Platform, addedIds: string[]): Promise<void> {
+export async function finishBatch(platform: Platform, addedIds: string[]): Promise<void> {
   useImportStore.getState().finish();
   if (addedIds.length === 0) return;
   useLibraryStore.getState().setSelection(addedIds);

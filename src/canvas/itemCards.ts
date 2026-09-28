@@ -13,6 +13,15 @@ function hexToInt(hex: string): number {
   return Number.isNaN(parsed) ? FALLBACK_COLOR : parsed;
 }
 
+function safeDomain(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
 /** Maps a library Item + its Placement to the canvas engine's `ItemCard` — §4.6. Thumbnails
  * are only requested once ingest has produced them (`status === 'ok'`); before that the card
  * shows as a flat tinted placeholder (§2.3 "Items appear at once as placeholders tinted with
@@ -57,6 +66,35 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       thumbUrl512: null,
       // "Color block with its HEX and an optional name" (§2.11's spec table).
       noteText: [item.title || null, item.color?.toUpperCase() ?? null].filter(Boolean).join('\n'),
+      frameId: placement.frameId,
+      durationMs: null,
+      videoUrl: null,
+      pageCount: null,
+    };
+  }
+
+  if (item.kind === 'link') {
+    const hasCover = !!item.coverPath;
+    const dominantColor = item.palette?.[0]?.hex ? hexToInt(item.palette[0].hex) : FALLBACK_COLOR;
+    const thumbReady = item.status === 'ok' && hasCover;
+    return {
+      id: item.id,
+      x: placement.x,
+      y: placement.y,
+      w: placement.w,
+      h: placement.h,
+      z: placement.z,
+      kind: 'link',
+      dominantColor,
+      thumbUrl128: thumbReady ? platform.cache.url(`t128/${item.id}`) : null,
+      thumbUrl512: thumbReady ? platform.cache.url(`t512/${item.id}`) : null,
+      // "Preview image (or custom cover) + footer: favicon · domain · 2-line title" (§2.4's spec
+      // table) — a plain-text approximation (domain + title, no favicon glyph) reusing the same
+      // Text-overlay machinery as the note/swatch/unsupported-fallback labels, shown whenever
+      // there's no cover image to fill the card (the "clean domain card" case, §2.3).
+      noteText: hasCover
+        ? null
+        : [safeDomain(item.url), item.title || null].filter(Boolean).join('\n'),
       frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,

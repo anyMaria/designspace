@@ -1759,6 +1759,86 @@ with fontkit) copied in directly — no synthetic font generation needed, and it
 WOFF2 decompression path end-to-end (import → specimen thumbnail → Focus type tester showing the
 font's actual name-table family, "Unbounded").
 
+### M5-5: Links
+Paste or drop a URL (also the Add menu's "Link…", Ctrl+L), metadata + cover fetch through new Rust
+commands, image-URL detection (a pasted/dropped URL that itself answers with an image becomes an
+Image item, not a Link), "Open in browser", and Offline mode all shipped.
+
+**New Rust surface: `net_link_meta`/`net_download_image` (`src-tauri/src/net.rs`).** The webview
+never reaches the internet (strict CSP); these are the only two places this app's Rust process
+does, gated by an explicit owner action (adding a link) and Offline mode (checked in TS before
+ever invoking either command — `useSettingsStore`, backed by `meta.settings` JSON, the same key
+the plan's §7 names for "vocabulary order, default criteria, Offline mode" — only `offlineMode` is
+wired up so far). Added `reqwest` (rustls, not native-tls/OpenSSL — one less system dependency for
+the Windows installer), `scraper` (a real HTML parser for `og:*`/`<title>`/`<link rel="icon">`
+tags — far more robust than regexing meta tags by hand against real-world malformed HTML) and
+`url` (relative→absolute resolution for `og:image`/favicon URLs against the final, redirect-
+resolved page URL). Limits match the plan's §4.4 table exactly: http(s) only, ≤5 redirects, 20s
+timeout, HTML capped at 5MB, images at 50MB — enforced by streaming the response body and erroring
+(not silently truncating) once the cap is crossed, checking `Content-Length` first as a fast path.
+
+**A real bug found via testing, not just written to spec:** the naive "take the last path segment
+after the last dot" extension guesser initially returned `"cover"` (the whole filename) for a URL
+with no extension at all, because `str::rsplit('.').next()` returns the *whole string* when there's
+no `.` to split on — Rust's `rsplit` doesn't signal "not found" the way a language with an
+`indexOf`-based approach might suggest. Caught by a unit test that intentionally covered the
+no-extension case, not by manual reasoning about the code; fixed with `rsplit_once('.')`, which
+returns `None` cleanly instead.
+
+**Real network I/O tested against a local loopback server, not just pure-function unit tests.**
+`net.rs`'s HTML-parsing helpers (`parse_link_meta`, `guess_image_extension`) are tested as pure
+functions, but the actual `reqwest` fetch/redirect/byte-cap machinery needed a real HTTP round
+trip to mean anything — added `httpmock` (dev-dependency only) to spin up a real local server per
+test (`127.0.0.1`, not proxied — this sandbox's `NO_PROXY` already exempts loopback, matching how
+a real installed app has no such proxy at all) and verified redirects, content-type rejection, and
+a real fetch end-to-end, not just mocked at the function-call boundary. This sandbox has no route
+to the public internet (verified: only npm/crates.io/a short allowlist are reachable), so this was
+the only way to exercise the real fetch path at all — a pure-mock test would have missed the
+`rsplit`/`rsplit_once` bug above, since a mocked `reqwest::Response` was never actually involved.
+
+**A pre-existing bug fixed in passing:** `media.rs`'s `SUPPORTED_EXTENSIONS` (Folder import's own
+Rust-side allowlist, separate from `lib/fileKinds.ts`'s) still only listed image extensions, with
+a doc comment claiming "no ingest worker exists for video/PDF/font yet" — stale since M5-2/M5-3/
+M5-4 landed those ingest queues. Folder-importing a directory containing a video/PDF/font file on
+the actual Tauri build would have silently skipped it as "unsupported" despite Designspace being
+able to ingest it via drag-and-drop or Files…. Fixed by widening the list to match; caught while
+touching this file to expose `import_bytes`/`with_library` to the new `net` module, not something
+this sub-task set out to look for.
+
+**Cover-image ingest reuses the existing image Worker pool rather than a new "LinkIngestQueue."**
+Once `net_download_image` returns a downloaded cover, it's just an image at that point — handing
+its `{itemId, relPath, mime}` straight to `getIngestQueue` (the same pool image imports use)
+derives thumbnails/palette and flips `status` to `'ok'` for free, with zero new ingest-pipeline
+code. `cover_path` (not `file_path`) holds that relative path — a link's "original" is the
+webpage, not a local file, so `file_path` stays null for links (nothing to reveal in Explorer or
+send to the Recycle Bin, matching every other kind's convention that `file_path` is the sacred,
+purge-able original).
+
+**A failed fetch is `status: 'ok'` with a domain-only card, never `'unsupported'`/`'error'`** —
+per §2.3's own wording ("If it fails (offline, blocked site), the card stays a clean domain
+card"). Nothing about the *link itself* is broken when `net_link_meta` fails; unlike an
+unparseable video/PDF/font file, there's no reasonable "fallback tile" state other than exactly
+what the card already looks like before metadata arrives. `enrichLink` is idempotent (a retry just
+overwrites the same fields), so `resumePendingLinkIngest` doesn't need to distinguish "metadata
+never fetched" from "metadata fetched, cover ingest interrupted" — it just re-runs the whole thing
+for anything still `pending` after a crash/force-quit.
+
+**Placement size: the same 320×320 square every other kind uses, not §2.4's literal 320×240** —
+the identical, already-logged (M5-4) deviation: no imported kind's placement rect is ever resized
+after the real aspect ratio is known, so a link-specific size would need threading a per-kind size
+through the shared batch-placement math for no real benefit.
+
+**Scope trim, logged rather than silently dropped — and why the plan's checkbox for this row
+stays unticked:** no favicon glyph in the canvas card (§2.4's "footer: favicon · domain · 2-line
+title") — the domain-only fallback card reuses the existing plain-text Text-overlay machinery
+(domain + title, two lines) rather than adding icon-rendering to the canvas engine for one small
+glyph; the favicon URL is still fetched and stored in `link_meta` for a future Focus-view/List
+use. More significantly: **"custom cover" (§2.4's Link Extras column — replacing a link's cover by
+pasting/dropping an image onto its existing card) was not built.** Following the same rule M5-2's
+"chosen cover frame" checkbox followed (a named deliverable that's genuinely missing keeps the
+whole line unchecked rather than being counted as done), the plan's Links checklist line stays
+`[ ]` even though everything else it names shipped — a clearly scoped follow-up, not a silent gap.
+
 ---
 
 *(Later milestones append below this line.)*

@@ -16,6 +16,9 @@ import { createCreateSwatchCommand } from '@/commands/swatchCommands';
 import { createCreateFrameCommand } from '@/commands/frameCommands';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
+import { LinkDialog } from './LinkDialog';
+import { importLink } from './importLink';
+import { useSettingsStore } from '@/state/settingsStore';
 
 const MEDIA_FILTERS: FileFilter[] = [
   { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg'] },
@@ -34,6 +37,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
   const open = useAddMenuStore((s) => s.open);
   const setOpen = useAddMenuStore((s) => s.setOpen);
   const [folderConfirm, setFolderConfirm] = useState<FolderConfirmState | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -124,6 +128,11 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     void useHistoryStore.getState().execute(command);
   }
 
+  function handleAddLink(): void {
+    setOpen(false);
+    setLinkDialogOpen(true);
+  }
+
   function handleAddFrame(): void {
     setOpen(false);
     const space = currentSpace();
@@ -167,6 +176,11 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
         void handleFiles();
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l' && !isTypingTarget(e.target)) {
+        e.preventDefault();
+        handleAddLink();
+        return;
+      }
       // "Note (N)" (§2.3) — only outside any text-entry surface, so typing the letter "n" in the
       // note editor itself (or any other field) doesn't spawn a second note.
       if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'n' && !isTypingTarget(e.target)) {
@@ -206,6 +220,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
                   { id: 'files', label: en.addMenu.files, onSelect: () => void handleFiles() },
                   { id: 'folder', label: en.addMenu.folder, onSelect: () => void handleFolder() },
                   { id: 'paste', label: en.addMenu.paste, onSelect: () => void handlePaste() },
+                  { id: 'link', label: en.addMenu.link, onSelect: handleAddLink },
                   { id: 'note', label: en.addMenu.note, onSelect: handleAddNote },
                   { id: 'swatch', label: en.addMenu.swatch, onSelect: handleAddSwatch },
                   { id: 'frame', label: en.addMenu.frame, onSelect: handleAddFrame },
@@ -243,6 +258,15 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
             folderConfirm.onConfirm();
             setFolderConfirm(null);
           }}
+        />
+      )}
+
+      {linkDialogOpen && (
+        <LinkDialog
+          onClose={() => setLinkDialogOpen(false)}
+          onSubmit={(url) =>
+            void importLink(platform, url, dropPoint(), useSettingsStore.getState().offlineMode)
+          }
         />
       )}
     </div>

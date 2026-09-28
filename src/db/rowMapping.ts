@@ -1,4 +1,4 @@
-import type { DbRow } from '@/platform/types';
+import type { DbRow, LinkMeta } from '@/platform/types';
 import type { FontMeta } from '@/lib/fontRender';
 import type {
   Board,
@@ -71,6 +71,9 @@ export function rowToItem(row: DbRow): Item {
     pageCount: asNullableNumber(row.page_count),
     coverPage: asNullableNumber(row.cover_page),
     fontMeta: asJson<FontMeta>(row.font_meta),
+    url: asNullableString(row.url),
+    coverPath: asNullableString(row.cover_path),
+    linkMeta: asJson<LinkMeta>(row.link_meta),
   };
 }
 

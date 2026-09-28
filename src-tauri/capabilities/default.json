@@ -33,6 +33,8 @@
     "allow-backup-restore",
     "allow-app-paths",
     "allow-open-logs",
-    "allow-dialog-save-file"
+    "allow-dialog-save-file",
+    "allow-net-link-meta",
+    "allow-net-download-image"
   ]
 }

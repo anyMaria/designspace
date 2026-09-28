@@ -74,6 +74,14 @@ export const en = {
     glyphCount: (count: number) => `${count} glyphs`,
     unknown: 'Unknown',
   },
+  link: {
+    dialogTitle: 'Add a link',
+    urlPlaceholder: 'https://example.com',
+    add: 'Add',
+    cancel: 'Cancel',
+    invalidUrl: "That doesn't look like a valid URL.",
+    openInBrowser: 'Open in browser',
+  },
   frames: {
     add: 'Frame',
     untitled: 'Untitled frame',
@@ -176,6 +184,12 @@ export const en = {
       motionOn: 'On',
       motionOff: 'Off',
     },
+    contentNetwork: {
+      offlineMode: 'Offline mode',
+      offlineModeDescription:
+        'Turns off link previews and image downloads. Designspace never reaches the internet ' +
+        'on its own otherwise — only when you add a link or an image URL.',
+    },
   },
   onboarding: {
     welcomeTitle: 'Designspace, your private inspiration space.',
@@ -215,6 +229,7 @@ export const en = {
     files: 'Files…',
     folder: 'Folder…',
     paste: 'Paste',
+    link: 'Link…',
     note: 'Note',
     swatch: 'Swatch',
     frame: 'Frame',

@@ -63,7 +63,9 @@ fn short_suffix() -> String {
     ulid[ulid.len() - 6..].to_ascii_lowercase()
 }
 
-fn import_bytes(
+/// `pub(crate)` — reused by `net::net_download_image` (a link's cover image goes through the same
+/// hash/dedupe/copy path as any other imported file, §4.4/§4.9).
+pub(crate) fn import_bytes(
     conn: &Connection,
     library_root: &Path,
     name: &str,
@@ -99,10 +101,13 @@ fn import_bytes(
     })
 }
 
-/// v1 supported extensions (§2.3). Folder import only offers what M1 can actually ingest
-/// (images) — deviation logged in docs/DECISIONS.md: the plan's "Supported files" table also
-/// lists video/PDF/font, but no ingest worker or card exists for those kinds yet.
-const SUPPORTED_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif", "avif", "bmp", "svg"];
+/// v1 supported extensions (§2.3's "Supported files" table) — kept in sync with
+/// `lib/fileKinds.ts`'s `detectMediaKind` on the TS side, since Folder import (Tauri-only) needs
+/// its own Rust-side check before ever reading a file.
+const SUPPORTED_EXTENSIONS: &[&str] = &[
+    "jpg", "jpeg", "png", "webp", "gif", "avif", "bmp", "svg", "mp4", "webm", "m4v", "mov", "pdf",
+    "ttf", "otf", "woff", "woff2",
+];
 
 fn is_supported(path: &Path) -> bool {
     path.extension()
@@ -148,7 +153,7 @@ pub fn media_list_folder(path: String) -> AppResult<FolderListing> {
     list_folder(Path::new(&path))
 }
 
-fn with_library<T>(
+pub(crate) fn with_library<T>(
     state: &State<'_, AppState>,
     f: impl FnOnce(&Connection, &Path) -> AppResult<T>,
 ) -> AppResult<T> {
@@ -404,12 +409,14 @@ mod tests {
         fs::create_dir(&sub).unwrap();
         fs::write(sub.join("b.PNG"), b"x").unwrap();
         fs::write(sub.join("clip.mp4"), b"x").unwrap();
+        fs::write(sub.join("song.mp3"), b"x").unwrap();
 
         let listing = list_folder(dir.path()).unwrap();
-        assert_eq!(listing.paths.len(), 2);
+        assert_eq!(listing.paths.len(), 3);
         assert_eq!(listing.skipped, 2);
         assert!(listing.paths.iter().any(|p| p.ends_with("a.jpg")));
         assert!(listing.paths.iter().any(|p| p.ends_with("b.PNG")));
+        assert!(listing.paths.iter().any(|p| p.ends_with("clip.mp4")));
     }
 
     #[test]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-net-download-image"
+description = "Enables the net_download_image command without any pre-configured scope."
+commands.allow = ["net_download_image"]
+
+[[permission]]
+identifier = "deny-net-download-image"
+description = "Denies the net_download_image command without any pre-configured scope."
+commands.deny = ["net_download_image"]

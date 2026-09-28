@@ -48,4 +48,10 @@ impl From<tauri::Error> for AppError {
     }
 }
 
+impl From<reqwest::Error> for AppError {
+    fn from(err: reqwest::Error) -> Self {
+        AppError::new("network_error", err.to_string())
+    }
+}
+
 pub type AppResult<T> = Result<T, AppError>;

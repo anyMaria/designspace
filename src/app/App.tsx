@@ -13,6 +13,8 @@ import { resumePendingIngest } from '@/workers/ingestQueue';
 import { resumePendingVideoIngest } from '@/workers/videoIngestQueue';
 import { resumePendingPdfIngest } from '@/workers/pdfIngestQueue';
 import { resumePendingFontIngest } from '@/workers/fontIngestQueue';
+import { resumePendingLinkIngest } from '@/features/import/importLink';
+import { loadSettings } from '@/state/loadSettings';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
 import { logger } from '@/lib/logger';
@@ -55,12 +57,14 @@ export function App() {
             loadManualConnections(platform),
             loadBoards(platform),
             loadFramesForBoard(platform, libraryBoardId),
+            loadSettings(platform),
           ]);
           useBoardStore.getState().setCurrentBoardId(libraryBoardId);
           void resumePendingIngest(platform);
           void resumePendingVideoIngest(platform);
           void resumePendingPdfIngest(platform);
           void resumePendingFontIngest(platform);
+          void resumePendingLinkIngest(platform);
           void purgeExpiredTrash(platform);
           if (!cancelled)
             setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: bench });
@@ -80,12 +84,14 @@ export function App() {
           loadManualConnections(platform),
           loadBoards(platform),
           loadFramesForBoard(platform, libraryBoardId),
+          loadSettings(platform),
         ]);
         useBoardStore.getState().setCurrentBoardId(libraryBoardId);
         void resumePendingIngest(platform);
         void resumePendingVideoIngest(platform);
         void resumePendingPdfIngest(platform);
         void resumePendingFontIngest(platform);
+        void resumePendingLinkIngest(platform);
         void purgeExpiredTrash(platform);
         void maybeBackupAtStartup(platform);
         if (!cancelled)

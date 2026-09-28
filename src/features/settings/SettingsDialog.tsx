@@ -6,6 +6,7 @@ import { DropInspector } from '@/features/diagnostics/DropInspector';
 import { LibrarySection } from './LibrarySection';
 import { CanvasSection } from './CanvasSection';
 import { VocabularySection } from './VocabularySection';
+import { ContentNetworkSection } from './ContentNetworkSection';
 
 type Section = 'library' | 'canvas' | 'contentNetwork' | 'vocabularies' | 'ai' | 'about';
 
@@ -17,8 +18,8 @@ export interface SettingsDialogProps {
   onClose: () => void;
 }
 
-/** Settings shell (§2.14). Library, Canvas and About are functional; Content & network,
- * Vocabularies and AI are placeholders naming the milestone that fills them in. */
+/** Settings shell (§2.14). Library, Canvas, Content & network, Vocabularies and About are
+ * functional; AI is a placeholder naming the milestone that fills it in. */
 export function SettingsDialog({ platform, library, onClose }: SettingsDialogProps) {
   const [section, setSection] = useState<Section>('about');
 
@@ -52,6 +53,8 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
             <CanvasSection />
           ) : section === 'vocabularies' ? (
             <VocabularySection platform={platform} />
+          ) : section === 'contentNetwork' ? (
+            <ContentNetworkSection platform={platform} />
           ) : (
             <p style={{ color: 'var(--text-2)' }}>{milestoneFor(section)}</p>
           )}
@@ -61,11 +64,8 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
   );
 }
 
-function milestoneFor(
-  section: Exclude<Section, 'about' | 'library' | 'canvas' | 'vocabularies'>,
-): string {
-  const table: Record<Exclude<Section, 'about' | 'library' | 'canvas' | 'vocabularies'>, string> = {
-    contentNetwork: 'Link previews, image downloads and Offline mode land in M5.',
+function milestoneFor(section: 'ai'): string {
+  const table: Record<'ai', string> = {
     ai: 'Offline AI settings land in M6.',
   };
   return table[section];

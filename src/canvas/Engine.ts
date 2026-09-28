@@ -486,7 +486,11 @@ export class Engine {
     const wantsLabel =
       card.kind === 'note' ||
       card.kind === 'swatch' ||
-      ((card.kind === 'video' || card.kind === 'pdf' || card.kind === 'font') && !!card.noteText);
+      ((card.kind === 'video' ||
+        card.kind === 'pdf' ||
+        card.kind === 'font' ||
+        card.kind === 'link') &&
+        !!card.noteText);
     if (!wantsLabel) {
       const stale = this.noteLabels.get(card.id);
       if (stale) {
