@@ -4,6 +4,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { readImage, readText, writeImage, writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { Image } from '@tauri-apps/api/image';
 import type {
+  AppPaths,
   BackupInfo,
   DbRow,
   DbStatement,
@@ -149,6 +150,11 @@ export class TauriPlatform implements Platform {
 
   shell = {
     openExternal: (url: string): Promise<void> => openUrl(url),
+  };
+
+  app = {
+    paths: (): Promise<AppPaths> => invoke<AppPaths>('app_paths'),
+    openLogs: (): Promise<void> => invoke<void>('open_logs'),
   };
 
   clipboard = {

@@ -169,6 +169,11 @@ export const en = {
     about: {
       version: 'Version',
       itemCounts: 'Items',
+      /** `breakdown` is a pre-joined "3 images, 1 video" string built by the caller (which has
+       * `en.kind`'s per-kind labels in scope) — kept as plain composition here to avoid this
+       * object referencing itself while it's still being defined. */
+      itemCountsSummary: (total: number, breakdown: string) =>
+        breakdown ? `${total} (${breakdown})` : `${total}`,
       diskUsage: 'Disk usage',
       openLogs: 'Open logs folder',
       diagnostics: 'Diagnostics',
@@ -251,6 +256,8 @@ export const en = {
       'Cloud-synced folders can damage the library database. Keep the library on this computer; ' +
       'you can send backups to the cloud instead (Settings → Library).',
     bringInTitle: 'Bring in existing inspiration?',
+    foldersPicked: (folders: number, items: number) =>
+      `${folders} folder${folders === 1 ? '' : 's'} selected — ${items} item${items === 1 ? '' : 's'} to import.`,
     skip: 'Skip',
     continue: 'Continue',
     createLibrary: 'Create library',
@@ -263,7 +270,6 @@ export const en = {
   panel: {
     list: 'List',
     details: 'Details',
-    listComingSoon: 'The List panel lands with search and classification in M2.',
   },
   toasts: {
     undo: 'Undo',

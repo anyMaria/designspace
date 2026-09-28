@@ -2386,6 +2386,71 @@ are all clean.
 - Trash a few items, confirm the "Purges in N days" line looks right, then restore one and delete
   another forever.
 
+## M7-2: Complete Settings, onboarding, empty states, wording pass
+
+Audited every Settings section, the onboarding flow and the four §2.14 empty states against the
+plan; several i18n strings already existed for pieces that were never actually wired up (a good
+sign they were planned, a bad sign they'd been missed) — this sub-task closes those gaps rather
+than writing new copy from scratch.
+
+**Settings → About.** Added item counts per kind and disk usage (`src/features/settings/
+libraryStats.ts`: one grouped `SELECT ... GROUP BY kind` over non-deleted items — disk usage is
+the sum of `file_size`, i.e. originals only, not thumbnails/cache/backups) and a working "Open
+logs folder" button. The Rust commands (`app_paths`, `open_logs`) and their ACL entries already
+existed from earlier milestones but had no `Platform.app` surface calling them — added one
+(`app.paths`/`app.openLogs`, Tauri-only, `notSupported` in the browser dev build).
+
+**Onboarding.** Step 3 ("Bring in existing inspiration? Pick folders, or Skip") and the
+cloud-sync warning were both scaffolded (the i18n strings existed) but never implemented — the
+flow went straight from library creation to `onReady`. Added a `bringIn` step after library
+creation (Tauri only — folder picking needs `dialogs.openFolder`/`media.listFolder`, neither
+available in the browser dev build) that lets the owner pick one or more folders, previews the
+combined item count, and imports everything via the same `importPaths` used by the Add menu's
+Folder… entry point before landing on the map; Skip goes straight there. The cloud-sync check
+(`src/features/onboarding/cloudSync.ts`) is a coarse substring match for "onedrive", "dropbox" and
+"google drive" in the chosen path — good enough for a warning, not a guarantee, and kept in its
+own module (not inline in the component) so it's unit-testable without React.
+
+**Empty states (§2.14).** Two of the four were dead code — defined in `en.ts`, never referenced:
+- `emptyStates.board` ("Pull inspiration in…"): the Library-map-empty overlay in `Shell.tsx` used
+  to key off `items.size` (library-wide, never changes on board switch), so it only ever fired for
+  a *totally* empty library and never distinguished "viewing an empty board while the library has
+  other items" — a real gap, since "+ New board" from the switcher can produce exactly that state.
+  Switched the trigger to `placements.size` (current space) and branch on the current board's
+  `kind` to show the right copy and action (the "+ Add" button only makes sense on the Library map).
+- `emptyStates.noResults` ("Nothing matches. Try fewer filters."): the List panel already showed
+  an empty message when filtered to zero results, but always the generic `list.empty` ("Nothing
+  here yet.") — never the filter-specific one. Fixed by checking whether `useSearchResults`'s
+  `matches` is non-null (an active filter) rather than just whether the list is empty.
+
+The other two were already correct: "Inbox zero ✦" (Triage, M2-5) fulfills the plan's "Inbox done"
+requirement under slightly different wording (not a gap — a legitimate copy choice, already
+shipped); the Library map's own empty state was already wired, just needed the `placements.size`
+fix above to also work correctly for boards.
+
+**Wording pass.** Removed `panel.listComingSoon` ("The List panel lands with search and
+classification in M2.") — a stale M0-era placeholder string, unreferenced anywhere, left over from
+before the List panel existed.
+
+**Known pre-existing issue, not from this sub-task:** `smoke-m4-suggestions-tray.spec.ts` fails
+consistently on this branch's base commit (confirmed via `git stash` + re-run before and after
+this sub-task's changes) — the suggestion count badge ("1") never appears after removing an item
+from a filtered board. Not touched by anything in M7-2; left for a future AI/suggestions pass to
+diagnose.
+
+Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (387/387, up from
+384), `vite build`, and the Playwright suite (39/40 passing — the one pre-existing failure above)
+are all clean.
+
+**Owner checks:**
+- Settings → About: confirm the item counts and disk usage look right, and "Open logs folder"
+  opens the real folder.
+- Run through onboarding with a fresh library: try a cloud-synced folder (OneDrive/Dropbox) and
+  confirm the warning shows; try "Bring in existing inspiration?" with a folder of images and
+  confirm they land on the map after Continue.
+- Create an empty board and confirm its empty-state text differs from the Library map's; type a
+  search that matches nothing and confirm the List panel says "Nothing matches."
+
 ---
 
 *(Later milestones append below this line.)*

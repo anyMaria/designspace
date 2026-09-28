@@ -1,4 +1,5 @@
 import type {
+  AppPaths,
   BackupInfo,
   FileFilter,
   FolderListing,
@@ -196,6 +197,11 @@ export class BrowserPlatform implements Platform {
 
   libraryExport = {
     zip: (): Promise<boolean> => notSupported('libraryExport.zip'),
+  };
+
+  app = {
+    paths: (): Promise<AppPaths> => notSupported('app.paths'),
+    openLogs: (): Promise<void> => notSupported('app.openLogs'),
   };
 
   shell = {

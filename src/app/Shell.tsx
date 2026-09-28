@@ -50,6 +50,7 @@ import { ListPanel } from '@/features/list/ListPanel';
 import { useListStore } from '@/state/listStore';
 import { SpaceSwitcher } from '@/features/boards/SpaceSwitcher';
 import { BoardsGallery } from '@/features/boards/BoardsGallery';
+import { useBoardStore } from '@/state/boardStore';
 import { useBoardUiStore } from '@/state/boardUiStore';
 import { useNoteCanvasBinding } from '@/canvas/useNoteCanvasBinding';
 import { NoteEditor } from '@/features/notes/NoteEditor';
@@ -91,7 +92,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const settingsOpen = useUiStore((s) => s.settingsOpen);
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
   const [engine, setEngine] = useState<Engine | null>(null);
-  const itemCount = useLibraryStore((s) => s.items.size);
+  const placementCount = useLibraryStore((s) => s.placements.size);
+  const currentBoardId = useBoardStore((s) => s.currentBoardId);
+  const boards = useBoardStore((s) => s.boards);
+  const isLibraryBoard = boards.get(currentBoardId ?? '')?.kind !== 'board';
   const selection = useLibraryStore((s) => s.selection);
   const items = useLibraryStore((s) => s.items);
   const selectedItem = selection.size === 1 ? (items.get([...selection][0]) ?? null) : null;
@@ -141,8 +145,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         onEngineReady={setEngine}
       />
 
-      {/* Library map empty state — §2.14 */}
-      {itemCount === 0 && !benchCount && (
+      {/* Library map / Board empty state — §2.14 */}
+      {placementCount === 0 && !benchCount && (
         <div
           style={{
             position: 'absolute',
@@ -155,14 +159,21 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           }}
         >
           <div style={{ pointerEvents: 'auto' }}>
-            <EmptyState
-              title={en.emptyStates.libraryMap}
-              action={
-                <Button variant="primary" onClick={() => useAddMenuStore.getState().setOpen(true)}>
-                  + Add
-                </Button>
-              }
-            />
+            {isLibraryBoard ? (
+              <EmptyState
+                title={en.emptyStates.libraryMap}
+                action={
+                  <Button
+                    variant="primary"
+                    onClick={() => useAddMenuStore.getState().setOpen(true)}
+                  >
+                    + Add
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState title={en.emptyStates.board} />
+            )}
           </div>
         </div>
       )}

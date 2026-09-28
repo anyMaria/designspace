@@ -103,6 +103,9 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
       isBoard && listSource === 'space' ? all.filter((i) => placements.has(i.id)) : all;
     return matches ? scoped.filter((i) => matches.has(i.id)) : scoped;
   }, [items, matches, isBoard, listSource, placements]);
+  // §2.14: "Nothing matches. Try fewer filters." only while an active search filter zeroed the
+  // results — a plain empty board/library gets the generic "Nothing here yet." instead.
+  const emptyMessage = matches !== null ? en.emptyStates.noResults : en.list.empty;
 
   const groups = useMemo(
     () => groupItems(liveItems, groupBy, itemTerms, terms),
@@ -180,7 +183,7 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
   if (liveItems.length === 0 && !isBoard) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: 'var(--text-3)' }}>{en.list.empty}</p>
+        <p style={{ color: 'var(--text-3)' }}>{emptyMessage}</p>
       </div>
     );
   }
@@ -284,7 +287,7 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
 
       {liveItems.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p style={{ color: 'var(--text-3)' }}>{en.list.empty}</p>
+          <p style={{ color: 'var(--text-3)' }}>{emptyMessage}</p>
         </div>
       ) : (
         <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>

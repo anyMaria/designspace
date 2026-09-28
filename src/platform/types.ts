@@ -49,6 +49,11 @@ export interface FolderListing {
   skipped: number;
 }
 
+export interface AppPaths {
+  appLocalDataDir: string;
+  logsDir: string;
+}
+
 export interface FileFilter {
   name: string;
   extensions: string[];
@@ -125,6 +130,12 @@ export interface Platform {
 
   shell: {
     openExternal(url: string): Promise<void>;
+  };
+
+  /** §2.14's Settings → About: "Open logs folder." */
+  app: {
+    paths(): Promise<AppPaths>;
+    openLogs(): Promise<void>;
   };
 
   clipboard: {
