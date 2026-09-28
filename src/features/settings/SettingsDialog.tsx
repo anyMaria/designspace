@@ -7,6 +7,7 @@ import { LibrarySection } from './LibrarySection';
 import { CanvasSection } from './CanvasSection';
 import { VocabularySection } from './VocabularySection';
 import { ContentNetworkSection } from './ContentNetworkSection';
+import { AiSection } from './AiSection';
 
 type Section = 'library' | 'canvas' | 'contentNetwork' | 'vocabularies' | 'ai' | 'about';
 
@@ -18,8 +19,7 @@ export interface SettingsDialogProps {
   onClose: () => void;
 }
 
-/** Settings shell (§2.14). Library, Canvas, Content & network, Vocabularies and About are
- * functional; AI is a placeholder naming the milestone that fills it in. */
+/** Settings shell (§2.14): Library, Canvas, Content & network, Vocabularies, AI and About. */
 export function SettingsDialog({ platform, library, onClose }: SettingsDialogProps) {
   const [section, setSection] = useState<Section>('about');
 
@@ -56,19 +56,12 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
           ) : section === 'contentNetwork' ? (
             <ContentNetworkSection platform={platform} />
           ) : (
-            <p style={{ color: 'var(--text-2)' }}>{milestoneFor(section)}</p>
+            <AiSection platform={platform} />
           )}
         </div>
       </div>
     </Dialog>
   );
-}
-
-function milestoneFor(section: 'ai'): string {
-  const table: Record<'ai', string> = {
-    ai: 'Offline AI settings land in M6.',
-  };
-  return table[section];
 }
 
 function AboutSection({ platform, library }: { platform: Platform; library: LibraryInfo }) {

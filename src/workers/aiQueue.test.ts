@@ -115,17 +115,20 @@ describe('AiQueue', () => {
     expect(queue.failed).toBe(1);
   });
 
-  it('pause() stops dispatch, resume() picks back up', async () => {
+  it('pause() stops dispatch, resume() picks back up, and isPaused tracks it', async () => {
     let worker: FakeWorker | undefined;
     const platform = makePlatform();
     const queue = new AiQueue(platform, () => (worker = new FakeWorker()));
+    expect(queue.isPaused).toBe(false);
     queue.pause();
+    expect(queue.isPaused).toBe(true);
 
     queue.enqueue([{ itemId: 'a', cacheKey: 't512/a' }]);
     await flush();
     expect(worker?.posted).toHaveLength(1); // only 'configure' — dispatch was paused
 
     queue.resume();
+    expect(queue.isPaused).toBe(false);
     await flush();
     expect(worker?.posted).toHaveLength(2);
   });

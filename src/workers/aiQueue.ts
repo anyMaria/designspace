@@ -75,11 +75,17 @@ export class AiQueue {
 
   pause(): void {
     this.paused = true;
+    this.notify();
   }
 
   resume(): void {
     this.paused = false;
+    this.notify();
     this.pump();
+  }
+
+  get isPaused(): boolean {
+    return this.paused;
   }
 
   get pending(): number {

@@ -1271,7 +1271,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] The AI worker: image and text embeddings, background analysis (pause, resume, progress), and the fake provider for tests.
 - [x] Suggestions (zero-shot + personal blend) in Details and Triage: accept, dismiss, Accept all.
 - [x] Find similar, the Similar look criterion, search by meaning, and similarity in board suggestions.
-- [ ] Settings → AI.
+- [x] Settings → AI.
 - [ ] Check that there are zero network requests at runtime (DevTools network panel on Windows, with the CSP in place).
 
 **Acceptance:**

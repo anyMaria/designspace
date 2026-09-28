@@ -213,6 +213,23 @@ export const en = {
         'Turns off link previews and image downloads. Designspace never reaches the internet ' +
         'on its own otherwise — only when you add a link or an image URL.',
     },
+    ai: {
+      enable: 'AI',
+      enableDescription:
+        'Suggestions, Find similar, Similar look connections, and search by meaning — all from ' +
+        'a model that runs entirely on this computer. Turning it off stops background analysis ' +
+        'and hides every AI feature; it never deletes embeddings you already have.',
+      modelBundled: 'A local model is loaded.',
+      modelNotBundled:
+        'No local model is bundled in this build — AI features are inactive. ' +
+        '(This is expected in the browser dev build; the real model ships in the Windows installer.)',
+      analyzed: 'Analyzed',
+      remaining: 'Remaining',
+      failed: 'Failed',
+      pause: 'Pause analysis',
+      resume: 'Resume analysis',
+      paused: 'Paused',
+    },
   },
   onboarding: {
     welcomeTitle: 'Designspace, your private inspiration space.',

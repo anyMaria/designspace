@@ -2223,4 +2223,39 @@ source filter.
 
 ---
 
+## M6-5: Settings → AI
+
+Fills in the placeholder M4/M5 already left in `SettingsDialog.tsx` ("AI is a placeholder naming
+the milestone that fills it in"). Three pieces: the on/off switch (already existed as
+`settingsStore.aiEnabled` since M6-2 — this sub-task is the first thing that actually surfaces it
+in the UI), whether a real model is bundled in *this* build (`computeAiEnvConfig(platform.kind)
+.localModelPath !== null` — `null` in the browser dev build, where CLAUDE.md's "use the fake
+embedding provider" applies, so the page says so plainly rather than showing a progress bar that
+would never move), and live background-analysis progress (`AiQueue.onProgress`, the same
+subscription mechanism M6-2 built for exactly this) with pause/resume.
+
+`AiQueue` gained a public `isPaused` getter and `pause()`/`resume()` now call `notify()` — before
+this sub-task nothing outside `AiQueue` itself needed to know its paused state (the background
+queue simply stopped dispatching), but Settings → AI needs to render the Pause/Resume button's
+current label correctly without polling.
+
+Turning AI off doesn't touch existing `embeddings` rows or `ai_dismissed` entries — the plan's
+"never applied automatically" spirit for suggestions extends here too: it's a preference toggle,
+not a delete. Re-enabling picks up exactly where background analysis left off, via M6-2's existing
+`resumePendingAiAnalysis`.
+
+Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (378 tests across
+59 files — one new `AiQueue.isPaused` case, folded into the existing pause/resume test rather than
+a separate one), `vite build`, `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D
+warnings`, and `cargo test --workspace` are all clean.
+
+**Owner checks:** open Settings → AI. With AI on and a real model bundled, does it say so, and do
+the Analyzed/Remaining counts move as you import? Pause analysis mid-run, confirm the count stops
+moving and the button now says "Resume analysis," then resume and confirm it picks back up. Turn
+AI off, confirm every AI-surfacing feature (Details suggestions, Find similar, Similar look,
+Include visual matches) disappears or stops functioning, then turn it back on and confirm
+suggestions come back without re-analyzing from scratch.
+
+---
+
 *(Later milestones append below this line.)*
