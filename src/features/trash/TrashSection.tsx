@@ -4,8 +4,15 @@ import type { Item } from '@/state/types';
 import { Button } from '@/design/components';
 import { useHistoryStore } from '@/commands/history';
 import { createRestoreItemCommand } from '@/commands/itemCommands';
-import { listTrashedItems, deleteForever } from './trashActions';
+import { listTrashedItems, deleteForever, daysUntilPurge } from './trashActions';
 import { en } from '@/i18n/en';
+
+function purgeCountdown(deletedAt: string): string {
+  const days = daysUntilPurge(deletedAt);
+  if (days === 0) return en.trash.purgesToday;
+  if (days === 1) return en.trash.purgesTomorrow;
+  return en.trash.purgesInDays(days);
+}
 
 /** Settings → Library → Trash (§2.14, §5.4): restore, delete forever, empty now. Auto-purge after
  * 30 days runs at startup (App.tsx); this is the manual side of it. */
@@ -103,7 +110,7 @@ export function TrashSection({ platform }: { platform: Platform }) {
                 </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
                   {item.deletedAt
-                    ? en.trash.deletedOn(new Date(item.deletedAt).toLocaleDateString())
+                    ? `${en.trash.deletedOn(new Date(item.deletedAt).toLocaleDateString())} · ${purgeCountdown(item.deletedAt)}`
                     : ''}
                 </div>
               </div>

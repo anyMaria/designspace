@@ -1284,7 +1284,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - Try Find similar, and a search by description in English.
 
 ### M7: Safety & polish → v1.0.0
-- [ ] The backups UI (list, restore, extra destination), JSON/ZIP export, a more polished Trash.
+- [x] The backups UI (list, restore, extra destination), JSON/ZIP export, a more polished Trash.
 - [ ] Complete Settings, onboarding, every empty state, and a pass on the wording.
 - [ ] An accessibility pass (contrast audit, focus order, reduced motion).
 - [ ] A performance pass against §4.13 on the owner's PC.

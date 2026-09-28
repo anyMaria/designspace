@@ -354,6 +354,9 @@ export const en = {
     deleteForeverConfirm: "Permanently delete this item? This can't be undone.",
     restore: 'Restore',
     deletedOn: (date: string) => `Deleted ${date}`,
+    purgesToday: 'Purges today',
+    purgesTomorrow: 'Purges tomorrow',
+    purgesInDays: (days: number) => `Purges in ${days} days`,
     autoPurgeNote: 'Items are deleted forever automatically 30 days after being trashed.',
   },
   focusView: {

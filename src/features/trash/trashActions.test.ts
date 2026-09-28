@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { deleteForever, listTrashedItems, purgeExpiredTrash } from './trashActions';
+import { daysUntilPurge, deleteForever, listTrashedItems, purgeExpiredTrash } from './trashActions';
 import type { Platform } from '@/platform/types';
 
 function makePlatform(overrides: Partial<Platform> = {}): Platform {
@@ -99,5 +99,21 @@ describe('purgeExpiredTrash', () => {
     expect(sql).toContain('deleted_at < ?');
     expect(params).toHaveLength(1);
     expect(platform.db.batch).toHaveBeenCalled();
+  });
+});
+
+describe('daysUntilPurge', () => {
+  it('returns 30 for an item deleted just now', () => {
+    expect(daysUntilPurge(new Date().toISOString())).toBe(30);
+  });
+
+  it('returns 0 (never negative) for an item already past its purge date', () => {
+    const longAgo = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
+    expect(daysUntilPurge(longAgo)).toBe(0);
+  });
+
+  it('counts down as the deletion date recedes', () => {
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+    expect(daysUntilPurge(tenDaysAgo)).toBe(20);
   });
 });

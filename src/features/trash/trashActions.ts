@@ -3,7 +3,14 @@ import type { Item } from '@/state/types';
 import { rowToItem } from '@/db/rowMapping';
 import { logger } from '@/lib/logger';
 
-const AUTO_PURGE_DAYS = 30;
+export const AUTO_PURGE_DAYS = 30;
+
+/** Days left before auto-purge takes an item, for the Trash view's "Purges in N days" hint —
+ * mirrors `purgeExpiredTrash`'s own cutoff math below so the two never disagree. */
+export function daysUntilPurge(deletedAt: string): number {
+  const purgeAt = new Date(deletedAt).getTime() + AUTO_PURGE_DAYS * 24 * 60 * 60 * 1000;
+  return Math.max(0, Math.ceil((purgeAt - Date.now()) / (24 * 60 * 60 * 1000)));
+}
 
 export async function listTrashedItems(platform: Platform): Promise<Item[]> {
   const rows = await platform.db.select<DbRow>(

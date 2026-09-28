@@ -2363,7 +2363,28 @@ clean. `export_library_zip` was added to `src-tauri/build.rs`'s `APP_COMMANDS` a
 command needs an ACL entry" convention (see `build.rs`'s own comment) — confirmed by a full
 `cargo build` after the change.
 
-Trash polish (the third part of this sub-task) is still open; M7-1 isn't closed out yet.
+**M7-1c: Trash polish.** The existing Trash view (M1-8) already covered soft delete, restore,
+delete forever, empty now, and an auto-purge note — close to the plan's ask already. The one
+genuine gap: an owner deciding whether to restore something had no way to tell how much time was
+left before it purged automatically. Added `daysUntilPurge(deletedAt)` to `trashActions.ts` (pure,
+unit-tested, reusing the exact same 30-day cutoff math as `purgeExpiredTrash` so the displayed
+countdown and the actual purge can never disagree) and a "Deleted <date> · Purges in N days" /
+"Purges today" / "Purges tomorrow" line per item in `TrashSection.tsx`. Deleted boards already have
+their own restore UI in the Boards gallery (M4-1) — the plan's §2.14 Trash section is scoped to
+items, so this wasn't duplicated here.
+
+M7-1 is now closed out. Verification (whole sub-task): `tsc -b --noEmit`, `eslint .`,
+`prettier --check .`, `vitest run` (381/381, up from 378), `vite build`, `cargo fmt --check`,
+`cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` (31 tests)
+are all clean.
+
+**Owner checks:**
+- Settings → Library → back up now, then confirm the extra destination folder (if set) received a
+  copy too.
+- Settings → Library → Export as JSON, then Export as ZIP; open the ZIP and confirm it has
+  `designspace-export.json` plus every file under `media/`.
+- Trash a few items, confirm the "Purges in N days" line looks right, then restore one and delete
+  another forever.
 
 ---
 
