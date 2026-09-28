@@ -7,9 +7,10 @@ import { useToastStore } from '@/state/toastStore';
 import { useHistoryStore } from '@/commands/history';
 import { createAddItemsCommand, createRestoreItemCommand } from '@/commands/itemCommands';
 import { getIngestQueue } from '@/workers/ingestQueue';
+import { getVideoIngestQueue } from '@/workers/videoIngestQueue';
 import { findFreeSpot, justifiedRows } from '@/lib/packing';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
-import { extensionOf, isSupportedImage } from '@/lib/fileKinds';
+import { extensionOf, detectMediaKind } from '@/lib/fileKinds';
 import { newId } from '@/lib/ids';
 import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
@@ -200,6 +201,7 @@ async function findLibraryBoardId(platform: Platform): Promise<string> {
 }
 
 interface NewRow {
+  kind: 'image' | 'video';
   relPath: string;
   fileName: string;
   hash: string;
@@ -227,8 +229,19 @@ async function createRow(
     {
       sql: `INSERT INTO items
         (id, kind, title, file_path, file_name, file_hash, file_size, mime, status, derived_v, created_at, updated_at)
-        VALUES (?, 'image', ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?)`,
-      params: [id, title, row.relPath, row.fileName, row.hash, row.size, row.mime, now, now],
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?)`,
+      params: [
+        id,
+        row.kind,
+        title,
+        row.relPath,
+        row.fileName,
+        row.hash,
+        row.size,
+        row.mime,
+        now,
+        now,
+      ],
     },
     {
       sql: `INSERT INTO placements (board_id, item_id, x, y, w, h, z, added_at)
@@ -265,7 +278,7 @@ async function createRow(
 
   const item: Item = {
     id,
-    kind: 'image',
+    kind: row.kind,
     title,
     filePath: row.relPath,
     fileName: row.fileName,
@@ -305,7 +318,11 @@ async function createRow(
   };
   useLibraryStore.getState().upsertItem(item);
   useLibraryStore.getState().upsertPlacement(placement);
-  getIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath, mime: row.mime }]);
+  if (row.kind === 'video') {
+    getVideoIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath, mime: row.mime }]);
+  } else {
+    getIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath, mime: row.mime }]);
+  }
   return id;
 }
 
@@ -335,9 +352,9 @@ export async function importFiles(
   dropPoint: DropPoint,
   flyTo?: FlyTo,
 ): Promise<void> {
-  const supported = files.filter((f) => isSupportedImage(f.name));
+  const supported = files.filter((f) => detectMediaKind(f.name) !== null);
   for (const f of files) {
-    if (!isSupportedImage(f.name)) {
+    if (detectMediaKind(f.name) === null) {
       useToastStore.getState().show(en.toasts.unsupportedFile(extensionOf(f.name)));
     }
   }
@@ -366,6 +383,7 @@ export async function importFiles(
           platform,
           { boardId: plan.primaryBoardId, rect: plan.primaryRects[i], z: z++ },
           {
+            kind: detectMediaKind(file.name) === 'video' ? 'video' : 'image',
             relPath: result.relPath,
             fileName: file.name,
             hash: result.hash,
@@ -418,6 +436,7 @@ export async function importPaths(
           platform,
           { boardId: plan.primaryBoardId, rect: plan.primaryRects[i], z: z++ },
           {
+            kind: detectMediaKind(fileName) === 'video' ? 'video' : 'image',
             relPath: result.relPath,
             fileName,
             hash: result.hash,

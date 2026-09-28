@@ -6,15 +6,20 @@ import { useToastStore } from '@/state/toastStore';
 import { useHistoryStore } from '@/commands/history';
 import type { DbRow, DbStatement, Platform } from '@/platform/types';
 
+const enqueueImage = vi.fn();
+const enqueueVideo = vi.fn();
 vi.mock('@/workers/ingestQueue', () => ({
-  getIngestQueue: () => ({ enqueue: vi.fn() }),
+  getIngestQueue: () => ({ enqueue: enqueueImage }),
+}));
+vi.mock('@/workers/videoIngestQueue', () => ({
+  getVideoIngestQueue: () => ({ enqueue: enqueueVideo }),
 }));
 
-// Imported after the mock above so `importItems.ts` picks up the mocked ingest queue.
+// Imported after the mocks above so `importItems.ts` picks up the mocked ingest queues.
 const { importFiles, importPaths } = await import('./importItems');
 
-function makeFile(name: string, content = 'x'): File {
-  return new File([content], name, { type: 'image/png' });
+function makeFile(name: string, content = 'x', type = 'image/png'): File {
+  return new File([content], name, { type });
 }
 
 function selectReturningDuplicate(row: {
@@ -62,6 +67,8 @@ beforeEach(() => {
   useImportStore.setState({ active: false, total: 0, done: 0, cancelRequested: false });
   useToastStore.setState({ toasts: [] });
   useHistoryStore.setState({ past: [], future: [] });
+  enqueueImage.mockClear();
+  enqueueVideo.mockClear();
 });
 
 describe('importFiles', () => {
@@ -143,6 +150,29 @@ describe('importFiles', () => {
         expect(overlap).toBe(false);
       }
     }
+  });
+
+  it('routes a video file to the video ingest queue, with kind set to video', async () => {
+    const platform = makePlatform({
+      media: {
+        ...makePlatform().media,
+        importFile: vi.fn().mockResolvedValue({
+          relPath: 'media/2026/01/clip-a.mp4',
+          hash: 'hash-clip',
+          size: 50,
+          mime: 'video/mp4',
+        }),
+      },
+    });
+    await importFiles(platform, [makeFile('clip.mp4', 'x', 'video/mp4')], { x: 0, y: 0 });
+
+    const items = [...useLibraryStore.getState().items.values()];
+    expect(items).toHaveLength(1);
+    expect(items[0].kind).toBe('video');
+    expect(enqueueVideo).toHaveBeenCalledWith([
+      { itemId: items[0].id, relPath: 'media/2026/01/clip-a.mp4', mime: 'video/mp4' },
+    ]);
+    expect(enqueueImage).not.toHaveBeenCalled();
   });
 
   it('also lands on the Library map when dropped while a board is open (§2.3)', async () => {

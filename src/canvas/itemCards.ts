@@ -3,6 +3,7 @@ import type { Platform } from '@/platform/types';
 import type { ItemCard } from './Engine';
 import { noteColors, type NoteColor } from '@/design/tokens';
 import { noteBodyToPlainText } from '@/lib/noteText';
+import { en } from '@/i18n/en';
 
 const FALLBACK_COLOR = 0x33203d; // --surface-2, used until a palette exists
 const DEFAULT_NOTE_COLOR: NoteColor = 'cream';
@@ -36,6 +37,8 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       thumbUrl512: null,
       noteText: noteBodyToPlainText(item.body),
       frameId: placement.frameId,
+      durationMs: null,
+      videoUrl: null,
     };
   }
 
@@ -54,11 +57,14 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       // "Color block with its HEX and an optional name" (§2.11's spec table).
       noteText: [item.title || null, item.color?.toUpperCase() ?? null].filter(Boolean).join('\n'),
       frameId: placement.frameId,
+      durationMs: null,
+      videoUrl: null,
     };
   }
 
   const dominantColor = item.palette?.[0]?.hex ? hexToInt(item.palette[0].hex) : FALLBACK_COLOR;
   const ready = item.status === 'ok';
+  const unsupportedVideo = item.kind === 'video' && item.status === 'unsupported';
   return {
     id: item.id,
     x: placement.x,
@@ -70,7 +76,13 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     dominantColor,
     thumbUrl128: ready ? platform.cache.url(`t128/${item.id}`) : null,
     thumbUrl512: ready ? platform.cache.url(`t512/${item.id}`) : null,
-    noteText: null,
+    // Reuses the note/swatch label's Text-overlay machinery for a video whose codec/container
+    // `<video>` couldn't decode (§2.4's fallback tile) rather than leaving it an indefinite
+    // placeholder that looks like it's still loading.
+    noteText: unsupportedVideo ? en.video.unsupportedFallback : null,
     frameId: placement.frameId,
+    durationMs: item.kind === 'video' ? (item.durationMs ?? null) : null,
+    videoUrl:
+      item.kind === 'video' && item.filePath ? platform.media.originalUrl(item.filePath) : null,
   };
 }

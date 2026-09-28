@@ -4,6 +4,7 @@
 import 'pixi.js/unsafe-eval';
 import {
   Application,
+  Assets,
   Container,
   Graphics,
   GraphicsContext,
@@ -55,12 +56,19 @@ export interface ItemCard {
   thumbUrl512: string | null;
   kind: ItemKind;
   /** §2.11 — a note's plain-text content, drawn as a `Text` child of its card (see
-   * `setLibraryItems`). `null` for every other kind. */
+   * `setLibraryItems`). Also doubles as a video's "can't play this" fallback message (§2.4) when
+   * its ingest failed — `null` for every other case. */
   noteText: string | null;
   /** §2.11 — the frame this item's placement belongs to, if any (`placement.frameId`). Lets the
    * frame-drag interaction move a frame's contents along with it without Engine needing to know
    * about placements directly. */
   frameId: string | null;
+  /** §2.4 video duration badge — `null` until ingest reports it (or for every non-video kind). */
+  durationMs: number | null;
+  /** §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview" — the *original* file's URL
+   * (unlike `thumbUrl128/512`, a cached derivative), since the preview plays the real video, not
+   * a still. `null` for every non-video kind, or before the original is available. */
+  videoUrl: string | null;
 }
 
 interface EngineEvents {
@@ -139,6 +147,19 @@ const CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE = 13;
 const NOTE_TEXT_PADDING_WORLD = 14;
 const NOTE_TEXT_FONT_SIZE_WORLD = 18;
 
+// §2.4 video duration badge — bottom-right corner, world units for the same reason as the note
+// snippet above.
+const VIDEO_BADGE_PADDING_WORLD = 10;
+// §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview" — the plan's own threshold.
+const VIDEO_HOVER_ZOOM_THRESHOLD = 0.6;
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
 // §2.11 frames — a dashed outline + a title label sitting just above the top-left corner (so it
 // never overlaps whatever's placed inside), drawn in world units like the note/swatch labels.
 const FRAME_LABEL_FONT_SIZE_WORLD = 16;
@@ -182,6 +203,7 @@ export class Engine {
   private cards = new Map<string, ItemCard>();
   private sprites = new Map<string, Sprite>();
   private noteLabels = new Map<string, Text>(); // §2.11 — a note card's plain-text snippet
+  private videoBadges = new Map<string, Text>(); // §2.4 — a video card's "▶ mm:ss" duration badge
 
   // §2.11 frames.
   private frames = new Map<string, Frame>();
@@ -246,6 +268,11 @@ export class Engine {
 
   private selection = new Set<string>();
   private hoveredId: string | null = null;
+  // §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview, one video at a time" — the id
+  // currently showing a live video texture (rather than its poster thumbnail), and that texture's
+  // source URL, needed to `Assets.unload` it when the preview stops.
+  private videoPreviewId: string | null = null;
+  private videoPreviewSrc: string | null = null;
   private marquee: Graphics | null = null;
   private selectionOutline: Graphics | null = null;
   private handles: Graphics[] = [];
@@ -325,7 +352,10 @@ export class Engine {
       getWheelMode: opts.getWheelMode,
     });
     this.detachSelectionInput = this.attachSelectionInput(container, opts);
-    this.unsubscribeCamera = this.camera.subscribe(() => this.scheduleFrame());
+    this.unsubscribeCamera = this.camera.subscribe(() => {
+      this.scheduleFrame();
+      this.updateVideoPreview();
+    });
     app.renderer.on('resize', () => this.scheduleFrame());
     this.scheduleFrame();
   }
@@ -397,6 +427,11 @@ export class Engine {
           label.destroy();
           this.noteLabels.delete(id);
         }
+        const badge = this.videoBadges.get(id);
+        if (badge) {
+          badge.destroy();
+          this.videoBadges.delete(id);
+        }
       }
     }
     for (const card of patchedCards) {
@@ -434,16 +469,19 @@ export class Engine {
     this.scheduleFrame();
   }
 
-  /** Creates/updates/removes a note or swatch card's plain-text snippet (§2.11) — see the
-   * constants above for why it's a sibling `Text`, not a sprite child. A no-op for every other
-   * card kind, and removes a stale label if a card ever stops being one of these two (kind never
-   * actually changes post-creation today, but this keeps the invariant "no label without a
-   * note/swatch card" true regardless). Text color is fixed dark for notes (their 5 colors are
-   * all light pastels, §2.11's palette), but computed per swatch — an extracted or freely-set
-   * swatch color can be anything, including near-black, where the fixed dark text would vanish. */
+  /** Creates/updates/removes a note or swatch card's plain-text snippet (§2.11), or a video's
+   * "can't play this" fallback message (§2.4, when `card.noteText` is set) — see the constants
+   * above for why it's a sibling `Text`, not a sprite child. A no-op for every other card, and
+   * removes a stale label once a card stops needing one (kind never actually changes
+   * post-creation, but a video's `noteText` does, the moment ingest finishes or fails). Text
+   * color is fixed dark for notes (their 5 colors are all light pastels, §2.11's palette), but
+   * computed everywhere else — an extracted/freely-set swatch color, or a video's placeholder
+   * tint, can be anything, including near-black, where the fixed dark text would vanish. */
   private syncNoteLabel(card: ItemCard): void {
     if (!this.itemsLayer) return;
-    if (card.kind !== 'note' && card.kind !== 'swatch') {
+    const wantsLabel =
+      card.kind === 'note' || card.kind === 'swatch' || (card.kind === 'video' && !!card.noteText);
+    if (!wantsLabel) {
       const stale = this.noteLabels.get(card.id);
       if (stale) {
         stale.destroy();
@@ -454,7 +492,7 @@ export class Engine {
     const wrapWidth = Math.max(card.w - NOTE_TEXT_PADDING_WORLD * 2, 1);
     const x = card.x + NOTE_TEXT_PADDING_WORLD;
     const y = card.y + NOTE_TEXT_PADDING_WORLD;
-    const fill = card.kind === 'swatch' ? readableTextColor(card.dominantColor) : noteTextColor;
+    const fill = card.kind === 'note' ? noteTextColor : readableTextColor(card.dominantColor);
     const existing = this.noteLabels.get(card.id);
     if (existing) {
       existing.text = card.noteText ?? '';
@@ -478,6 +516,43 @@ export class Engine {
       label.eventMode = 'none'; // selection/drag hit-testing is geometry-based, not Pixi events
       this.itemsLayer.addChild(label);
       this.noteLabels.set(card.id, label);
+    }
+    this.syncVideoBadge(card);
+  }
+
+  /** The "▶ mm:ss" duration badge (§2.4) at a video card's bottom-right corner. Called from
+   * `syncNoteLabel` (same "diff on every card sync" shape, just a second small `Text` sibling) —
+   * a video with an unsupported-codec fallback message never has a duration (ingest never
+   * finished), so the two labels never overlap. */
+  private syncVideoBadge(card: ItemCard): void {
+    if (!this.itemsLayer) return;
+    if (card.kind !== 'video' || card.durationMs === null) {
+      const stale = this.videoBadges.get(card.id);
+      if (stale) {
+        stale.destroy();
+        this.videoBadges.delete(card.id);
+      }
+      return;
+    }
+    const text = `▶ ${formatDuration(card.durationMs)}`;
+    const x = card.x + card.w - VIDEO_BADGE_PADDING_WORLD;
+    const y = card.y + card.h - VIDEO_BADGE_PADDING_WORLD;
+    const existing = this.videoBadges.get(card.id);
+    if (existing) {
+      existing.text = text;
+      existing.position.set(x, y);
+      existing.zIndex = card.z + 0.5;
+    } else {
+      const badge = new Text({
+        text,
+        style: { fontSize: NOTE_TEXT_FONT_SIZE_WORLD, fill: 0xffffff },
+        anchor: { x: 1, y: 1 },
+      });
+      badge.position.set(x, y);
+      badge.zIndex = card.z + 0.5;
+      badge.eventMode = 'none';
+      this.itemsLayer.addChild(badge);
+      this.videoBadges.set(card.id, badge);
     }
   }
 
@@ -908,6 +983,8 @@ export class Engine {
     this.sprites.clear();
     for (const label of this.noteLabels.values()) label.destroy();
     this.noteLabels.clear();
+    for (const badge of this.videoBadges.values()) badge.destroy();
+    this.videoBadges.clear();
     this.cards.clear();
     this.itemIndex.clear();
     this.itemVisible.clear();
@@ -1171,6 +1248,7 @@ export class Engine {
           this.hoveredId = hit?.id ?? null;
           this.emit('hover', this.hoveredId);
           this.drawConnectHandle();
+          this.updateVideoPreview();
         }
         return;
       }
@@ -1881,6 +1959,8 @@ export class Engine {
         }
         const label = this.noteLabels.get(id);
         if (label) label.visible = false;
+        const badge = this.videoBadges.get(id);
+        if (badge) badge.visible = false;
       }
     }
     const hiddenBySearch = (id: string) =>
@@ -1894,6 +1974,8 @@ export class Engine {
       sprite.renderable = !hidden;
       const label = this.noteLabels.get(id);
       if (label) label.visible = !hidden;
+      const badge = this.videoBadges.get(id);
+      if (badge) badge.visible = !hidden;
       if (!hidden && !this.itemVisible.has(id)) this.requestLod(card, sprite);
     }
     this.itemVisible = nextVisible;
@@ -1977,6 +2059,8 @@ export class Engine {
       }
       const label = this.noteLabels.get(id);
       if (label) label.visible = true;
+      const badge = this.videoBadges.get(id);
+      if (badge) badge.visible = true;
     }
   }
 
@@ -2042,6 +2126,52 @@ export class Engine {
     });
   }
 
+  /** Starts/stops the hovered card's muted looping video preview to match "Hovering (zoom ≥
+   * 60%)" (§2.4) — called on every hover change and every camera change (zooming past the
+   * threshold mid-hover should react too). A no-op if nothing actually needs to change, so it's
+   * cheap to call opportunistically rather than threading a dirty flag through both call sites. */
+  private updateVideoPreview(): void {
+    const card = this.hoveredId ? this.cards.get(this.hoveredId) : undefined;
+    const wantsPreview =
+      !!card &&
+      card.kind === 'video' &&
+      !!card.videoUrl &&
+      this.camera.zoom >= VIDEO_HOVER_ZOOM_THRESHOLD;
+    const nextId = wantsPreview ? card.id : null;
+    if (nextId === this.videoPreviewId) return;
+    this.stopVideoPreview();
+    if (nextId && card?.videoUrl) void this.startVideoPreview(nextId, card.videoUrl);
+  }
+
+  private async startVideoPreview(id: string, url: string): Promise<void> {
+    this.videoPreviewId = id;
+    this.videoPreviewSrc = url;
+    try {
+      const texture = await Assets.load<Texture>({
+        src: url,
+        data: { autoPlay: true, loop: true, muted: true, playsinline: true },
+      });
+      if (this.videoPreviewId !== id) return; // hover moved on while this was loading
+      const sprite = this.sprites.get(id);
+      if (sprite && !sprite.destroyed) sprite.texture = texture;
+    } catch {
+      // Playback failed (e.g. a codec this browser can't decode) — leave the poster thumbnail
+      // showing rather than surfacing an error for what's just a preview.
+    }
+  }
+
+  private stopVideoPreview(): void {
+    if (!this.videoPreviewId) return;
+    const id = this.videoPreviewId;
+    const src = this.videoPreviewSrc;
+    this.videoPreviewId = null;
+    this.videoPreviewSrc = null;
+    const sprite = this.sprites.get(id);
+    const card = this.cards.get(id);
+    if (sprite && card) this.requestLod(card, sprite); // reapply the cached poster thumbnail
+    if (src) void Assets.unload(src).catch(() => {});
+  }
+
   get visibleCount(): number {
     return this.benchVisible.size + this.itemVisible.size;
   }
@@ -2055,6 +2185,7 @@ export class Engine {
     this.detachInput?.();
     this.detachSelectionInput?.();
     this.unsubscribeCamera?.();
+    this.stopVideoPreview();
     this.clearScene();
     this.clearMarquee();
     this.selectionOutline?.destroy();

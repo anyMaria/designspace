@@ -38,6 +38,8 @@ describe('rowToItem', () => {
       body_text: null,
       color: null,
       origin_board_id: null,
+      duration_ms: null,
+      poster_ms: null,
     });
 
     expect(item).toEqual({
@@ -69,6 +71,8 @@ describe('rowToItem', () => {
       bodyText: null,
       color: null,
       originBoardId: null,
+      durationMs: null,
+      posterMs: null,
     });
   });
 

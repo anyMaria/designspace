@@ -65,6 +65,8 @@ export function rowToItem(row: DbRow): Item {
     bodyText: asNullableString(row.body_text),
     color: asNullableString(row.color),
     originBoardId: asNullableString(row.origin_board_id),
+    durationMs: asNullableNumber(row.duration_ms),
+    posterMs: asNullableNumber(row.poster_ms),
   };
 }
 

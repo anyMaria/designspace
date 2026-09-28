@@ -6,7 +6,7 @@ import type { Engine } from '@/canvas/Engine';
 import type { Rect } from '@/lib/geometry';
 import { en } from '@/i18n/en';
 import { importFiles, importPaths } from './importItems';
-import { isSupportedImage } from '@/lib/fileKinds';
+import { detectMediaKind } from '@/lib/fileKinds';
 import { useToastStore } from '@/state/toastStore';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { useBoardStore } from '@/state/boardStore';
@@ -17,8 +17,9 @@ import { createCreateFrameCommand } from '@/commands/frameCommands';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
 
-const IMAGE_FILTERS: FileFilter[] = [
+const MEDIA_FILTERS: FileFilter[] = [
   { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg'] },
+  { name: 'Videos', extensions: ['mp4', 'webm', 'm4v', 'mov'] },
 ];
 
 export interface AddMenuProps {
@@ -44,7 +45,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
   async function handleFiles(): Promise<void> {
     setOpen(false);
     if (platform.kind === 'tauri') {
-      const paths = await platform.dialogs.openFiles(IMAGE_FILTERS);
+      const paths = await platform.dialogs.openFiles(MEDIA_FILTERS);
       if (paths.length > 0) await importPaths(platform, paths, dropPoint(), flyTo);
     } else {
       filesInputRef.current?.click();
@@ -139,7 +140,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
   function onFolderInputChange(e: ChangeEvent<HTMLInputElement>): void {
     const all = Array.from(e.target.files ?? []);
     e.target.value = '';
-    const supported = all.filter((f) => isSupportedImage(f.name));
+    const supported = all.filter((f) => detectMediaKind(f.name) !== null);
     if (supported.length === 0) {
       useToastStore.getState().show(en.folderImport.empty);
       return;
@@ -217,7 +218,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
         ref={filesInputRef}
         type="file"
         multiple
-        accept="image/*"
+        accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v"
         style={{ display: 'none' }}
         onChange={onFilesInputChange}
       />

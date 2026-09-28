@@ -44,6 +44,11 @@ export const en = {
   notes: {
     colorLabel: (name: string) => `${name.charAt(0).toUpperCase()}${name.slice(1)} note color`,
   },
+  video: {
+    unsupportedFallback: "Can't play this video",
+    setCoverFrame: 'Set cover frame',
+    playerFallback: "This browser can't play this video.",
+  },
   frames: {
     add: 'Frame',
     untitled: 'Untitled frame',

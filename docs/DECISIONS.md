@@ -1608,6 +1608,54 @@ test end-to-end right now (every MP4 dropped in here *is* the unsupported case).
 
 **Decision:** `fontkit` (already added — `package.json`), not `opentype.js`.
 
+### M5-2: Videos
+Import, duration/cover-frame metadata, the duration badge, the hover preview, the Focus player
+and the unsupported-codec fallback all shipped. **"Chosen" cover frame is the one deferred piece**
+— the "Set cover frame" scrubber (§2.4's per-kind Extras column) needs its own small Focus-view UI
+(a timeline + a command that re-draws/re-uploads both thumbnail sizes at the new timestamp and
+updates `poster_ms`); left as a clearly scoped follow-up rather than widening this already-large
+sub-task, and the plan checkbox stays unticked for it specifically.
+
+**Ingest architecture.** Image ingest (M1) runs in a Worker pool because `createImageBitmap`
+works on a `Blob` with no DOM. Extracting a video's cover frame needs a real `<video>` element to
+seek to a timestamp and decode it — Workers have no DOM, and the only off-thread alternative
+(WebCodecs + a manual container demuxer) is a lot of machinery for one frame per import. So
+`extractVideoDerivatives` (`lib/videoFrame.ts`) runs on the *main thread*, and `VideoIngestQueue`
+(`workers/videoIngestQueue.ts`, not actually a Worker despite the directory — kept there for
+proximity to `IngestQueue`) processes one video at a time rather than pooled, to bound how much
+main-thread time a big batch can claim at once. It reuses the same palette-extraction math
+(`extractPalette`/`weightedColorFamilies` from `lib/color.ts`) as images, sampled from the poster
+frame, so a video is just as searchable/connectable by color as an image — computed once here
+rather than needing a separate code path anywhere else. `importItems.ts`'s `createRow` now takes a
+`kind` instead of hardcoding `'image'`, and routes to whichever queue matches.
+
+**Unsupported codecs → `status: 'unsupported'`, not a retry loop.** A `<video>` that can't decode
+the file rejects `extractVideoDerivatives`'s promise; `VideoIngestQueue` catches that and marks the
+item `unsupported` (a status this app already had, `ItemStatus`'s fourth value, previously unused)
+rather than leaving it `pending` — `resumePendingVideoIngest`'s `WHERE` clause only re-queues
+`pending` items, so a genuinely unsupported file is never retried, matching the acceptance
+criterion "without error loops." The canvas card reuses the note/swatch label's Text-overlay
+machinery (`Engine.syncNoteLabel`, widened to also fire for a video card with `noteText` set) to
+show "Can't play this video" instead of an indefinite loading-look placeholder; Focus view shows
+the same message instead of a broken `<video>` element.
+
+**Hover preview.** `ItemCard` gained a `videoUrl` (the *original* file's URL, computed by
+`itemCards.ts` the same way Focus view's `<img src>` already was, unlike `thumbUrl128/512`, which
+are cached derivatives) and a `durationMs`. `Engine.updateVideoPreview` swaps the sprite's texture
+to a live, muted, looping `Assets.load` video texture when the hovered card is a video and
+`camera.zoom >= 0.6` (the plan's own threshold), reverting to the cached poster thumbnail
+(`requestLod`, called again — its "already has this texture" guard is naturally false once the
+sprite is showing the video texture, so no new code was needed there) on hover-out. Checked on
+every hover change *and* every camera change, so zooming past the threshold mid-hover reacts too.
+"One video at a time" falls out for free: `updateVideoPreview` always stops whatever's currently
+playing before starting a new one.
+
+**S5's spike finding, confirmed in practice:** this sandbox's Chromium can't play the demo scene's
+proprietary-codec formats at all (§ the M5-1 entry above), so end-to-end testing here uses a real
+WebM fixture (`tests/e2e/fixtures/sample.webm`, a 1-second VP8+Vorbis clip generated with
+`ffmpeg`, `apt`-installed in this sandbox for exactly this) rather than an MP4 — MP4/H.264 and
+`.mov` playback still needs the owner's real Windows/WebView2 verification per CLAUDE.md.
+
 ---
 
 *(Later milestones append below this line.)*

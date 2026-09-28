@@ -46,6 +46,11 @@ export interface Item {
   bodyText?: string | null;
   color?: string | null;
   originBoardId?: string | null;
+  /** §2.4/§5.2 video fields (M5). `durationMs` is the whole clip; `posterMs` is the cover-frame
+   * timestamp — automatic on import, changeable via "Set cover frame". Optional for the same
+   * pre-M5 `Item`-literal reason `body`/`color` above are. */
+  durationMs?: number | null;
+  posterMs?: number | null;
 }
 
 export interface Placement {

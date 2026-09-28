@@ -10,6 +10,7 @@ import { loadManualConnections } from '@/state/loadManualConnections';
 import { loadBoards } from '@/state/loadBoards';
 import { useBoardStore } from '@/state/boardStore';
 import { resumePendingIngest } from '@/workers/ingestQueue';
+import { resumePendingVideoIngest } from '@/workers/videoIngestQueue';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
 import { logger } from '@/lib/logger';
@@ -55,6 +56,7 @@ export function App() {
           ]);
           useBoardStore.getState().setCurrentBoardId(libraryBoardId);
           void resumePendingIngest(platform);
+          void resumePendingVideoIngest(platform);
           void purgeExpiredTrash(platform);
           if (!cancelled)
             setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: bench });
@@ -77,6 +79,7 @@ export function App() {
         ]);
         useBoardStore.getState().setCurrentBoardId(libraryBoardId);
         void resumePendingIngest(platform);
+        void resumePendingVideoIngest(platform);
         void purgeExpiredTrash(platform);
         void maybeBackupAtStartup(platform);
         if (!cancelled)

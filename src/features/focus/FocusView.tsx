@@ -108,7 +108,7 @@ export function FocusView({ platform }: { platform: Platform }) {
         </div>
       )}
 
-      {item.filePath && (
+      {item.kind === 'image' && item.filePath && (
         <img
           src={platform.media.originalUrl(item.filePath)}
           alt={item.title}
@@ -121,6 +121,43 @@ export function FocusView({ platform }: { platform: Platform }) {
           onClick={(e) => e.stopPropagation()}
         />
       )}
+      {item.kind === 'video' &&
+        item.filePath &&
+        (item.status === 'unsupported' ? (
+          <div
+            style={{
+              width: 'min(85vw, 640px)',
+              aspectRatio: '16 / 9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--surface-2)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {en.video.unsupportedFallback}
+          </div>
+        ) : (
+          // "Player with controls, loop, mute" (§2.4) — the browser's own controls include mute;
+          // `loop` restarts at the end rather than closing Focus view.
+          <video
+            key={item.id}
+            src={platform.media.originalUrl(item.filePath)}
+            controls
+            loop
+            autoPlay
+            style={{
+              maxWidth: '85vw',
+              maxHeight: '80vh',
+              borderRadius: 'var(--radius-sm)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {en.video.playerFallback}
+          </video>
+        ))}
       <div style={{ marginTop: 'var(--space-4)', color: 'var(--text-2)' }}>
         {item.title || item.fileName}
       </div>
