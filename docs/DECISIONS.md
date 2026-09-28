@@ -1933,4 +1933,45 @@ the end of M2 (`v0.1.0`).
 
 ---
 
+## M6-1: model bundling, ONNX WASM, local-only `env`
+
+`scripts/fetch-models.mjs` delegates entirely to `@huggingface/transformers`'s own
+`.from_pretrained()` dependency resolution rather than hand-maintaining a file manifest for CLIP
+ViT-B/32 (`Xenova/clip-vit-base-patch32`) — verified correct by reading the library's own
+Node file-system cache key logic (`buildResourcePaths` in `utils/hub.js`): for the default "main"
+revision it's exactly `{modelId}/{filename}`, the same relative shape the runtime's
+`env.localModelPath` convention expects (`{localModelPath}/{modelId}/{filename}`). Pointing
+`env.cacheDir` at `src-tauri/resources/models` at fetch time therefore lands every file exactly
+where the bundled app will read it from later via `media://models/…` — no separate "flatten the
+cache into place" step. huggingface.co is blocked in this sandbox (per CLAUDE.md), so the script is
+only verified structurally here: it fails at the expected network call (`config.json`), not
+earlier, proving the env config and import resolution are both correct up to that boundary. The
+real download only happens with real internet — a local run, or `windows-build.yml`'s new
+model-caching step (`actions/cache`, keyed by `fetch-models.mjs`'s own hash, so a script change
+invalidates the cache but a routine rebuild reuses it).
+
+`scripts/copy-ort-wasm.mjs` bundles only the `.asyncify` ONNX Runtime WASM variant (~25.6 MB),
+not the full ~136 MB `onnxruntime-web` `dist/` — confirmed by reading `backends/onnx.js`'s own
+default-path-selection logic that `.asyncify` is used everywhere except Safari < 26 without
+WebGPU, and WebView2 is always Chromium. Resolving the package's on-disk location took three
+attempts: `onnxruntime-web/dist/…` isn't a direct dependency of this app so `require.resolve`
+can't reach it from here; `onnxruntime-web/package.json` resolved via `{paths: […]}` but isn't in
+that package's `exports` map (`ERR_PACKAGE_PATH_NOT_EXPORTED`); resolving the `onnxruntime-web/
+webgpu` entry point instead — one transformers.js itself imports, so guaranteed present in
+`exports` — and taking its `path.dirname()` finally worked.
+
+`src/lib/ai/env.ts` splits the env configuration in two: `computeAiEnvConfig` (main-thread only,
+since `convertFileSrc` needs the Tauri API that a plain Worker can't reach) resolves the actual
+`media://models/` URL, and `configureTransformersEnv` (a pure function taking a narrow
+`TransformersEnvLike` shape, not the real `@huggingface/transformers` `env` object, so it doesn't
+need that ~expensive import just to be unit-tested) applies it — the AI worker (M6-2) will receive
+the computed config over `postMessage` at startup and call the latter itself. In the browser dev
+build, `localModelPath` is `null` (no models are bundled there); the AI worker is expected to fall
+back to `FakeEmbeddingProvider` whenever it's null, never attempting a real model load.
+
+**Owner checks:** none yet — this sub-task is pure infrastructure with no visible surface. The
+next sub-task (the AI worker) is where suggestions start actually appearing.
+
+---
+
 *(Later milestones append below this line.)*

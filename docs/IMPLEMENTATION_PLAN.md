@@ -1267,7 +1267,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 
 ### M6: Offline AI
 - [ ] Spike **S7 CLIP in WebView2:** a Windows build with bundled models. Measure the load time, milliseconds per image with threads, and memory. Compare ViT-B/32 with MobileCLIP if it's available.
-- [ ] `fetch-models.mjs`, CI caching and bundling as resources; ONNX Runtime WASM bundled; the local-only `env`.
+- [x] `fetch-models.mjs`, CI caching and bundling as resources; ONNX Runtime WASM bundled; the local-only `env`.
 - [ ] The AI worker: image and text embeddings, background analysis (pause, resume, progress), and the fake provider for tests.
 - [ ] Suggestions (zero-shot + personal blend) in Details and Triage: accept, dismiss, Accept all.
 - [ ] Find similar, the Similar look criterion, search by meaning, and similarity in board suggestions.
