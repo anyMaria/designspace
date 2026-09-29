@@ -12,6 +12,7 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { useUiStore } from '@/state/uiStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
+import { useSoftLimitNotice } from './useSoftLimitNotice';
 import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
 import type { Engine } from '@/canvas/Engine';
@@ -81,6 +82,7 @@ export interface ShellProps {
 export function Shell({ platform, library, libraryBoardId, benchCount }: ShellProps) {
   useGlobalShortcuts();
   useUndoRedoShortcuts();
+  useSoftLimitNotice();
   const tool = useUiStore((s) => s.tool);
   const setTool = useUiStore((s) => s.setTool);
   const wheelMode = useUiStore((s) => s.wheelMode);

@@ -2544,6 +2544,51 @@ Verified via `vitest run` (389/389) and the full Playwright suite (40/40, includ
 runs of the previously-flaky spec alone) all green — the previous entries' verification numbers
 above (387, 39/40) predate this fix; these are the corrected, final ones for M7-3 as a whole.
 
+## M7-4: Performance pass against §4.13 budgets
+
+The plan checkbox for this sub-task stays unticked — same call as Spike S7 in M6 — since the
+budgets themselves are unverifiable from this sandbox; ticking it would claim a measurement that
+never happened. §4.13 is explicit that this sandbox can't do the real work here: "Measured on a mid-range Windows
+laptop with integrated graphics... CI has no GPU, so it checks behavior, not performance. Check
+performance with the bench page and on the owner's PC at the end of M0, M1 and M7." There's no
+GPU, no Windows, and no real library of thousands of items available here — every number in the
+budget table (frame time, cold start, memory, import throughput) needs the owner's actual
+hardware, which is why they're listed as owner checks below rather than something this session
+claims to have verified.
+
+What this session *could* do, and did: implement the one budget-adjacent feature that was still
+missing outright rather than just "unmeasured" — §4.13's "soft limit... at 9,500 [items] the app
+shows a friendly note, but nothing blocks" had no code behind it at all (no toast, no threshold
+constant, nothing in `en.ts`). Added `useSoftLimitNotice` (`src/app/`): a one-time-per-session
+toast the moment the library's item count first reaches 9,500, watching `libraryStore.items.size`
+(not `placements.size` — this is about the whole library's size, not the current space, unlike
+the empty-state fix in M7-2). Deliberately a toast, not a persistent banner: the note has nothing
+the owner needs to act on, and `ToastHost` has no manual-dismiss control, so a `duration: 0`
+("never auto-dismiss") toast would get stuck on screen forever — used 8000ms instead, long enough
+to actually read.
+
+Also confirmed structurally (code review, not measurement) that the earlier milestones already
+built toward these budgets rather than leaving them to be bolted on later: hover-connections
+scoring and the search-keystroke path were both built as synchronous, non-network pure functions
+from M2/M3 onward (nothing to await, so nothing budget-relevant to optimize further without real
+profiling data); the canvas engine's LOD/culling (verified behaviorally via `?bench=10000` in
+`app-shell.spec.ts`, still passing) is the M1 spike this budget was written against in the first
+place.
+
+Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (392/392, up from
+387 — 3 new tests for `useSoftLimitNotice`), `vite build`, and the `app-shell`/`smoke-m1` e2e
+specs (covering `?bench=10000` and Settings) are clean. No Rust changes this sub-task.
+
+**Owner checks — all of §4.13's table needs your actual PC, not this sandbox:**
+- `?bench=10000`: cold start to interactive, and pan/zoom frame time (watch for any frame > 33ms).
+- Import ~50 real ~3MB JPEGs and time it — expect ≥5 items/s with the UI still responsive.
+- A library with several thousand real classified items: hover-connections feel (no visible lag),
+  Constellations toggle time, and Task Manager's memory figure while browsing.
+- Import until the library crosses 9,500 items and confirm the new toast appears once.
+- Run Spike S7's AI throughput check if you haven't already (noted as owner-only since M6).
+- If anything misses budget, note the actual numbers here in DECISIONS.md so future milestones
+  have a real baseline instead of the plan's estimates.
+
 ---
 
 *(Later milestones append below this line.)*

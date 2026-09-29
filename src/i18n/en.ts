@@ -262,6 +262,11 @@ export const en = {
     continue: 'Continue',
     createLibrary: 'Create library',
   },
+  library: {
+    approachingLimit:
+      'Your library is getting large (9,500+ items). Designspace is tuned for up to about ' +
+      '10,000 — things may start to feel slower past that.',
+  },
   emptyStates: {
     libraryMap: 'Drop images anywhere, paste with Ctrl+V, or press + Add.',
     board: 'Pull inspiration in: search your library (Ctrl+K) or drag from the List panel.',
