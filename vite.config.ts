@@ -1,6 +1,12 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const pkg = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8'),
+) as { version: string };
 
 // Same CSP the Tauri build enforces (src-tauri/tauri.conf.json, app.security.csp), so the
 // browser dev build behaves like the desktop app. See docs/IMPLEMENTATION_PLAN.md §4.12.
@@ -31,6 +37,11 @@ function csp(allowInlineScripts: boolean): string {
 
 export default defineConfig({
   plugins: [react()],
+  // Settings → About shows this rather than a hand-maintained duplicate — one source of truth
+  // for the version number, so bumping package.json is the only step at release time.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   resolve: {
     alias: {
       '@': new URL('./src', import.meta.url).pathname,

@@ -91,7 +91,7 @@ function AboutSection({ platform, library }: { platform: Platform; library: Libr
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      <Row label={en.settings.about.version} value="0.1.0-dev" />
+      <Row label={en.settings.about.version} value={__APP_VERSION__} />
       <Row label="Library" value={`${library.name} (${platform.kind})`} />
       <Row label="Path" value={library.path} />
       {stats && (

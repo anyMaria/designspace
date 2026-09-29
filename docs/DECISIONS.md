@@ -2706,11 +2706,13 @@ oversights — same call as Spike S7 back in M6:
   path where correctness matters most. This is the single most important owner check in this
   entire close-out, listed first below for that reason.
 
-**Known minor gap, not fixed here:** Settings → About shows a hardcoded `"0.1.0-dev"` version
-string rather than reading `package.json`'s real version. Fixing it properly (a Vite-injected
-build-time constant) touches build config this late in a milestone close-out for a purely
-cosmetic display detail — left as a small, explicitly-logged known gap rather than either ignored
-or rushed.
+**Follow-up fix:** Settings → About had shown a hardcoded `"0.1.0-dev"` version string rather than
+`package.json`'s real version, first logged here as a known minor gap. Fixed with a Vite-injected
+build-time constant (`__APP_VERSION__`, defined in `vite.config.ts` from `package.json`, typed in
+`src/vite-env.d.ts`) — one source of truth, so a future version bump is a single `package.json`
+edit rather than something to remember to also change in the UI. Confirmed via `vite build` that
+the built bundle actually inlines the real version string, plus the full verify suite re-run
+clean (`tsc`/`eslint`/`prettier`/`vitest` 394/394/`vite build`/`app-shell.spec.ts`).
 
 **Owner checks — do these before trusting a `v1.0.0` tag:**
 1. **Restore a real backup end to end.** Back up now, change something, Restore, confirm the
