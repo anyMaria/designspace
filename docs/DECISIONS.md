@@ -2727,6 +2727,22 @@ clean (`tsc`/`eslint`/`prettier`/`vitest` 394/394/`vite build`/`app-shell.spec.t
    workspace version) and `src-tauri/tauri.conf.json` to `1.0.0` together, then
    `git tag v1.0.0` and push the tag.
 
+**Follow-up fix: `newId()` didn't actually guarantee ULID sort order.** CI caught it directly —
+`ids.test.ts`'s "sorts with creation order" assertion failed on a real run, not a flake in the CI
+environment. Root cause: `ulid()` (the package's plain export) only encodes millisecond time; two
+ids minted in the same millisecond tie on the timestamp prefix and fall back to independent random
+suffixes, so `a <= b` was only true about half the time for same-millisecond pairs — and the app
+mints ids in exactly that pattern during batch imports (one `newId()` per file, in a tight loop).
+Switched to the `ulid` package's own `monotonicFactory()`, built for precisely this: within the
+same millisecond it increments the previous id's random portion instead of drawing a fresh one, so
+every id from one factory instance is genuinely non-decreasing. Strengthened the test to match —
+200 ids minted back-to-back (guaranteed same-millisecond collisions) must already be sorted, not
+just two arbitrary calls that could get lucky.
+
+Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (395/395, up from
+394 — the ids test split into two, one strictly stronger), `vite build`, and a batch of e2e specs
+covering import flows (`app-shell`, `smoke-m1-settings-empty`, `smoke-m2-list`) are all clean.
+
 ---
 
 *(Later milestones append below this line.)*
