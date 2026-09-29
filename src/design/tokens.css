@@ -107,17 +107,12 @@
   color-scheme: dark;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --duration-hover: 0ms;
-    --duration-panel: 0ms;
-    --duration-overlay: 0ms;
-    --duration-fly-to: 0ms;
-    --duration-constellations: 0ms;
-  }
-}
-
-/* The "reduce motion" app setting can force the same effect regardless of the OS setting. */
+/* §2.14/§3.3's reduce-motion setting (System/On/Off) is resolved once in JS
+ * (`src/lib/motion.ts`'s `prefersReducedMotion()`, which already folds in the OS
+ * `prefers-reduced-motion` media query for "System") and mirrored onto this attribute by
+ * `useReducedMotionSync` — a single source of truth, rather than splitting the logic between a
+ * CSS media query and JS (a plain `@media` block here couldn't be overridden by an explicit
+ * "Off" when the OS itself prefers reduced motion). */
 :root[data-reduce-motion='true'] {
   --duration-hover: 0ms;
   --duration-panel: 0ms;

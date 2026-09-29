@@ -17,9 +17,11 @@ import { resumePendingLinkIngest } from '@/features/import/importLink';
 import { resumePendingAiAnalysis } from '@/workers/aiQueue';
 import { loadEmbeddings } from '@/state/embeddingsStore';
 import { loadSettings } from '@/state/loadSettings';
+import { loadMachineSettings, startMachineSettingsPersistence } from '@/state/loadMachineSettings';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
 import { logger } from '@/lib/logger';
+import { useReducedMotionSync } from '@/lib/useReducedMotionSync';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
 import { Shell } from './Shell';
@@ -38,12 +40,15 @@ type BootState =
 
 export function App() {
   const [boot, setBoot] = useState<BootState>({ phase: 'loading' });
+  useReducedMotionSync();
 
   useEffect(() => {
     let cancelled = false;
     async function start() {
       try {
         const platform = await getPlatform();
+        await loadMachineSettings(platform);
+        startMachineSettingsPersistence(platform);
         const recent = await platform.library.recent();
 
         if (platform.kind === 'browser') {

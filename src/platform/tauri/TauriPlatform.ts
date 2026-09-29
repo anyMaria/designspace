@@ -157,6 +157,11 @@ export class TauriPlatform implements Platform {
     openLogs: (): Promise<void> => invoke<void>('open_logs'),
   };
 
+  machineSettings = {
+    read: (): Promise<string | null> => invoke<string | null>('machine_settings_read'),
+    write: (json: string): Promise<void> => invoke<void>('machine_settings_write', { json }),
+  };
+
   clipboard = {
     // Returns PNG-encoded bytes (like BrowserPlatform's), not the plugin's raw RGBA buffer —
     // callers (paste, §2.3) need a real image file, and only this method has the width/height

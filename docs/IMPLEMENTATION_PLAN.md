@@ -1286,7 +1286,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 ### M7: Safety & polish → v1.0.0
 - [x] The backups UI (list, restore, extra destination), JSON/ZIP export, a more polished Trash.
 - [x] Complete Settings, onboarding, every empty state, and a pass on the wording.
-- [ ] An accessibility pass (contrast audit, focus order, reduced motion).
+- [x] An accessibility pass (contrast audit, focus order, reduced motion).
 - [ ] A performance pass against §4.13 on the owner's PC.
 - [ ] Friendly error messages, logs, "Open logs folder".
 - [ ] A README for daily use (where the data is, how backups work, how to update).

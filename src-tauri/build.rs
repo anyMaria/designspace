@@ -33,6 +33,8 @@ const APP_COMMANDS: &[&str] = &[
     "embeddings_put",
     "embeddings_load",
     "export_library_zip",
+    "machine_settings_read",
+    "machine_settings_write",
 ];
 
 fn main() {

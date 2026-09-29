@@ -2451,6 +2451,99 @@ are all clean.
 - Create an empty board and confirm its empty-state text differs from the Library map's; type a
   search that matches nothing and confirm the List panel says "Nothing matches."
 
+## M7-3: Accessibility pass (contrast, focus order, reduced motion)
+
+**Contrast audit.** Computed WCAG 2.1 relative-luminance contrast ratios for every text/background
+combination the palette actually produces (`--text-1/2/3`, the criterion/family colors, `danger`)
+against every surface (`--canvas`, `--surface-1/2/3`). Everything actually used for text clears
+4.5:1 (the AA threshold for normal-size text); the one pair that doesn't — `--text-3` on
+`--surface-3`, 4.14:1 — only occurs in the codebase as a non-text background (a placeholder
+thumbnail box, a round button), never paired with `--text-3` as actual text, so it's not a real
+violation. No token or usage changes needed; recorded here so a future palette change has a
+baseline to check against.
+
+**Focus order — the real gap.** `Dialog.tsx` (the shared component behind all 7 of the app's
+dialogs — Settings, Export, Link, Frame rename, Connection label, Folder confirm, and the
+shortcut list) had `role="dialog" aria-modal="true"` and Escape-to-close, but no actual focus
+management: opening one didn't move focus into it, Tab could still reach the dimmed page behind
+the overlay (no trap), and closing didn't return focus to whatever triggered it. Fixed by (1)
+focusing the dialog container itself on mount (`tabIndex={-1}` on `.ds-dialog`, so screen readers
+land inside it and Tab starts there) and restoring focus to the previously-focused element on
+unmount, and (2) trapping Tab/Shift+Tab within the dialog's own focusable elements — the standard
+WAI-ARIA modal dialog pattern, implemented by hand (no new dependency) since it's about 25 lines.
+`Popover.tsx` (the lighter-weight menu/dropdown wrapper — Add menu, context menu, filter
+dropdowns) was deliberately left alone: it's non-modal by design, already closes on outside
+click, and its many different call sites make a blanket focus trap riskier than valuable there.
+
+**Reduced motion — closing an M0-era gap.** `useUiStore`'s comment for `wheelMode`/`minimapOpen`/
+`dotGridDensity`/`reduceMotion` said "Settings persistence lands with M2/M7; for M0 this just
+holds in-memory defaults" — true for all four, never revisited. For `reduceMotion` specifically
+this was a real accessibility regression risk: an owner who explicitly sets Settings → Canvas →
+Reduce motion to "On" (or "Off", overriding an OS-level "reduce" preference) had it silently reset
+to "System" on every restart. Also found: the CSS side of reduced motion was split across a
+`@media (prefers-reduced-motion: reduce)` block and a separate `[data-reduce-motion='true']`
+attribute selector that nothing ever set — so the in-app override only ever worked for
+JS-triggered animations (camera fly-to, Constellations morph, which already call
+`prefersReducedMotion()` directly), never for CSS-only transitions (hover, panel open/close,
+overlay fade). Fixed both:
+- Added `platform.machineSettings` (`src-tauri/src/machine_settings.rs`: a `read`/`write` pair
+  for a JSON blob at `<app_local_data_dir>/settings.json`, mirroring `db.select`'s "thin bridge,
+  frontend owns the shape" pattern; BrowserPlatform uses IndexedDB, same as its other
+  approximated Tauri-only surfaces) and `src/state/loadMachineSettings.ts` (load once at startup,
+  persist via a `useUiStore.subscribe` on the four machine-local fields). Scoped to all four
+  fields together, not just `reduceMotion` — they share one store and one JSON blob, so persisting
+  only one would leave the plumbing half-built for the other three.
+- Removed the `@media` block from `tokens.css` and made `useReducedMotionSync` (`src/lib/`) the
+  single source of truth: it resolves the effective boolean (System/On/Off, already folding in the
+  OS query) and mirrors it onto `<html data-reduce-motion>` on mount and whenever the setting or
+  the live OS preference changes. One decision point instead of two.
+
+Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (387/387),
+`vite build`, `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+`cargo test --workspace`, and the Playwright suite are all clean (the dialog-heavy specs —
+Settings, Export, Frame rename, Link — were re-run explicitly against the focus-trap change).
+
+**Owner checks:**
+- Tab through a Settings dialog end to end and confirm focus never lands on anything behind the
+  dimmed overlay, and that closing it (Esc or the backdrop) returns focus to the gear icon.
+- Settings → Canvas → Reduce motion → On, quit and reopen the app, confirm it's still On.
+- With reduced motion On, confirm hover/panel-open transitions are instant, not just camera
+  flights and the Constellations morph.
+
+**Real bug found and fixed along the way: `FakeEmbeddingProvider.embedImage` was systematically
+biased, not "meaningless."** `smoke-m4-suggestions-tray.spec.ts` (M4-10) had been failing
+consistently in CI since M6 added the AI-similarity half of the suggestions tray — not a flake, a
+genuine defect, root-caused and fixed here rather than just documented. `embedImage` decoded
+whatever bytes it was given as UTF-8 to build a "bag of tokens" seed; for a text fixture
+(`new TextEncoder().encode('some words').buffer`, exactly what the unit tests pass) that's the
+intended, tested behavior. But `AiQueue` also feeds it every item's *real* WebP-encoded thumbnail
+bytes in the browser dev build (no real CLIP model there — huggingface.co is blocked in cloud
+sessions, CLAUDE.md), and decoding *those* as UTF-8 isn't meaningless at all: every WebP file
+starts with the same "RIFF"/"WEBP"/"VP8 " header bytes, which survive the decode as shared ASCII
+tokens on literally every image, while the actual compressed pixel data mostly collapses to the
+replacement character and drops out of the token match. The result: every real image's fake
+embedding ended up dominated by those few shared header tokens, so `boardSimilarSuggestions`
+(§4.10) saw the entire demo library as one mutually-"similar" cluster — sometimes padding the
+tray with extra false-positive matches, sometimes (this is what the intermittent
+`toBeHidden()` failures at a *different* line were) showing the tray when it should've stayed
+hidden. Fixed by teaching `embedImage` to tell the two cases apart
+(`looksLikePlainTextFixture` — printable-ASCII-only bytes, which real encoded images fail on
+their very first few bytes) and, only for real binary content, seeding the vector from a hash of
+the raw bytes instead of decoded text — still deterministic (same bytes → same vector, so genuine
+exact-duplicate images still read as similar, correctly), but no longer positively correlated
+with every other image through a shared container-format header. Added two unit tests
+(`fakeEmbeddingProvider.test.ts`): unrelated binary blobs now score low similarity, and identical
+binary blobs remain deterministic.
+
+The e2e spec itself also got one fix: it predates M6 and was written to check only the
+deterministic source-filter half of the tray, so it now turns AI off in Settings first — even
+with the embedding fix, a demo library full of visually-similar procedurally-generated shapes can
+legitimately produce AI matches, which was never what this particular test meant to exercise.
+
+Verified via `vitest run` (389/389) and the full Playwright suite (40/40, including 5 repeated
+runs of the previously-flaky spec alone) all green — the previous entries' verification numbers
+above (387, 39/40) predate this fix; these are the corrected, final ones for M7-3 as a whole.
+
 ---
 
 *(Later milestones append below this line.)*

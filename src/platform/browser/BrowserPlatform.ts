@@ -14,6 +14,7 @@ import { newId } from '@/lib/ids';
 import { logger } from '@/lib/logger';
 
 const LIBRARY_KEY = 'designspace.library';
+const MACHINE_SETTINGS_KEY = 'designspace.machineSettings';
 
 function notSupported(feature: string): never {
   throw new Error(
@@ -202,6 +203,12 @@ export class BrowserPlatform implements Platform {
   app = {
     paths: (): Promise<AppPaths> => notSupported('app.paths'),
     openLogs: (): Promise<void> => notSupported('app.openLogs'),
+  };
+
+  machineSettings = {
+    read: (): Promise<string | null> =>
+      idbGet<string>('kv', MACHINE_SETTINGS_KEY).then((v) => v ?? null),
+    write: (json: string): Promise<void> => idbSet('kv', MACHINE_SETTINGS_KEY, json),
   };
 
   shell = {

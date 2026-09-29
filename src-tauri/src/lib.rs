@@ -6,6 +6,7 @@ mod embeddings;
 mod error;
 mod export;
 mod library;
+mod machine_settings;
 mod media;
 mod media_protocol;
 mod net;
@@ -50,6 +51,8 @@ pub fn run() {
             app_info::open_logs,
             dialogs::dialog_save_file,
             export::export_library_zip,
+            machine_settings::machine_settings_read,
+            machine_settings::machine_settings_write,
             net::net_link_meta,
             net::net_download_image,
             embeddings::embeddings_put,

@@ -12,6 +12,15 @@ test("the suggestions tray shows unadded matches for the board's source filter, 
   await page.goto('/?seed=demo', { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
 
+  // This spec predates M6's AI integration and is scoped to the deterministic source-filter
+  // half of the tray (§2.11) — turn AI off so the similarity-based half (§4.10, added later)
+  // never contributes a candidate here. The demo library's procedurally-generated items can be
+  // visually close enough to each other that leaving AI on made this assertion nondeterministic.
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'AI', exact: true }).click();
+  await page.getByRole('switch', { name: 'AI', exact: true }).click();
+  await page.keyboard.press('Escape');
+
   // A text filter that matches a small, known subset of the seeded demo items (every 12th of 60
   // is titled "BAUHAUS N" — 5 matches) — narrow enough to work with individually below.
   await page.keyboard.press('Control+k');

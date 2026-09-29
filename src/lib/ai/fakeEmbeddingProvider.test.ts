@@ -45,4 +45,29 @@ describe('FakeEmbeddingProvider', () => {
     expect(provider.dims).toBe(512);
     expect((await provider.embedText('x')).length).toBe(512);
   });
+
+  it('does not treat unrelated real (binary) images as similar just because they share a file format', async () => {
+    // A minimal WebP header (RIFF/WEBP/VP8 ) followed by different "compressed data" bytes —
+    // the shape every demo item's real thumbnail has. Before the fix, decoding these as UTF-8
+    // made every image collapse to the same few header tokens and look near-identical.
+    const provider = new FakeEmbeddingProvider();
+    function fakeWebp(fill: number): ArrayBuffer {
+      const bytes = new Uint8Array(64);
+      const header = new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 ');
+      bytes.set(header, 0);
+      for (let i = header.length; i < bytes.length; i++) bytes[i] = (fill + i * 37) % 256;
+      return bytes.buffer;
+    }
+    const a = await provider.embedImage(fakeWebp(11));
+    const b = await provider.embedImage(fakeWebp(200));
+    expect(cosineSimilarity(a, b)).toBeLessThan(0.5);
+  });
+
+  it('is still deterministic for the same real (binary) image bytes', async () => {
+    const provider = new FakeEmbeddingProvider();
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 250, 251, 252]).buffer;
+    const a = await provider.embedImage(bytes);
+    const b = await provider.embedImage(bytes);
+    expect(Array.from(a)).toEqual(Array.from(b));
+  });
 });

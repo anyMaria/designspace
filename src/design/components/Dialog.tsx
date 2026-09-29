@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 export interface DialogProps {
   title: string;
@@ -6,10 +6,35 @@ export interface DialogProps {
   onClose: () => void;
 }
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function Dialog({ title, children, onClose }: DialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     function onKeyDown(e: globalThis.KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      // Focus trap (WAI-ARIA modal dialog pattern): Tab/Shift+Tab cycle only through the
+      // dialog's own focusable elements, so keyboard focus never lands on the dimmed content
+      // behind the overlay.
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     // Capture phase, not bubble: some element between the real keypress and `window` calls
     // `stopPropagation` on Escape's bubble phase (only visible with a real keystroke, not a
@@ -20,6 +45,15 @@ export function Dialog({ title, children, onClose }: DialogProps) {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [onClose]);
 
+  useEffect(() => {
+    // Moves focus into the dialog on open (so screen readers announce it and Tab starts there
+    // rather than on whatever was focused behind the overlay) and restores it to the trigger
+    // element on close — the other half of the WAI-ARIA modal dialog pattern above.
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => previouslyFocused?.focus();
+  }, []);
+
   return (
     <div
       className="ds-dialog-overlay"
@@ -27,7 +61,14 @@ export function Dialog({ title, children, onClose }: DialogProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="ds-dialog" role="dialog" aria-modal="true" aria-label={title}>
+      <div
+        ref={dialogRef}
+        className="ds-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+      >
         <h2
           className="font-display"
           style={{ margin: '0 0 var(--space-4)', fontSize: 'var(--text-xl)' }}

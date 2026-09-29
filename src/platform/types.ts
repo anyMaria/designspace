@@ -138,6 +138,15 @@ export interface Platform {
     openLogs(): Promise<void>;
   };
 
+  /** §5.5's machine settings (window/wheel mode/reduce motion/etc., as opposed to the library's
+   * own `meta.settings`) — a single opaque JSON blob whose shape the frontend owns (see
+   * `src/state/loadMachineSettings.ts`), mirroring `db.select`'s "thin bridge" pattern.
+   * `read()` returns `null` when nothing has been saved yet. */
+  machineSettings: {
+    read(): Promise<string | null>;
+    write(json: string): Promise<void>;
+  };
+
   clipboard: {
     readImage(): Promise<Uint8Array | null>;
     readText(): Promise<string | null>;
