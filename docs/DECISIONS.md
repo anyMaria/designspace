@@ -2589,6 +2589,49 @@ specs (covering `?bench=10000` and Settings) are clean. No Rust changes this sub
 - If anything misses budget, note the actual numbers here in DECISIONS.md so future milestones
   have a real baseline instead of the plan's estimates.
 
+## M7-5: Friendly error messages, logs, "Open logs folder"
+
+"Open logs folder" itself was already wired in M7-2. The other two-thirds of this sub-task were
+still gaps:
+
+**Logs — `logger.ts` never actually wrote to a log file.** Its own comment said as much: "M0
+keeps it local" (console only), deferring the real wiring "to later." `@tauri-apps/plugin-log`
+(the JS side) was already an installed dependency, and the Rust plugin was already registered
+with `tauri_plugin_log::Builder::default().build()` in `lib.rs` — which does default to writing a
+file in the app's log directory — but nothing on either side ever called it: zero `log::*!` calls
+anywhere in `src-tauri`, and `logger.ts` only ever called `console.*`. So "Open logs folder"
+opened a folder that would have been empty. Fixed by routing every `logger.*` call through
+`@tauri-apps/plugin-log`'s matching function under Tauri (lazily imported — the browser dev build
+never pulls this package in at all, same convention as every other Tauri-only import in this
+codebase), in addition to the existing `console.*` call for local dev visibility. Deliberately did
+*not* add new Rust-side `log::*!` calls in this pass — every current Rust error already flows back
+to the frontend as an `AppError` and gets logged there via the existing `logger.error(...)` call
+sites, so the JS-side fix alone closes the gap without duplicating log lines.
+
+**Friendly error messages — two real user-facing raw-exception surfaces, both now wrapped.**
+`App.tsx`'s startup-failure screen and Onboarding's two failure paths (library creation, bringing
+in a folder) all rendered `err.message` directly — for an `AppError` from Rust, that's a string
+like `[io_error] No such file or directory (os error 2)`, plainly not what CLAUDE.md's "Short,
+warm and concrete" wording standard asks for. Fixed by giving each failure a plain-language
+headline (`en.errors.*`) with the raw detail kept underneath in smaller, muted text — still
+visible (useful for the owner to self-report a bug, and it's in the logs now too per the fix
+above) but no longer the primary thing the owner reads first. The rest of the app's error
+surfaces already followed this pattern or something equivalent (toasts with a plain-language
+message, `logger.error` for the raw detail) from earlier milestones — these two call sites were
+the only genuinely raw ones a grep for `err.message` in UI-facing code turned up.
+
+Verification: `tsc -b --noEmit`, `eslint .`, `prettier --check .`, `vitest run` (394/394, up from
+392 — 2 new `logger.test.ts` tests), `vite build`, and `app-shell.spec.ts` (Settings → About →
+Diagnostics still opens correctly with the logger changes in place) are all clean.
+
+**Owner checks:**
+- Force a failure (e.g. point the library at a folder without write permission) and confirm the
+  message reads like a person wrote it, not a stack trace, with the technical detail still visible
+  underneath for a bug report.
+- After using the app for a while, open Settings → About → "Open logs folder" and confirm the log
+  file actually has entries in it — this is the one thing that genuinely can't be verified from
+  this sandbox (no real Tauri runtime to open a real log file against).
+
 ---
 
 *(Later milestones append below this line.)*

@@ -19,12 +19,32 @@ export interface OnboardingProps {
 
 type Step = 'welcome' | 'bringIn';
 
+interface FriendlyError {
+  headline: string;
+  detail: string;
+}
+
+function toFriendlyError(headline: string, err: unknown): FriendlyError {
+  return { headline, detail: err instanceof Error ? err.message : String(err) };
+}
+
+function ErrorNotice({ error }: { error: FriendlyError }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <p style={{ color: 'var(--danger)', margin: 0 }}>{error.headline}</p>
+      <p style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)', margin: 0 }}>
+        {error.detail}
+      </p>
+    </div>
+  );
+}
+
 /** First run, §2.14 steps 1–3: welcome + library location, then "Bring in existing inspiration?"
  * (pick folders, or Skip) before landing on the empty map. */
 export function Onboarding({ platform, onReady }: OnboardingProps) {
   const [step, setStep] = useState<Step>('welcome');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FriendlyError | null>(null);
   const [path, setPath] = useState<string | null>(null);
   const [library, setLibrary] = useState<LibraryInfo | null>(null);
   const [libraryBoardId, setLibraryBoardId] = useState<string | null>(null);
@@ -59,7 +79,7 @@ export function Onboarding({ platform, onReady }: OnboardingProps) {
       }
     } catch (err) {
       logger.error('Failed to create the library', err);
-      setError(err instanceof Error ? err.message : String(err));
+      setError(toFriendlyError(en.errors.libraryCreateFailed, err));
       setBusy(false);
     }
   }
@@ -83,7 +103,7 @@ export function Onboarding({ platform, onReady }: OnboardingProps) {
       onReady(library, libraryBoardId);
     } catch (err) {
       logger.error('Failed to bring in existing inspiration', err);
-      setError(err instanceof Error ? err.message : String(err));
+      setError(toFriendlyError(en.errors.bringInFailed, err));
       setBusy(false);
     }
   }
@@ -139,7 +159,7 @@ export function Onboarding({ platform, onReady }: OnboardingProps) {
               )}
             </div>
 
-            {error && <p style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>}
+            {error && <ErrorNotice error={error} />}
 
             <Button variant="primary" disabled={busy} onClick={() => void createLibrary()}>
               {en.onboarding.createLibrary}
@@ -163,7 +183,7 @@ export function Onboarding({ platform, onReady }: OnboardingProps) {
               </p>
             )}
 
-            {error && <p style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>}
+            {error && <ErrorNotice error={error} />}
 
             <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
               <Button variant="ghost" disabled={busy} onClick={skipBringIn}>

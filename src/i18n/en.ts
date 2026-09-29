@@ -267,6 +267,13 @@ export const en = {
       'Your library is getting large (9,500+ items). Designspace is tuned for up to about ' +
       '10,000 — things may start to feel slower past that.',
   },
+  errors: {
+    startupFailed: 'Something went wrong starting Designspace.',
+    startupFailedHint:
+      'Try closing and reopening the app. The details below are saved to the logs too.',
+    libraryCreateFailed: "Couldn't create the library.",
+    bringInFailed: "Couldn't bring in that folder.",
+  },
   emptyStates: {
     libraryMap: 'Drop images anywhere, paste with Ctrl+V, or press + Add.',
     board: 'Pull inspiration in: search your library (Ctrl+K) or drag from the List panel.',

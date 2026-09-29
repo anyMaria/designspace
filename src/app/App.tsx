@@ -21,6 +21,7 @@ import { loadMachineSettings, startMachineSettingsPersistence } from '@/state/lo
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
 import { logger } from '@/lib/logger';
+import { en } from '@/i18n/en';
 import { useReducedMotionSync } from '@/lib/useReducedMotionSync';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
@@ -128,7 +129,35 @@ export function App() {
     case 'loading':
       return <CenteredMessage>Loading…</CenteredMessage>;
     case 'error':
-      return <CenteredMessage>Couldn't start Designspace: {boot.message}</CenteredMessage>;
+      return (
+        <CenteredMessage>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-2)',
+              alignItems: 'center',
+              textAlign: 'center',
+              maxWidth: 480,
+            }}
+          >
+            <p style={{ margin: 0 }}>{en.errors.startupFailed}</p>
+            <p style={{ margin: 0, color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
+              {en.errors.startupFailedHint}
+            </p>
+            <p
+              style={{
+                margin: 0,
+                color: 'var(--text-3)',
+                fontSize: 'var(--text-xs)',
+                wordBreak: 'break-word',
+              }}
+            >
+              {boot.message}
+            </p>
+          </div>
+        </CenteredMessage>
+      );
     case 'needs-library':
       return (
         <Onboarding

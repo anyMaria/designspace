@@ -1288,7 +1288,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] Complete Settings, onboarding, every empty state, and a pass on the wording.
 - [x] An accessibility pass (contrast audit, focus order, reduced motion).
 - [ ] A performance pass against §4.13 on the owner's PC.
-- [ ] Friendly error messages, logs, "Open logs folder".
+- [x] Friendly error messages, logs, "Open logs folder".
 - [ ] A README for daily use (where the data is, how backups work, how to update).
 - [ ] Tag `v1.0.0`.
 
