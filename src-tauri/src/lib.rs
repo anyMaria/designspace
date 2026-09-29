@@ -1,7 +1,15 @@
+mod app_info;
+mod backups;
 mod db;
+mod dialogs;
+mod embeddings;
 mod error;
+mod export;
 mod library;
+mod machine_settings;
+mod media;
 mod media_protocol;
+mod net;
 mod state;
 
 use state::AppState;
@@ -25,6 +33,30 @@ pub fn run() {
             db::db_select,
             db::db_execute,
             db::db_batch,
+            media::media_import_bytes,
+            media::media_import_paths,
+            media::media_import_begin,
+            media::media_import_chunk,
+            media::media_import_finish,
+            media::media_reveal,
+            media::media_purge,
+            media::media_list_folder,
+            media::cache_put,
+            media::cache_has,
+            media::cache_delete,
+            backups::backup_now,
+            backups::backup_list,
+            backups::backup_restore,
+            app_info::app_paths,
+            app_info::open_logs,
+            dialogs::dialog_save_file,
+            export::export_library_zip,
+            machine_settings::machine_settings_read,
+            machine_settings::machine_settings_write,
+            net::net_link_meta,
+            net::net_download_image,
+            embeddings::embeddings_put,
+            embeddings::embeddings_load,
         ]);
 
     let builder = media_protocol::register(builder);

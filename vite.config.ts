@@ -1,6 +1,12 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const pkg = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8'),
+) as { version: string };
 
 // Same CSP the Tauri build enforces (src-tauri/tauri.conf.json, app.security.csp), so the
 // browser dev build behaves like the desktop app. See docs/IMPLEMENTATION_PLAN.md §4.12.
@@ -10,7 +16,12 @@ import react from '@vitejs/plugin-react';
 // no nonce/hash option for it. `pnpm preview` serves the production build's static output,
 // which has no inline scripts, so it runs under the exact same policy the Tauri build enforces;
 // only the dev server relaxes `script-src`. `connect-src` — which is what actually guarantees no
-// background network access — stays identical in both.
+// background network access — is otherwise identical in both, plus one addition: `blob:`. The
+// browser dev backend has no `media://` protocol, so it serves originals as `blob:` URLs and the
+// ingest worker pipeline (`IngestQueue.dispatch`) fetches them by URL like it does the real
+// `http://media.localhost` one in Tauri. `blob:` URLs are local, in-memory, same-origin objects —
+// never network — so this doesn't reopen the "no background network" guarantee; the shipped
+// Windows app never carries this addition, since TauriPlatform never produces a `blob:` URL here.
 function csp(allowInlineScripts: boolean): string {
   const scriptSrc = allowInlineScripts
     ? "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'"
@@ -19,13 +30,18 @@ function csp(allowInlineScripts: boolean): string {
     `default-src 'self'; ${scriptSrc}; worker-src 'self' blob:; ` +
     "style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: media: http://media.localhost; " +
     "media-src 'self' blob: media: http://media.localhost; font-src 'self' blob: data: media: http://media.localhost; " +
-    "connect-src 'self' ipc: http://ipc.localhost media: http://media.localhost; " +
+    "connect-src 'self' blob: ipc: http://ipc.localhost media: http://media.localhost; " +
     "object-src 'none'; frame-src 'none'; base-uri 'none'"
   );
 }
 
 export default defineConfig({
   plugins: [react()],
+  // Settings → About shows this rather than a hand-maintained duplicate — one source of truth
+  // for the version number, so bumping package.json is the only step at release time.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   resolve: {
     alias: {
       '@': new URL('./src', import.meta.url).pathname,

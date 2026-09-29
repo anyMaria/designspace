@@ -44,6 +44,16 @@ export interface BackupInfo {
   sizeBytes: number;
 }
 
+export interface FolderListing {
+  paths: string[];
+  skipped: number;
+}
+
+export interface AppPaths {
+  appLocalDataDir: string;
+  logsDir: string;
+}
+
 export interface FileFilter {
   name: string;
   extensions: string[];
@@ -73,12 +83,15 @@ export interface Platform {
     originalUrl(relPath: string): string;
     reveal(relPath: string): Promise<void>;
     purge(relPaths: string[]): Promise<void>;
+    /** Recursive folder listing for the Folder… entry point (§2.3) — Tauri only. */
+    listFolder(path: string): Promise<FolderListing>;
   };
 
   cache: {
     put(key: string, bytes: Uint8Array): Promise<void>;
     has(keys: string[]): Promise<boolean[]>;
     url(key: string): string;
+    delete(keys: string[]): Promise<void>;
   };
 
   net: {
@@ -92,7 +105,10 @@ export interface Platform {
   };
 
   backups: {
-    now(): Promise<BackupInfo>;
+    /** `extraDestination` (§5.4): an optional second folder (e.g. a OneDrive folder) that also
+     * receives a copy of the backup, best-effort — a failure to copy there never fails the
+     * backup itself. */
+    now(extraDestination?: string | null): Promise<BackupInfo>;
     list(): Promise<BackupInfo[]>;
     restore(id: string): Promise<void>;
   };
@@ -103,12 +119,41 @@ export interface Platform {
     saveFile(defaultName: string, bytes: Uint8Array): Promise<boolean>;
   };
 
+  /** §5.4's library export (M7): a JSON file with all metadata, optionally zipped with the
+   * media. The JSON itself is assembled by `src/features/export/exportLibrary.ts` from ordinary
+   * `db.select` queries; only the ZIP variant needs a platform command, since streaming the
+   * (potentially gigabytes-large) `media/` folder into an archive needs direct filesystem
+   * access. Returns `false` if the owner cancels the Save dialog, matching `dialogs.saveFile`. */
+  libraryExport: {
+    zip(manifestJson: string, defaultName: string): Promise<boolean>;
+  };
+
   shell: {
     openExternal(url: string): Promise<void>;
+  };
+
+  /** §2.14's Settings → About: "Open logs folder." */
+  app: {
+    paths(): Promise<AppPaths>;
+    openLogs(): Promise<void>;
+  };
+
+  /** §5.5's machine settings (window/wheel mode/reduce motion/etc., as opposed to the library's
+   * own `meta.settings`) — a single opaque JSON blob whose shape the frontend owns (see
+   * `src/state/loadMachineSettings.ts`), mirroring `db.select`'s "thin bridge" pattern.
+   * `read()` returns `null` when nothing has been saved yet. */
+  machineSettings: {
+    read(): Promise<string | null>;
+    write(json: string): Promise<void>;
   };
 
   clipboard: {
     readImage(): Promise<Uint8Array | null>;
     readText(): Promise<string | null>;
+    /** `bytes` is an encoded image file (PNG/JPEG/…), not raw pixels — the context menu's
+     * "Copy image" (§2.4). */
+    writeImage(bytes: Uint8Array, mime: string): Promise<void>;
+    /** A swatch's "Click copies the HEX" (§2.11, §4.2). */
+    writeText(text: string): Promise<void>;
   };
 }

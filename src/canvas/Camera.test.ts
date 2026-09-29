@@ -77,4 +77,33 @@ describe('Camera', () => {
     camera.panByScreen(1, 1);
     expect(calls).toBe(1);
   });
+
+  it('setPosition moves the camera without touching zoom, no easing', () => {
+    const camera = new Camera();
+    camera.zoom = 2;
+    camera.setPosition(30, -40);
+    expect(camera.x).toBe(30);
+    expect(camera.y).toBe(-40);
+    expect(camera.zoom).toBe(2);
+  });
+
+  it('flyToZoom with reduceMotion jumps straight to the clamped target zoom', () => {
+    const camera = new Camera();
+    camera.x = 5;
+    camera.y = 5;
+    camera.flyToZoom(999, true);
+    expect(camera.zoom).toBe(8); // clamped to zoomRange.max
+    expect(camera.x).toBe(5); // position untouched
+    camera.flyToZoom(0.00001, true);
+    expect(camera.zoom).toBe(0.02); // clamped to zoomRange.min
+  });
+
+  it('.state returns a stable reference until the camera actually changes', () => {
+    const camera = new Camera();
+    const first = camera.state;
+    expect(camera.state).toBe(first); // same reference, no change yet
+    camera.panByScreen(1, 0);
+    expect(camera.state).not.toBe(first); // new reference after a real change
+    expect(camera.state).toBe(camera.state); // stable again post-change
+  });
 });

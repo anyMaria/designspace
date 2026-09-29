@@ -46,6 +46,16 @@ export async function idbSet(store: string, key: string, value: unknown): Promis
   });
 }
 
+export async function idbDelete(store: string, key: string): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction failed'));
+  });
+}
+
 export async function idbHas(store: string, key: string): Promise<boolean> {
   const db = await openDb();
   return new Promise((resolve, reject) => {

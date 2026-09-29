@@ -1,21 +1,21 @@
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
+import { readImage, readText, writeImage, writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { Image } from '@tauri-apps/api/image';
 import type {
+  AppPaths,
   BackupInfo,
   DbRow,
   DbStatement,
   FileFilter,
+  FolderListing,
   ImportResult,
   LibraryInfo,
   LinkMeta,
   Platform,
 } from '@/platform/types';
-
-function notYet(feature: string, milestone: string): never {
-  throw new Error(`${feature} lands in ${milestone} — see docs/IMPLEMENTATION_PLAN.md §8.`);
-}
+import { base64ToBytes, bytesToBase64 } from '@/lib/base64';
 
 /** Talks to the Rust backend over `invoke` and the `media://` protocol. See §4.4–4.5.
  * M0 wires up the library/db/media-url surface; import, cache, embeddings, backups, net and
@@ -47,10 +47,21 @@ export class TauriPlatform implements Platform {
 
   media = {
     importPaths: (paths: string[]) => invoke<ImportResult[]>('media_import_paths', { paths }),
-    importFile: (file: File, onProgress?: (p: number) => void): Promise<ImportResult> => {
-      // Chunked streaming (media_import_begin/chunk/finish, §4.4) lands with Adding in M1.
-      void onProgress;
-      return notYet(`media.importFile("${file.name}")`, 'M1');
+    importFile: async (file: File, onProgress?: (p: number) => void): Promise<ImportResult> => {
+      const CHUNK_SIZE = 8 * 1024 * 1024; // 8 MB, per §4.4
+      const token = await invoke<string>('media_import_begin', {
+        name: file.name,
+        size: file.size,
+      });
+      let sent = 0;
+      for (let offset = 0; offset < file.size; offset += CHUNK_SIZE) {
+        const slice = file.slice(offset, offset + CHUNK_SIZE);
+        const bytes = new Uint8Array(await slice.arrayBuffer());
+        await invoke<void>('media_import_chunk', { token, bytes: Array.from(bytes) });
+        sent += bytes.byteLength;
+        onProgress?.(file.size === 0 ? 1 : sent / file.size);
+      }
+      return invoke<ImportResult>('media_import_finish', { token });
     },
     importBytes: (name: string, bytes: Uint8Array) =>
       invoke<ImportResult>('media_import_bytes', { name, bytes: Array.from(bytes) }),
@@ -58,6 +69,7 @@ export class TauriPlatform implements Platform {
     originalUrl: (relPath: string): string => convertFileSrc(`original/${relPath}`, 'media'),
     reveal: (relPath: string) => invoke<void>('media_reveal', { relPath }),
     purge: (relPaths: string[]) => invoke<void>('media_purge', { relPaths }),
+    listFolder: (path: string) => invoke<FolderListing>('media_list_folder', { path }),
   };
 
   cache = {
@@ -65,6 +77,9 @@ export class TauriPlatform implements Platform {
       invoke<void>('cache_put', { key, bytes: Array.from(bytes) }),
     has: (keys: string[]) => invoke<boolean[]>('cache_has', { keys }),
     url: (key: string): string => convertFileSrc(`cache/${key}`, 'media'),
+    delete: async (keys: string[]): Promise<void> => {
+      for (const key of keys) await invoke<void>('cache_delete', { prefix: key });
+    },
   };
 
   net = {
@@ -73,14 +88,43 @@ export class TauriPlatform implements Platform {
   };
 
   embeddings = {
-    put: (model: string, _entries: [string, Float32Array][]): Promise<void> =>
-      notYet(`embeddings.put(${model})`, 'M6'),
-    load: (model: string): Promise<Map<string, Float32Array>> =>
-      notYet(`embeddings.load(${model})`, 'M6'),
+    put: async (model: string, entries: [string, Float32Array][]): Promise<void> => {
+      if (entries.length === 0) return;
+      const dims = entries[0][1].length;
+      const itemIds = entries.map(([id]) => id);
+      const packed = new Uint8Array(entries.length * dims * 4);
+      entries.forEach(([, vector], i) => {
+        packed.set(
+          new Uint8Array(vector.buffer, vector.byteOffset, vector.byteLength),
+          i * dims * 4,
+        );
+      });
+      await invoke<void>('embeddings_put', {
+        model,
+        itemIds,
+        dims,
+        vectorsB64: bytesToBase64(packed),
+      });
+    },
+    load: async (model: string): Promise<Map<string, Float32Array>> => {
+      const result = await invoke<{ itemIds: string[]; dims: number; vectorsB64: string }>(
+        'embeddings_load',
+        { model },
+      );
+      const bytes = base64ToBytes(result.vectorsB64);
+      const map = new Map<string, Float32Array>();
+      result.itemIds.forEach((id, i) => {
+        const start = i * result.dims * 4;
+        const vector = new Float32Array(bytes.buffer.slice(start, start + result.dims * 4));
+        map.set(id, vector);
+      });
+      return map;
+    },
   };
 
   backups = {
-    now: (): Promise<BackupInfo> => invoke<BackupInfo>('backup_now'),
+    now: (extraDestination?: string | null): Promise<BackupInfo> =>
+      invoke<BackupInfo>('backup_now', { extraDestination: extraDestination ?? null }),
     list: (): Promise<BackupInfo[]> => invoke<BackupInfo[]>('backup_list'),
     restore: (id: string): Promise<void> => invoke<void>('backup_restore', { id }),
   };
@@ -95,24 +139,48 @@ export class TauriPlatform implements Platform {
       const result = await openDialog({ directory: true });
       return typeof result === 'string' ? result : null;
     },
-    saveFile: async (defaultName: string, bytes: Uint8Array): Promise<boolean> => {
-      const path = await saveDialog({ defaultPath: defaultName });
-      if (!path) return false;
-      await invoke('app_write_file', { path, bytes: Array.from(bytes) });
-      return true;
-    },
+    saveFile: (defaultName: string, bytes: Uint8Array): Promise<boolean> =>
+      invoke<boolean>('dialog_save_file', { defaultName, bytes: Array.from(bytes) }),
+  };
+
+  libraryExport = {
+    zip: (manifestJson: string, defaultName: string): Promise<boolean> =>
+      invoke<boolean>('export_library_zip', { manifestJson, defaultName }),
   };
 
   shell = {
     openExternal: (url: string): Promise<void> => openUrl(url),
   };
 
+  app = {
+    paths: (): Promise<AppPaths> => invoke<AppPaths>('app_paths'),
+    openLogs: (): Promise<void> => invoke<void>('open_logs'),
+  };
+
+  machineSettings = {
+    read: (): Promise<string | null> => invoke<string | null>('machine_settings_read'),
+    write: (json: string): Promise<void> => invoke<void>('machine_settings_write', { json }),
+  };
+
   clipboard = {
+    // Returns PNG-encoded bytes (like BrowserPlatform's), not the plugin's raw RGBA buffer —
+    // callers (paste, §2.3) need a real image file, and only this method has the width/height
+    // needed to encode one.
     readImage: async (): Promise<Uint8Array | null> => {
       try {
         const img = await readImage();
+        const { width, height } = await img.size();
         const rgba = await img.rgba();
-        return new Uint8Array(rgba);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, 'image/png'),
+        );
+        return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
       } catch {
         return null;
       }
@@ -123,6 +191,13 @@ export class TauriPlatform implements Platform {
       } catch {
         return null;
       }
+    },
+    writeImage: async (bytes: Uint8Array): Promise<void> => {
+      const image = await Image.fromBytes(bytes);
+      await writeImage(image);
+    },
+    writeText: async (text: string): Promise<void> => {
+      await writeText(text);
     },
   };
 }

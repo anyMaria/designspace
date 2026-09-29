@@ -3,7 +3,26 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { getPlatform } from '@/platform';
 import { ensureLibraryReady, readDevUrlFlags } from '@/platform/bootstrap';
 import { seedDemoLibrary } from '@/platform/seed/demo';
+import { loadLibraryItems, loadFramesForBoard } from '@/state/loadLibrary';
+import { loadVocabulary } from '@/state/loadVocabulary';
+import { seedVocabulary } from '@/state/vocabularySeed';
+import { loadManualConnections } from '@/state/loadManualConnections';
+import { loadBoards } from '@/state/loadBoards';
+import { useBoardStore } from '@/state/boardStore';
+import { resumePendingIngest } from '@/workers/ingestQueue';
+import { resumePendingVideoIngest } from '@/workers/videoIngestQueue';
+import { resumePendingPdfIngest } from '@/workers/pdfIngestQueue';
+import { resumePendingFontIngest } from '@/workers/fontIngestQueue';
+import { resumePendingLinkIngest } from '@/features/import/importLink';
+import { resumePendingAiAnalysis } from '@/workers/aiQueue';
+import { loadEmbeddings } from '@/state/embeddingsStore';
+import { loadSettings } from '@/state/loadSettings';
+import { loadMachineSettings, startMachineSettingsPersistence } from '@/state/loadMachineSettings';
+import { purgeExpiredTrash } from '@/features/trash/trashActions';
+import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
 import { logger } from '@/lib/logger';
+import { en } from '@/i18n/en';
+import { useReducedMotionSync } from '@/lib/useReducedMotionSync';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
 import { Shell } from './Shell';
@@ -22,12 +41,15 @@ type BootState =
 
 export function App() {
   const [boot, setBoot] = useState<BootState>({ phase: 'loading' });
+  useReducedMotionSync();
 
   useEffect(() => {
     let cancelled = false;
     async function start() {
       try {
         const platform = await getPlatform();
+        await loadMachineSettings(platform);
+        startMachineSettingsPersistence(platform);
         const recent = await platform.library.recent();
 
         if (platform.kind === 'browser') {
@@ -35,7 +57,25 @@ export function App() {
           const library = await platform.library.open();
           const libraryBoardId = await ensureLibraryReady(platform);
           const { seedDemo, bench } = readDevUrlFlags();
+          await seedVocabulary(platform);
           if (seedDemo) await seedDemoLibrary(platform, libraryBoardId);
+          await Promise.all([
+            loadLibraryItems(platform, libraryBoardId),
+            loadVocabulary(platform),
+            loadManualConnections(platform),
+            loadBoards(platform),
+            loadFramesForBoard(platform, libraryBoardId),
+            loadSettings(platform),
+            loadEmbeddings(platform),
+          ]);
+          useBoardStore.getState().setCurrentBoardId(libraryBoardId);
+          void resumePendingIngest(platform);
+          void resumePendingVideoIngest(platform);
+          void resumePendingPdfIngest(platform);
+          void resumePendingFontIngest(platform);
+          void resumePendingLinkIngest(platform);
+          void resumePendingAiAnalysis(platform);
+          void purgeExpiredTrash(platform);
           if (!cancelled)
             setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: bench });
           return;
@@ -47,6 +87,25 @@ export function App() {
         }
         const library = await platform.library.open(recent[0].path);
         const libraryBoardId = await ensureLibraryReady(platform);
+        await seedVocabulary(platform);
+        await Promise.all([
+          loadLibraryItems(platform, libraryBoardId),
+          loadVocabulary(platform),
+          loadManualConnections(platform),
+          loadBoards(platform),
+          loadFramesForBoard(platform, libraryBoardId),
+          loadSettings(platform),
+          loadEmbeddings(platform),
+        ]);
+        useBoardStore.getState().setCurrentBoardId(libraryBoardId);
+        void resumePendingIngest(platform);
+        void resumePendingVideoIngest(platform);
+        void resumePendingPdfIngest(platform);
+        void resumePendingFontIngest(platform);
+        void resumePendingLinkIngest(platform);
+        void resumePendingAiAnalysis(platform);
+        void purgeExpiredTrash(platform);
+        void maybeBackupAtStartup(platform);
         if (!cancelled)
           setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: null });
       } catch (err) {
@@ -70,7 +129,35 @@ export function App() {
     case 'loading':
       return <CenteredMessage>Loading…</CenteredMessage>;
     case 'error':
-      return <CenteredMessage>Couldn't start Designspace: {boot.message}</CenteredMessage>;
+      return (
+        <CenteredMessage>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-2)',
+              alignItems: 'center',
+              textAlign: 'center',
+              maxWidth: 480,
+            }}
+          >
+            <p style={{ margin: 0 }}>{en.errors.startupFailed}</p>
+            <p style={{ margin: 0, color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
+              {en.errors.startupFailedHint}
+            </p>
+            <p
+              style={{
+                margin: 0,
+                color: 'var(--text-3)',
+                fontSize: 'var(--text-xs)',
+                wordBreak: 'break-word',
+              }}
+            >
+              {boot.message}
+            </p>
+          </div>
+        </CenteredMessage>
+      );
     case 'needs-library':
       return (
         <Onboarding

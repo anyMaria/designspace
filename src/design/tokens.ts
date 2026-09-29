@@ -65,6 +65,20 @@ export const colorFamilies = {
 
 export type ColorFamily = keyof typeof colorFamilies;
 
+/** §2.11 note colors — reuses the existing "stone" accents (already light/pastel enough to read
+ * dark text on, and already present in both palettes) rather than inventing a new set. `text` is
+ * the same dark ink for all of them; every stone here is light enough for it to read clearly. */
+export const noteColors = {
+  cream: colors.cream,
+  blush: colors.blush,
+  sage: colors.sage,
+  sky: colors.sky,
+  lavender: colors.lavender,
+} as const;
+export type NoteColor = keyof typeof noteColors;
+export const noteColorNames = Object.keys(noteColors) as NoteColor[];
+export const noteTextColor = colors.canvas;
+
 /** World-unit sizes and geometry — see §3.4, §4.6. */
 export const canvasGeometry = {
   /** Card corner radius in world units. Never drawn below 2px on screen. */
@@ -104,4 +118,6 @@ export const motion = {
 export const zoomRange = {
   min: 0.02,
   max: 8,
+  /** Multiplier per Ctrl+=/Ctrl+− press or zoom-menu click. */
+  step: 1.3,
 } as const;

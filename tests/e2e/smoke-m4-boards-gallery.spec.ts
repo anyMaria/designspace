@@ -1,0 +1,70 @@
+import { test, expect } from '@playwright/test';
+
+test('the space switcher creates a board, and the gallery renames/duplicates/deletes/restores it', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text());
+  });
+
+  await page.goto('/?seed=demo', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1000);
+
+  // Switcher starts on "Library".
+  const switcher = page.getByRole('button', { name: 'Switch space' });
+  await expect(switcher).toContainText('Library');
+
+  // "+ New board" from the switcher creates a board and switches to it.
+  await switcher.click();
+  await page.getByRole('menuitem', { name: '+ New board' }).click();
+  await expect(switcher).toContainText('Untitled board');
+
+  // Back to Library, then open the full gallery.
+  await switcher.click();
+  await page.getByRole('menuitem', { name: 'Library' }).click();
+  await expect(switcher).toContainText('Library');
+  await switcher.click();
+  await page.getByRole('menuitem', { name: 'All boards…' }).click();
+
+  const gallery = page.getByRole('heading', { name: 'Boards' });
+  await expect(gallery).toBeVisible();
+  const card = page.locator('.ds-panel', { hasText: 'Untitled board' }).first();
+  await expect(card).toBeVisible();
+
+  // Rename it — the card's own "Untitled board" text is replaced by the input while renaming,
+  // so the input itself (an <input>'s value isn't part of an element's accessible/inner text)
+  // is found page-wide rather than re-querying the (no-longer-matching) `card` locator.
+  await card.getByRole('button', { name: 'Rename' }).click();
+  const nameField = page.getByLabel('Board name');
+  await nameField.fill('Mood: Autumn');
+  await nameField.press('Enter');
+  await expect(page.locator('.ds-panel', { hasText: 'Mood: Autumn' })).toBeVisible();
+
+  // Duplicate it.
+  const renamed = page.locator('.ds-panel', { hasText: 'Mood: Autumn' }).first();
+  await renamed.getByRole('button', { name: 'Duplicate' }).click();
+  await expect(page.locator('.ds-panel', { hasText: 'Mood: Autumn copy' })).toBeVisible();
+
+  // Delete the copy — it moves to the Trash section (still visible there, minus its Rename/
+  // Duplicate/Delete actions) — then restore it, which moves it back to the active grid.
+  const copyCard = page.locator('.ds-panel', { hasText: 'Mood: Autumn copy' }).first();
+  await copyCard.getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByRole('heading', { name: 'Trash' })).toBeVisible();
+  const trashedCopy = page.locator('.ds-panel', { hasText: 'Mood: Autumn copy' }).first();
+  await expect(trashedCopy.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+  await trashedCopy.getByRole('button', { name: 'Restore' }).click();
+  await expect(page.getByRole('heading', { name: 'Trash' })).toBeHidden();
+  await expect(
+    page.locator('.ds-panel', { hasText: 'Mood: Autumn copy' }).getByRole('button', {
+      name: 'Delete',
+    }),
+  ).toBeVisible();
+
+  // Close the gallery.
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(gallery).toBeHidden();
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});

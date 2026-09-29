@@ -29,8 +29,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # From M6 onward: fetch and cache the bundled AI models here (actions/cache, keyed by
-      # model id) with `node scripts/fetch-models.mjs`, before the build step below.
+      - name: Cache the bundled CLIP model
+        id: models-cache
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/resources/models
+          key: ai-models-${{ hashFiles('scripts/fetch-models.mjs') }}
+
+      - name: Fetch the bundled AI model
+        if: steps.models-cache.outputs.cache-hit != 'true'
+        run: node scripts/fetch-models.mjs
 
       - name: Build the installer
         run: pnpm tauri build

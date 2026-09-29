@@ -42,4 +42,22 @@ impl From<serde_json::Error> for AppError {
     }
 }
 
+impl From<tauri::Error> for AppError {
+    fn from(err: tauri::Error) -> Self {
+        AppError::new("tauri_error", err.to_string())
+    }
+}
+
+impl From<reqwest::Error> for AppError {
+    fn from(err: reqwest::Error) -> Self {
+        AppError::new("network_error", err.to_string())
+    }
+}
+
+impl From<zip::result::ZipError> for AppError {
+    fn from(err: zip::result::ZipError) -> Self {
+        AppError::new("zip_error", err.to_string())
+    }
+}
+
 pub type AppResult<T> = Result<T, AppError>;

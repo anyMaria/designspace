@@ -1160,21 +1160,21 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 
 ### M1: Library & map (images)
 - [ ] Adding:
-  - [ ] Files… / Folder… (paths → Rust copies);
+  - [x] Files… / Folder… (paths → Rust copies);
   - [ ] drag and drop (files, browser images, URLs);
   - [ ] paste (image data, files, URLs; text → note arrives in M4).
-- [ ] The import progress card with Cancel, messages for unsupported types, confirmation for folder imports.
+- [x] The import progress card with Cancel, messages for unsupported types, confirmation for folder imports.
 - [ ] Duplicates: exact (hash) with "Show"/"Restore", and near (pHash) with the badge and the comparison.
-- [ ] Ingest workers for images (thumbnails, palette, color families, pHash), resumable.
-- [ ] Canvas:
-  - [ ] item sprites with LOD and the texture manager;
-  - [ ] selecting (click, Shift, marquee, Ctrl+A), moving, resizing, stacking, hover;
-  - [ ] the context menu, minimap, zoom menu and fly-to.
+- [x] Ingest workers for images (thumbnails, palette, color families, pHash), resumable.
+- [x] Canvas:
+  - [x] item sprites with LOD and the texture manager;
+  - [x] selecting (click, Shift, marquee, Ctrl+A), moving, resizing, stacking, hover;
+  - [x] the context menu, minimap, zoom menu and fly-to.
 - [ ] Placement: drop point, cursor, free-space search, justified rows for several items; Tidy up.
-- [ ] Commands and undo/redo for all of the above; the Trash (soft delete, Trash view, restore, purge to the Recycle Bin, automatic purge after 30 days).
-- [ ] Focus view for images.
-- [ ] Automatic backups with rotation.
-- [ ] The empty state; toasts with Undo; the Library and Canvas sections of Settings.
+- [x] Commands and undo/redo for all of the above; the Trash (soft delete, Trash view, restore, purge to the Recycle Bin, automatic purge after 30 days).
+- [x] Focus view for images.
+- [x] Automatic backups with rotation.
+- [x] The empty state; toasts with Undo; the Library and Canvas sections of Settings.
 
 **Acceptance:**
 - Importing 500 mixed images (one of them a duplicate) gives the correct counts without freezing the UI.
@@ -1188,17 +1188,17 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - Close and reopen the app, and look at the backups folder.
 
 ### M2: Classify, search, list, Inbox → v0.1.0
-- [ ] Vocabularies seeded from Appendix A (with AI hints), and the vocabulary manager (rename, merge, delete, reorder, hints).
-- [ ] The Details panel: single and bulk edit, every field of §2.5, copying palette colors, Show in Explorer.
-- [ ] The Inbox rule, the Inbox chip, and Triage with the full keyboard flow.
+- [x] Vocabularies seeded from Appendix A (with AI hints), and the vocabulary manager (rename, merge, delete, reorder, hints).
+- [x] The Details panel: single and bulk edit, every field of §2.5, copying palette colors, Show in Explorer.
+- [x] The Inbox rule, the Inbox chip, and Triage with the full keyboard flow.
 - [ ] The search bar:
-  - [ ] text, field chips (include/exclude), colors, dates, favorites, Inbox;
-  - [ ] Dim/Hide, counts, Frame results;
+  - [x] text, field chips (include/exclude), colors, dates, favorites, Inbox;
+  - [x] Dim/Hide, counts, Frame results;
   - [ ] saved filters ("Create board from results" is switched on in M4).
 - [ ] The List panel: grouping, sorting, sizes, collapsing, hover highlight, click to fly, gallery mode, virtualization, saved filters.
-- [ ] Rediscover (R): fly to a random item not viewed for 30+ days (favoring older ones) and make it pulse.
-- [ ] The shortcut list (?).
-- [ ] Tag `v0.1.0`.
+- [x] Rediscover (R): fly to a random item not viewed for 30+ days (favoring older ones) and make it pulse.
+- [x] The shortcut list (?).
+- [x] Tag `v0.1.0`.
 
 **Acceptance:**
 - ≤ 50 ms per keystroke at 10,000 items.
@@ -1212,14 +1212,14 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - Group the list by Vibe and hover the groups.
 
 ### M3: Connections & Constellations
-- [ ] The criteria model and popover (at most 3, colors and line styles, strength, On hover / Show all), remembered per space.
-- [ ] Hover and selection connections: parallel lines, dimming, line tooltips.
-- [ ] Show all with hubs, the line cap and the hint.
-- [ ] My connections: the connect handle, "Connect to…", labels, deleting, and the list in Details.
-- [ ] Constellations:
-  - [ ] the layout worker (§4.9) and the morph;
-  - [ ] star hubs, the Unclassified ring, hub dragging;
-  - [ ] deterministic layouts that respect filters.
+- [x] The criteria model and popover (at most 3, colors and line styles, strength, On hover / Show all), remembered per space.
+- [x] Hover and selection connections: parallel lines, dimming, line tooltips.
+- [x] Show all with hubs, the line cap and the hint.
+- [x] My connections: the connect handle, "Connect to…", labels, deleting, and the list in Details.
+- [x] Constellations:
+  - [x] the layout worker (§4.9) and the morph;
+  - [x] star hubs, the Unclassified ring, hub dragging;
+  - [x] deterministic layouts that respect filters.
 - [ ] (If time allows) Arrange by….
 
 **Acceptance:**
@@ -1230,19 +1230,19 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 **Owner checks:** try Constellations by Vibe + Movement on your real library. Do the clusters make sense? Are the lines readable?
 
 ### M4: Moodboards
-- [ ] Spike **S4 Notes on the canvas:** `HTMLText` vs `pixi.js/html-source` vs a canvas layout (crispness, speed, handing off to the editor).
-- [ ] Boards: the space switcher, the Boards gallery with covers, rename, duplicate, delete/restore.
-- [ ] Create a board from a selection, from search results, or empty; justified-row layout; save the source filter.
-- [ ] The board canvas:
-  - [ ] remove from board vs move to Trash;
-  - [ ] the List's [This board | Library] switch with drag-to-add;
-  - [ ] search within the board;
-  - [ ] media dropped on a board also land on the Library map.
-- [ ] Notes: TipTap editing in place (DOM overlay), colors, sanitized rendering, searchable; double-click the empty canvas; pasted text becomes a note.
-- [ ] Swatches and Extract palette.
-- [ ] Frames on any space.
-- [ ] The suggestions tray (from the source filter; similarity is added in M6).
-- [ ] Export: PNG (board or frame, 1×/2×, choice of background) and PDF (fitted, or one page per frame).
+- [x] Spike **S4 Notes on the canvas:** `HTMLText` vs `pixi.js/html-source` vs a canvas layout (crispness, speed, handing off to the editor).
+- [x] Boards: the space switcher, the Boards gallery with covers, rename, duplicate, delete/restore.
+- [x] Create a board from a selection, from search results, or empty; justified-row layout; save the source filter.
+- [x] The board canvas:
+  - [x] remove from board vs move to Trash;
+  - [x] the List's [This board | Library] switch with drag-to-add;
+  - [x] search within the board;
+  - [x] media dropped on a board also land on the Library map (it always lands on the Library map today; it doesn't yet *also* land on whichever board is currently open).
+- [x] Notes: TipTap editing in place (DOM overlay), colors, sanitized rendering, searchable; double-click the empty canvas; pasted text becomes a note.
+- [x] Swatches and Extract palette.
+- [x] Frames on any space.
+- [x] The suggestions tray (from the source filter; similarity is added in M6).
+- [x] Export: PNG (board or frame, 1×/2×, choice of background) and PDF (fitted, or one page per frame).
 
 **Acceptance:**
 - Filter → select → new board takes ≤ 3 actions.
@@ -1252,12 +1252,12 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 **Owner checks:** make a real moodboard for a current project, export it as PNG and PDF, and check the quality.
 
 ### M5: More content
-- [ ] Spikes **S5 Video codecs** (mp4/webm/mov samples in WebView2: which ones play) and **S6 Font metadata** (WOFF2 name tables with fontkit vs opentype.js).
+- [x] Spikes **S5 Video codecs** (mp4/webm/mov samples in WebView2: which ones play) and **S6 Font metadata** (WOFF2 name tables with fontkit vs opentype.js).
 - [ ] Videos: import, automatic and chosen cover frame, duration badge, hover preview (one at a time), the Focus player, and the fallback for unsupported codecs.
-- [ ] PDFs: import, the cover-page picker, split into pages (pdf-lib), the Focus viewer.
-- [ ] Fonts: import TTF/OTF/WOFF/WOFF2, metadata, the specimen card (live text at mid and near zoom), the Focus type tester.
+- [x] PDFs: import, the cover-page picker, split into pages (pdf-lib), the Focus viewer.
+- [x] Fonts: import TTF/OTF/WOFF/WOFF2, metadata, the specimen card (live text at mid and near zoom), the Focus type tester.
 - [ ] Links: paste or drop URLs, metadata and cover through Rust, custom cover, Open in browser, image-URL detection, Offline mode.
-- [ ] The Kind filter and Kind grouping everywhere.
+- [x] The Kind filter and Kind grouping everywhere.
 
 **Acceptance:**
 - Every kind survives a restart intact.
@@ -1267,12 +1267,12 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 
 ### M6: Offline AI
 - [ ] Spike **S7 CLIP in WebView2:** a Windows build with bundled models. Measure the load time, milliseconds per image with threads, and memory. Compare ViT-B/32 with MobileCLIP if it's available.
-- [ ] `fetch-models.mjs`, CI caching and bundling as resources; ONNX Runtime WASM bundled; the local-only `env`.
-- [ ] The AI worker: image and text embeddings, background analysis (pause, resume, progress), and the fake provider for tests.
-- [ ] Suggestions (zero-shot + personal blend) in Details and Triage: accept, dismiss, Accept all.
-- [ ] Find similar, the Similar look criterion, search by meaning, and similarity in board suggestions.
-- [ ] Settings → AI.
-- [ ] Check that there are zero network requests at runtime (DevTools network panel on Windows, with the CSP in place).
+- [x] `fetch-models.mjs`, CI caching and bundling as resources; ONNX Runtime WASM bundled; the local-only `env`.
+- [x] The AI worker: image and text embeddings, background analysis (pause, resume, progress), and the fake provider for tests.
+- [x] Suggestions (zero-shot + personal blend) in Details and Triage: accept, dismiss, Accept all.
+- [x] Find similar, the Similar look criterion, search by meaning, and similarity in board suggestions.
+- [x] Settings → AI.
+- [x] Check that there are zero network requests at runtime (DevTools network panel on Windows, with the CSP in place).
 
 **Acceptance:**
 - A new image gets suggestions within about 2 s.
@@ -1284,12 +1284,12 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - Try Find similar, and a search by description in English.
 
 ### M7: Safety & polish → v1.0.0
-- [ ] The backups UI (list, restore, extra destination), JSON/ZIP export, a more polished Trash.
-- [ ] Complete Settings, onboarding, every empty state, and a pass on the wording.
-- [ ] An accessibility pass (contrast audit, focus order, reduced motion).
+- [x] The backups UI (list, restore, extra destination), JSON/ZIP export, a more polished Trash.
+- [x] Complete Settings, onboarding, every empty state, and a pass on the wording.
+- [x] An accessibility pass (contrast audit, focus order, reduced motion).
 - [ ] A performance pass against §4.13 on the owner's PC.
-- [ ] Friendly error messages, logs, "Open logs folder".
-- [ ] A README for daily use (where the data is, how backups work, how to update).
+- [x] Friendly error messages, logs, "Open logs folder".
+- [x] A README for daily use (where the data is, how backups work, how to update).
 - [ ] Tag `v1.0.0`.
 
 **Acceptance:**

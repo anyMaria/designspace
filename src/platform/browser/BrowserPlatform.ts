@@ -1,17 +1,20 @@
 import type {
+  AppPaths,
   BackupInfo,
   FileFilter,
+  FolderListing,
   ImportResult,
   LibraryInfo,
   LinkMeta,
   Platform,
 } from '@/platform/types';
 import { SqlJsDb } from './sqljsDb';
-import { idbGet, idbHas, idbSet, STORE_CACHE, STORE_MEDIA } from './idbStore';
+import { idbDelete, idbGet, idbHas, idbSet, STORE_CACHE, STORE_MEDIA } from './idbStore';
 import { newId } from '@/lib/ids';
 import { logger } from '@/lib/logger';
 
 const LIBRARY_KEY = 'designspace.library';
+const MACHINE_SETTINGS_KEY = 'designspace.machineSettings';
 
 function notSupported(feature: string): never {
   throw new Error(
@@ -110,7 +113,16 @@ export class BrowserPlatform implements Platform {
     importUrl: (_url: string): Promise<ImportResult> => notSupported('media.importUrl'),
     originalUrl: (relPath: string): string => this.objectUrlFor(STORE_MEDIA, relPath),
     reveal: (): Promise<void> => notSupported('media.reveal'),
-    purge: (): Promise<void> => notSupported('media.purge'),
+    // No Recycle Bin in a browser tab — this is the closest equivalent (permanent, unlike the
+    // real Windows build's trash::delete_all), and only ever reachable via "Delete forever" in
+    // the Trash section, which already warns the owner it's permanent.
+    purge: async (relPaths: string[]): Promise<void> => {
+      for (const relPath of relPaths) {
+        await idbDelete(STORE_MEDIA, relPath);
+        this.objectUrls.delete(`${STORE_MEDIA}:${relPath}`);
+      }
+    },
+    listFolder: (): Promise<FolderListing> => notSupported('media.listFolder'),
   };
 
   cache = {
@@ -122,6 +134,12 @@ export class BrowserPlatform implements Platform {
     has: async (keys: string[]): Promise<boolean[]> =>
       Promise.all(keys.map((k) => idbHas(STORE_CACHE, k))),
     url: (key: string): string => this.objectUrlFor(STORE_CACHE, key),
+    delete: async (keys: string[]): Promise<void> => {
+      for (const key of keys) {
+        await idbDelete(STORE_CACHE, key);
+        this.objectUrls.delete(`${STORE_CACHE}:${key}`);
+      }
+    },
   };
 
   net = {
@@ -158,7 +176,7 @@ export class BrowserPlatform implements Platform {
   };
 
   backups = {
-    now: (): Promise<BackupInfo> => notSupported('backups.now'),
+    now: (_extraDestination?: string | null): Promise<BackupInfo> => notSupported('backups.now'),
     list: (): Promise<BackupInfo[]> => Promise.resolve([]),
     restore: (): Promise<void> => notSupported('backups.restore'),
   };
@@ -176,6 +194,21 @@ export class BrowserPlatform implements Platform {
       URL.revokeObjectURL(url);
       return Promise.resolve(true);
     },
+  };
+
+  libraryExport = {
+    zip: (): Promise<boolean> => notSupported('libraryExport.zip'),
+  };
+
+  app = {
+    paths: (): Promise<AppPaths> => notSupported('app.paths'),
+    openLogs: (): Promise<void> => notSupported('app.openLogs'),
+  };
+
+  machineSettings = {
+    read: (): Promise<string | null> =>
+      idbGet<string>('kv', MACHINE_SETTINGS_KEY).then((v) => v ?? null),
+    write: (json: string): Promise<void> => idbSet('kv', MACHINE_SETTINGS_KEY, json),
   };
 
   shell = {
@@ -207,6 +240,22 @@ export class BrowserPlatform implements Platform {
       } catch {
         return null;
       }
+    },
+    writeText: async (text: string): Promise<void> => {
+      await navigator.clipboard.writeText(text);
+    },
+    writeImage: async (bytes: Uint8Array, mime: string): Promise<void> => {
+      // Re-encode to PNG — the Clipboard API's ClipboardItem support for arbitrary source
+      // mime types (e.g. image/jpeg) is inconsistent across browsers; PNG always works.
+      const bitmap = await createImageBitmap(new Blob([bytes.slice()], { type: mime }));
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(bitmap, 0, 0);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (blob) await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     },
   };
 
