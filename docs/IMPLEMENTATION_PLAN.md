@@ -1289,7 +1289,7 @@ Spikes (see `docs/DECISIONS.md` for the write-up of each):
 - [x] An accessibility pass (contrast audit, focus order, reduced motion).
 - [ ] A performance pass against §4.13 on the owner's PC.
 - [x] Friendly error messages, logs, "Open logs folder".
-- [ ] A README for daily use (where the data is, how backups work, how to update).
+- [x] A README for daily use (where the data is, how backups work, how to update).
 - [ ] Tag `v1.0.0`.
 
 **Acceptance:**

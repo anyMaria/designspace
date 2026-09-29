@@ -2632,6 +2632,35 @@ Diagnostics still opens correctly with the logger changes in place) are all clea
   file actually has entries in it — this is the one thing that genuinely can't be verified from
   this sandbox (no real Tauri runtime to open a real log file against).
 
+## M7-6: README for daily use
+
+The README had never been touched since M0 — it still said "Status: Milestone 0 (foundations) is
+built... Milestone 1 comes next," with no mention of anything from M1 through M6 (boards,
+connections, AI, videos/PDFs/fonts/links, backups UI, export). Rewrote it for what the plan
+actually asked for: where the data is, how backups work, how to update — plus a short daily-use
+section, since a README that only covers install and storage but never says how to actually use
+the app isn't really "for daily use."
+
+Cross-checked every specific claim against the actual code rather than the plan's prose, since
+the plan describes intent and the code is what shipped:
+- The cloud-sync warning wording matches `src-tauri/src/library.rs`'s own `README_TEXT` constant
+  (the one written *inside* the library folder itself) — the two should never say something
+  different.
+- The backup rotation numbers (14 daily + 8 weekly) and extra-destination behavior match
+  `src-tauri/src/backups.rs`, wired to Settings in M7-1.
+- The local data folder path and what's in it (cache, logs, `settings.json`) match §5.1 and this
+  milestone's own `machine_settings.rs`/`app_paths` (M7-3, M7-2).
+- "How to update" is manual reinstall over the top, not an auto-updater — confirmed there isn't
+  one (`docs/IMPLEMENTATION_PLAN.md`'s own backlog lists "An auto-updater" as a **Later** item,
+  never built) rather than assuming one exists.
+
+Verification: this is a documentation-only change (no code touched), confirmed via
+`prettier --check README.md`; the full `tsc`/`eslint`/`vitest run` (394/394) suite was re-run
+anyway as part of this sub-task's close-out to confirm nothing else regressed since M7-5.
+
+**Owner check:** read through the README once as if you were setting the app up on a second
+computer — does anything in "Daily use" or "How backups work" not match what you actually see?
+
 ---
 
 *(Later milestones append below this line.)*
