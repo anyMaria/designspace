@@ -2661,6 +2661,70 @@ anyway as part of this sub-task's close-out to confirm nothing else regressed si
 **Owner check:** read through the README once as if you were setting the app up on a second
 computer — does anything in "Daily use" or "How backups work" not match what you actually see?
 
+## M7-7: Verify, update plan/DECISIONS, prepare v1.0.0
+
+**Final verify, whole app, after all of M7-1 through M7-6:** `tsc -b --noEmit`, `eslint .`,
+`prettier --check .`, `vitest run` (394 tests across 63 files, up from 316/49 at the end of M5 and
+378/59 at the end of M6), `vite build`, `cargo fmt --check`, `cargo clippy --workspace
+--all-targets -- -D warnings`, `cargo test --workspace` (31 tests, up from 18 at the end of M5),
+and the full Playwright suite — **40/40 passing**, including `smoke-m4-suggestions-tray.spec.ts`,
+which had been failing on every CI run since M6 shipped the AI-similarity half of the suggestions
+tray (root-caused and fixed in M7-3; see that entry). All clean.
+
+**M7 plan checkboxes:** five of seven ticked. The two left unticked are deliberate, not
+oversights — same call as Spike S7 back in M6:
+- **"A performance pass against §4.13 on the owner's PC"** — every number in that budget table
+  needs a real GPU and a real multi-thousand-item library, neither of which exists in this
+  sandbox. What *could* be done without hardware (the missing 9,500-item soft-limit notice) was
+  built in M7-4; the rest is listed as owner checks there.
+- **"Tag `v1.0.0`"** — left to the owner on purpose. This was an explicit constraint set at the
+  start of this M7 session and held throughout: a version tag that says "safe to rely on this"
+  needs the two things this sandbox structurally cannot verify — a real backup/restore round trip
+  and real performance on real hardware — to actually be true before it's asserted. Tagging first
+  and hoping those check out isn't the same claim. Version numbers in `package.json`/`Cargo.toml`/
+  `tauri.conf.json` were also deliberately left at `0.1.0` rather than bumped ahead of the tag —
+  bumping and tagging belong together, done by whoever actually verifies the release.
+
+**Acceptance criteria, one by one:**
+- *"The budgets are met, or deviations are documented."* Deviations are documented (M7-4's
+  DECISIONS.md entry and its owner-checks list) rather than met-and-verified, since verifying them
+  needs hardware this sandbox doesn't have. That's the honest state, not a gap being glossed over.
+- *"There are no known data-loss bugs."* None are known. Every change across M7 that touches
+  persisted data (extra backup destination, machine settings, library export) was built to fail
+  soft: a failed extra-destination copy never fails the primary backup; export failures don't
+  touch the library; nothing in this milestone writes to `designspace.db` in a new way that
+  M1–M6's existing Command/undo infrastructure didn't already cover. No new migration was needed
+  (M7 added no schema changes) and no existing migration was touched.
+- *"Restoring from a backup has been verified end to end."* **Not verified** — and can't be from
+  here. `platform.backups.restore` is Tauri-only (`BrowserPlatform.backups.restore` is a stub);
+  there's no real WebView2/Windows runtime in this sandbox to click through Settings → Library →
+  Restore against a real `designspace.db` and confirm the app reopens correctly afterward. The
+  Rust command itself (`backup_restore` in `src-tauri/src/backups.rs`) was left as-is rather than
+  restructured into pure, unit-testable pieces purely to manufacture test coverage this late in
+  the milestone — the file-swap logic it does (close the connection, copy files, reopen) doesn't
+  decompose cleanly without either weakening what it actually tests or taking on real risk to a
+  path where correctness matters most. This is the single most important owner check in this
+  entire close-out, listed first below for that reason.
+
+**Known minor gap, not fixed here:** Settings → About shows a hardcoded `"0.1.0-dev"` version
+string rather than reading `package.json`'s real version. Fixing it properly (a Vite-injected
+build-time constant) touches build config this late in a milestone close-out for a purely
+cosmetic display detail — left as a small, explicitly-logged known gap rather than either ignored
+or rushed.
+
+**Owner checks — do these before trusting a `v1.0.0` tag:**
+1. **Restore a real backup end to end.** Back up now, change something, Restore, confirm the
+   change is gone and the app is otherwise healthy. This is the one thing in the entire M7
+   acceptance list that only you can verify.
+2. Work through every owner-check list from M7-1 through M7-6 above (extra destination, JSON/ZIP
+   export, the Trash purge countdown, onboarding's cloud-sync warning and bring-in-folders step,
+   Settings → About's item counts/disk usage/Open logs folder, Tab-through-a-dialog focus order,
+   Reduce motion actually persisting across a restart, `?bench=10000`, real import throughput,
+   and the 9,500-item soft-limit toast).
+3. If everything above checks out: bump the version in `package.json`, `Cargo.toml` (the
+   workspace version) and `src-tauri/tauri.conf.json` to `1.0.0` together, then
+   `git tag v1.0.0` and push the tag.
+
 ---
 
 *(Later milestones append below this line.)*
