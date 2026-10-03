@@ -3,6 +3,7 @@ import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
 import { Button } from '@/design/components';
 import { en } from '@/i18n/en';
+import { logger } from '@/lib/logger';
 import { openPdfDocument, renderPdfPage, type OpenPdfHandle } from '@/lib/pdfRender';
 import { setPdfCoverPage } from '@/workers/pdfIngestQueue';
 import { splitPdfIntoPages } from './splitPdfIntoPages';
@@ -53,12 +54,20 @@ export function PdfFocusViewer({ platform, item }: { platform: Platform; item: I
       const doc = handleRef.current?.doc;
       const canvas = canvasRef.current;
       if (!doc || !canvas) return;
-      const rendered = await renderPdfPage(doc, page, VIEWER_LONG_SIDE);
-      if (cancelled) return;
-      canvas.width = rendered.width;
-      canvas.height = rendered.height;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(rendered, 0, 0);
+      try {
+        const rendered = await renderPdfPage(doc, page, VIEWER_LONG_SIDE);
+        if (cancelled) return;
+        canvas.width = rendered.width;
+        canvas.height = rendered.height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(rendered, 0, 0);
+      } catch (err) {
+        // Closing the viewer (or paging quickly) destroys the document mid-render: pdf.js rejects
+        // with a RenderingCancelledException, which is expected, not an error.
+        if (cancelled || (err instanceof Error && err.name === 'RenderingCancelledException'))
+          return;
+        logger.warn('Rendering a PDF page failed', err);
+      }
     })();
     return () => {
       cancelled = true;
