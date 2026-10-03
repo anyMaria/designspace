@@ -576,7 +576,7 @@ Look: `docs/patch-1/mock-maps.png`. Size: L. Version at the end: **0.8.0**.
 - Draw, coalesced to one `requestAnimationFrame` per change: every placement as a rect with its real shape and its card colour (min 2 px), My connections (white, α 0.9), the current hover/selection lines (criterion colours, from the new engine event), then the viewport rectangle (accent).
 - Keep click/drag to navigate. New: an expand button (`Maximize2`, 28 px, top-right corner) and **double-click** → open the Overview.
 
-### G2 · The Overview `[ ]`
+### G2 · The Overview `[x]`
 **Files:** new `src/features/overview/` (`overviewStore.ts`, `overviewModel.ts` + test, `overviewCamera.ts` + test, `OverviewCanvas.tsx`, `OverviewOverlay.tsx`), `src/app/Shell.tsx`, `src/app/useGlobalShortcuts.ts` (`O`), shortcut list.
 - A full-window layer (above the map, below dialogs), dark background (`canvas-edge`), with: a segmented control at the top (**My layout** | Clusters) · (**Thumbnails** | Dots); a close button (top-right); a legend of the active criteria (bottom-left); a hint "Double-click an item to go to it · Esc to close" (bottom-right).
 - `overviewModel.ts` (pure): nodes = the current space's placements (centres) and the items' colours/thumb URLs; edges = hubs from `computeHubs(visibleIds, activeCriteria, index)` for term and colour criteria (capped at 5,000 like Show all; above it, draw only My connections and show `en.overview.tooLong`), plus direct item-to-item lines for My connections and Similar look.

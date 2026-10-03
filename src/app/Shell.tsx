@@ -64,6 +64,7 @@ import { BoardsGallery } from '@/features/boards/BoardsGallery';
 import { useBoardStore } from '@/state/boardStore';
 import { useBoardUiStore } from '@/state/boardUiStore';
 import { useNoteCanvasBinding } from '@/canvas/useNoteCanvasBinding';
+import { OverviewOverlay } from '@/features/overview/OverviewOverlay';
 import { DescriptionPanel } from '@/features/description/DescriptionPanel';
 import { NoteEditor } from '@/features/notes/NoteEditor';
 import { useFrameCanvasBinding } from '@/canvas/useFrameCanvasBinding';
@@ -497,6 +498,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       )}
       <FocusView platform={platform} />
       <DescriptionPanel platform={platform} engine={engine} />
+      <OverviewOverlay platform={platform} engine={engine} />
       <NoteEditor platform={platform} engine={engine} />
       <TriageView platform={platform} />
       {useBoardUiStore((s) => s.galleryOpen) && <BoardsGallery platform={platform} />}

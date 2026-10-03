@@ -5,6 +5,7 @@ import { useShortcutsStore } from '@/state/shortcutsStore';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import type { Platform } from '@/platform';
 import { toggleFullscreen } from './fullscreen';
+import { useOverviewStore } from '@/features/overview/overviewStore';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -56,6 +57,9 @@ export function useGlobalShortcuts(platform: Platform) {
           break;
         case 'l':
           togglePanel();
+          break;
+        case 'o':
+          useOverviewStore.getState().toggle();
           break;
         case 'm':
           toggleMinimap();

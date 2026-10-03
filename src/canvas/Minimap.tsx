@@ -3,10 +3,10 @@ import { Maximize2 } from 'lucide-react';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { useOverviewStore } from '@/features/overview/overviewStore';
-import { colors, noteColors, type NoteColor } from '@/design/tokens';
+import { colors } from '@/design/tokens';
+import { itemColorOf } from '@/lib/itemColor';
 import { unionRects } from '@/lib/geometry';
 import { en } from '@/i18n/en';
-import type { Item } from '@/state/types';
 import type { Engine } from './Engine';
 import { useCameraState } from './useCameraState';
 import { drawMinimap, fitMinimap, minimapToWorld, type MinimapScene } from './minimapDraw';
@@ -14,22 +14,6 @@ import { drawMinimap, fitMinimap, minimapToWorld, type MinimapScene } from './mi
 const MAP_W = 240;
 const MAP_H = 160;
 const PAD = 20; // world-bounds padding so the viewport rect never touches the edge
-const FALLBACK_COLOR = 0x6f5a7a;
-
-function hexToInt(hex: string): number {
-  const n = Number.parseInt(hex.replace('#', ''), 16);
-  return Number.isFinite(n) ? n : FALLBACK_COLOR;
-}
-
-/** An item's colour on the minimap: its card colour (note paper, swatch colour, first palette colour). */
-function minimapColorOf(item: Item | undefined): number {
-  if (!item) return FALLBACK_COLOR;
-  if (item.kind === 'note')
-    return noteColors[(item.color as NoteColor | null) ?? 'cream'] ?? FALLBACK_COLOR;
-  if (item.kind === 'swatch') return item.color ? hexToInt(item.color) : FALLBACK_COLOR;
-  const first = item.palette?.[0]?.hex;
-  return first ? hexToInt(first) : FALLBACK_COLOR;
-}
 
 /** Items with their real shape and colour, My connections, the hover/selection lines and the
  * viewport rectangle on one canvas; click or drag to navigate, double-click or the expand button
@@ -80,7 +64,7 @@ export function Minimap({ engine }: { engine: Engine | null }) {
         y: p.y,
         w: p.w,
         h: p.h,
-        color: minimapColorOf(items.get(p.itemId)),
+        color: itemColorOf(items.get(p.itemId)),
       }));
       const world = unionRects([...rects, ...(viewport ? [viewport] : [])]) ?? {
         x: -500,

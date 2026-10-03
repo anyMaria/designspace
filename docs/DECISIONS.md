@@ -2934,3 +2934,24 @@ window-state plugin no longer restoring full screen.
   pressing "Show this text on all font cards" in the type tester saves it and re-queues every font
   (`rerenderFontSpecimens`), so cards update one at a time. The type tester's sample field starts with
   the preview text and still changes freely.
+
+## Patch 1 · Phase G: minimap with connections, and the Overview (v0.8.0)
+
+- **G1:** the minimap is one DPR-aware `<canvas>` (240×160) repainted once per animation frame:
+  every item with its real shape and card colour (at least 2 px), My connections (white), the current
+  hover/selection lines in their criterion colours (new engine event `connectionsChanged`), and the
+  viewport rectangle. The criterion → colour map moved to `canvas/criterionColor.ts` so the minimap
+  and Overview share it with the engine. Click/drag still navigates; double-click or the expand button
+  opens the Overview.
+- **G2:** the Overview (`features/overview/`) is a full-window layer (below dialogs) with its own 2D
+  canvas and camera. Pure, unit-tested parts: `overviewModel.ts` (nodes, member→hub edges, My
+  connections as direct lines, the 5,000-line cap, `nodeAt`) and `overviewCamera.ts`. "My layout" uses
+  real positions; "Clusters" runs the Constellations worker with the active criteria and caches the
+  result. Thumbnails are `t128` bitmaps (long side 16 px) loaded lazily into a cache of at most 2,000;
+  hover enlarges a node to 40 px, shows its name and fades the rest; double-click closes the Overview,
+  selects the item and flies the real camera to it. `O` toggles it.
+- **Deviation:** the plan also lists direct item-to-item "Similar look" lines. They are not drawn: that
+  criterion has no discrete value to make hubs from, and N² cosine lines are exactly what the Overview
+  is meant to avoid. Terms, colour and My connections are drawn. Easy to add later if wanted.
+- **Not verifiable in the cloud:** performance of the Overview at 10,000 items on a real GPU (the
+  canvas draws only what is on screen and caps bitmaps, but it was only measured on the demo library).
