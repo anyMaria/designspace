@@ -32,6 +32,8 @@ export interface SearchDoc {
   why: string;
   fileName: string;
   bodyText: string;
+  /** A media item's long description (Patch 1 · E1). */
+  description: string;
 }
 
 function sourceDomain(url: string | null): string {
@@ -52,7 +54,16 @@ function tokenize(text: string): string[] {
 function createIndex(): MiniSearch<SearchDoc> {
   return new MiniSearch<SearchDoc>({
     idField: 'id',
-    fields: ['title', 'termNames', 'artist', 'sourceDomain', 'why', 'fileName', 'bodyText'],
+    fields: [
+      'title',
+      'termNames',
+      'artist',
+      'sourceDomain',
+      'why',
+      'fileName',
+      'bodyText',
+      'description',
+    ],
     tokenize,
     processTerm: (term) => normalize(term) || null,
     searchOptions: {
@@ -90,6 +101,7 @@ function toDoc(
     why: item.why ?? '',
     fileName: item.fileName ?? '',
     bodyText: item.bodyText ?? '',
+    description: item.descriptionText ?? '',
   };
 }
 
