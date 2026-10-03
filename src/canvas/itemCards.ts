@@ -90,9 +90,9 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       thumbUrl512: thumbReady ? platform.cache.url(`t512/${item.id}`) : null,
       // "Preview image (or custom cover) + footer: favicon · domain · 2-line title" (§2.4's spec
       // table) — a plain-text approximation (domain + title, no favicon glyph) reusing the same
-      // Text-overlay machinery as the note/swatch/unsupported-fallback labels, shown whenever
-      // there's no cover image to fill the card (the "clean domain card" case, §2.3).
-      noteText: hasCover
+      // Text-overlay machinery as the note/swatch/unsupported-fallback labels, shown until the
+      // cover is ready (also while it loads or if it failed; the "clean domain card" case, §2.3).
+      noteText: thumbReady
         ? null
         : [safeDomain(item.url), item.title || null].filter(Boolean).join('\n'),
       frameId: placement.frameId,
