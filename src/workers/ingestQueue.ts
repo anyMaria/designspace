@@ -85,6 +85,7 @@ export class IngestQueue {
     try {
       const url = this.platform.media.originalUrl(item.relPath);
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
       const req: IngestRequest = {
         id: `req-${++this.nextReqId}`,
@@ -96,7 +97,10 @@ export class IngestQueue {
     } catch (err) {
       logger.error(`Ingest: couldn't read the original for ${item.itemId}`, err);
       this.busy.delete(worker);
-      this.pump();
+      // Mark it failed so it doesn't stay "pending" forever (A2).
+      this.persist({ id: 'read-failed', itemId: item.itemId, ok: false, error: String(err) })
+        .catch((e: unknown) => logger.error('Ingest: failed to persist a read failure', e))
+        .finally(() => this.pump());
     }
   }
 

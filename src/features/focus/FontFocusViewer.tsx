@@ -42,6 +42,7 @@ export function FontFocusViewer({ platform, item }: { platform: Platform; item: 
     void (async () => {
       if (!item.filePath) return;
       const res = await fetch(platform.media.originalUrl(item.filePath));
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
       face = await registerFontFace(bytes, localFamily);
       if (cancelled) {

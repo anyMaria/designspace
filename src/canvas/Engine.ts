@@ -334,6 +334,7 @@ export class Engine {
     this.textureManager = new TextureManager<Texture>({
       decode: async (url) => {
         const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
         const blob = await res.blob();
         const bitmap = await createImageBitmap(blob);
         return Texture.from(bitmap);

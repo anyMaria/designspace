@@ -184,6 +184,13 @@ export const en = {
       dropInspectorHint: 'Drag something from your browser or File Explorer onto the box below.',
       dropHere: 'Drop here',
       noDropYet: 'Nothing dropped yet.',
+      mediaCheck: 'Check media loading',
+      mediaChecking: 'Checking…',
+      mediaNoItems: 'No imported files to check yet.',
+      mediaOk: (kind: string, size: string) => `${kind} · OK (${size})`,
+      mediaFailed: (kind: string, status: string) => `${kind} · Failed (${status})`,
+      mediaOriginal: 'Original',
+      mediaThumbnail: 'Thumbnail',
     },
     library: {
       location: 'Location',

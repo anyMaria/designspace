@@ -22,6 +22,7 @@ async function deriveAndPersist(
   const now = new Date().toISOString();
   const url = platform.media.originalUrl(relPath);
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
   const bytes = await res.arrayBuffer();
   const derived = await extractPdfDerivatives(bytes, coverPageOverride);
 

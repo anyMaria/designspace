@@ -51,6 +51,7 @@ export class FontIngestQueue {
     try {
       const url = this.platform.media.originalUrl(item.relPath);
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
       const { t128, t512, ...meta } = await extractFontDerivatives(bytes, item.itemId);
 

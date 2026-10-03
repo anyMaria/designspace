@@ -138,7 +138,7 @@ pnpm e2e   # at least the specs the task names; the full suite before the phase 
 **Goal:** on Windows, every photo, video, PDF, font and link shows its real picture, in its real shape; nothing
 dims unexpectedly; pinch zooms the map; Files… shows every supported file. Size: M. Version at the end: **0.2.0**.
 
-### A1 · Fix the `media://` protocol (decode the path, find cached thumbnails) `[ ]`
+### A1 · Fix the `media://` protocol (decode the path, find cached thumbnails) `[x]`
 **Why:** this one bug hides every image, thumbnail, font, PDF and video on Windows.
 
 **Files:** `crates/designspace-core/Cargo.toml`, `crates/designspace-core/src/lib.rs`,
@@ -161,7 +161,7 @@ new `crates/designspace-core/src/media_url.rs`, `src-tauri/src/media_protocol.rs
 
 **Done when:** `cargo test -p designspace-core` passes with the new tests; clippy clean.
 
-### A2 · Never treat an error page as a file `[ ]`
+### A2 · Never treat an error page as a file `[x]`
 **Why:** today a 404 is read as an empty file, which hid bug A1 for weeks.
 
 **Files:** `src/workers/ingestQueue.ts`, `fontIngestQueue.ts`, `pdfIngestQueue.ts`, `src/lib/videoFrame.ts` (if it fetches), `src/canvas/Engine.ts` (TextureManager `decode`), `src/features/focus/FontFocusViewer.tsx`, new `src/features/diagnostics/MediaCheck.tsx`, `src/features/settings/SettingsDialog.tsx` (About → Diagnostics).

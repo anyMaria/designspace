@@ -52,6 +52,7 @@ export function ContextMenu({
     if (!item?.filePath) return;
     try {
       const res = await fetch(platform.media.originalUrl(item.filePath));
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = new Uint8Array(await res.arrayBuffer());
       await platform.clipboard.writeImage(bytes, item.mime ?? 'image/png');
       useToastStore.getState().show(en.contextMenu.copyImageSucceeded);

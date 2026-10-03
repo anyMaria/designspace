@@ -58,7 +58,7 @@ beforeEach(() => {
   extractVideoDerivatives.mockReset();
   vi.stubGlobal(
     'fetch',
-    vi.fn().mockResolvedValue({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
+    vi.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
   );
 });
 
@@ -151,5 +151,20 @@ describe('VideoIngestQueue', () => {
 
     expect(order).toEqual(['processing', 'processing']);
     expect(queue.pending).toBe(0);
+  });
+
+  it('marks the item unsupported when the original cannot be fetched', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, url: 'media://x' }));
+    const platform = makePlatform();
+    const queue = new VideoIngestQueue(platform);
+
+    queue.enqueue([{ itemId: 'v1', relPath: 'media/v1.bin', mime: 'video/mp4' }]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(platform.db.execute).toHaveBeenCalledWith(
+      expect.stringContaining("status = 'unsupported'"),
+      [expect.any(String), 'v1'],
+    );
   });
 });

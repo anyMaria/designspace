@@ -56,6 +56,7 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue({
+      ok: true,
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
     }),
   );
@@ -185,5 +186,20 @@ describe('IngestQueue', () => {
     );
     queue.destroy();
     expect(workers.every((w) => w.terminated)).toBe(true);
+  });
+
+  it('marks the item failed when the original cannot be fetched', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, url: 'media://x' }));
+    const platform = makePlatform();
+    const queue = new IngestQueue(platform, () => new FakeWorker(), 1);
+
+    queue.enqueue([{ itemId: 'a', relPath: 'media/a.jpg', mime: 'image/jpeg' }]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(platform.db.execute).toHaveBeenCalledWith(expect.stringContaining("status = 'error'"), [
+      expect.any(String),
+      'a',
+    ]);
   });
 });

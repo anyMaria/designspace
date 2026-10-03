@@ -29,6 +29,7 @@ export function PdfFocusViewer({ platform, item }: { platform: Platform; item: I
     void (async () => {
       if (!item.filePath) return;
       const res = await fetch(platform.media.originalUrl(item.filePath));
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
       const handle = await openPdfDocument(bytes);
       if (cancelled) {
@@ -79,6 +80,7 @@ export function PdfFocusViewer({ platform, item }: { platform: Platform; item: I
     setBusy(true);
     try {
       const res = await fetch(platform.media.originalUrl(item.filePath));
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
       const count = await splitPdfIntoPages(
         platform,
