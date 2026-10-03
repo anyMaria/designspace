@@ -3,6 +3,8 @@
 // renderer initializes — see node_modules/pixi.js/skills/pixijs-environments/SKILL.md.
 import 'pixi.js/unsafe-eval';
 import { cardAlpha, connectionRelatedSet } from './cardAlpha';
+import { drawPalette, paletteDrawKey } from './decor/paletteDecor';
+import { paletteCellAt } from '@/lib/palette';
 import { clipSegmentToBoxes, distanceToSegment, edgePoint } from '@/lib/lineAnchors';
 import {
   Application,
@@ -75,6 +77,10 @@ export interface ItemCard {
   videoUrl: string | null;
   /** §2.4 PDF page-count badge — `null` until ingest reports it (or for every non-pdf kind). */
   pageCount: number | null;
+  /** Patch 1 · C3: a swatch's/palette's colours (`#RRGGBB`) and optional name, drawn by
+   * `decor/paletteDecor.ts`; `null` for every other kind. */
+  swatchColors: string[] | null;
+  swatchName: string | null;
 }
 
 interface EngineEvents {
@@ -84,6 +90,8 @@ interface EngineEvents {
   /** `world` is where the double-click landed, in canvas world coordinates — used to place a new
    * note when `id` is `null` (double-click on empty canvas, §2.11). */
   dblclick: (id: string | null, world: { x: number; y: number }) => void;
+  /** A click on a colour cell of an already-selected palette (Patch 1 · C3). */
+  swatchCellClick: (id: string, index: number) => void;
   contextmenu: (id: string | null, screen: { x: number; y: number }) => void;
   hover: (id: string | null) => void;
   /** A connection line was hovered (or un-hovered, `null`) — §2.10's "Hovering a line shows what
@@ -210,6 +218,10 @@ export class Engine {
   private noteLabels = new Map<string, Text>(); // §2.11 — a note card's plain-text snippet
   // §2.4 — a video card's "▶ mm:ss" duration badge, or a PDF card's "PDF · N p" page-count badge.
   private cornerBadges = new Map<string, Text>();
+  /** Cards that draw themselves (swatches/palettes now, notes in D1): their sprite is never shown,
+   * this container is. Keyed by item id. */
+  private decor = new Map<string, Container>();
+  private decorKey = new Map<string, string>();
 
   // §2.11 frames.
   private frames = new Map<string, Frame>();
@@ -303,6 +315,7 @@ export class Engine {
     move: new Set(),
     resize: new Set(),
     dblclick: new Set(),
+    swatchCellClick: new Set(),
     contextmenu: new Set(),
     hover: new Set(),
     connectionLineHover: new Set(),
@@ -453,6 +466,7 @@ export class Engine {
         sprite.destroy();
         this.sprites.delete(id);
         this.appliedTexKey.delete(id);
+        this.removeDecor(id);
         const label = this.noteLabels.get(id);
         if (label) {
           label.destroy();
@@ -500,6 +514,55 @@ export class Engine {
     this.scheduleFrame();
   }
 
+  /** Whether this card draws itself through a decor container instead of its sprite. */
+  private isSelfDrawn(card: ItemCard): boolean {
+    return card.kind === 'swatch';
+  }
+
+  private removeDecor(id: string): void {
+    const d = this.decor.get(id);
+    if (!d) return;
+    d.destroy({ children: true });
+    this.decor.delete(id);
+    this.decorKey.delete(id);
+  }
+
+  /** Creates/moves/redraws/removes the decor of a self-drawn card. Position and z are cheap; the
+   * contents are redrawn only when `paletteDrawKey` changes (colours, size, name, labels on/off). */
+  private syncDecor(card: ItemCard): void {
+    if (!this.itemsLayer) return;
+    if (!this.isSelfDrawn(card)) {
+      this.removeDecor(card.id);
+      return;
+    }
+    const sprite = this.sprites.get(card.id);
+    if (sprite) {
+      sprite.visible = false; // the decor is what's shown
+      sprite.renderable = false;
+    }
+    let decor = this.decor.get(card.id);
+    if (!decor) {
+      decor = new Container();
+      decor.eventMode = 'none';
+      decor.visible = false; // `cullItems` decides
+      this.itemsLayer.addChild(decor);
+      this.decor.set(card.id, decor);
+    }
+    decor.position.set(card.x, card.y);
+    decor.zIndex = card.z;
+    const spec = {
+      w: card.w,
+      h: card.h,
+      colors: card.swatchColors ?? [],
+      name: card.swatchName,
+    };
+    const key = paletteDrawKey(spec, this.camera.zoom);
+    if (this.decorKey.get(card.id) !== key) {
+      drawPalette(decor, spec, this.camera.zoom);
+      this.decorKey.set(card.id, key);
+    }
+  }
+
   /** Creates/updates/removes a note or swatch card's plain-text snippet (§2.11), or a video/PDF/
    * font's "can't play/open/read this" fallback message (§2.4, when `card.noteText` is set) — see
    * the constants above for why it's a sibling `Text`, not a sprite child. A no-op for every other
@@ -511,9 +574,9 @@ export class Engine {
    * vanish. */
   private syncNoteLabel(card: ItemCard): void {
     if (!this.itemsLayer) return;
+    this.syncDecor(card);
     const wantsLabel =
       card.kind === 'note' ||
-      card.kind === 'swatch' ||
       ((card.kind === 'video' ||
         card.kind === 'pdf' ||
         card.kind === 'font' ||
@@ -974,9 +1037,11 @@ export class Engine {
 
   /** Every display object that belongs to a card (its picture, note label, corner badge), so a
    * faded card never keeps dark text on a dark card. */
-  private forEachCardVisual(id: string, fn: (visual: Sprite | Text) => void): void {
+  private forEachCardVisual(id: string, fn: (visual: Container) => void): void {
     const sprite = this.sprites.get(id);
     if (sprite) fn(sprite);
+    const decor = this.decor.get(id);
+    if (decor) fn(decor);
     const label = this.noteLabels.get(id);
     if (label) fn(label);
     const badge = this.cornerBadges.get(id);
@@ -1045,6 +1110,9 @@ export class Engine {
     for (const sprite of this.sprites.values()) sprite.destroy();
     this.sprites.clear();
     this.appliedTexKey.clear();
+    for (const d of this.decor.values()) d.destroy({ children: true });
+    this.decor.clear();
+    this.decorKey.clear();
     for (const label of this.noteLabels.values()) label.destroy();
     this.noteLabels.clear();
     for (const badge of this.cornerBadges.values()) badge.destroy();
@@ -1148,6 +1216,9 @@ export class Engine {
     let startWorld = { x: 0, y: 0 };
     let startScreen = { x: 0, y: 0 };
     let moved = false;
+    // The card pressed on, and whether it was already selected before this press: a plain click
+    // on a colour cell of an already-selected palette copies that colour (C3).
+    let pressed: { id: string; wasSelected: boolean } | null = null;
     let resizeHandle: ResizeHandle | null = null;
     let resizeTargetId: string | null = null;
     let moveOrigin = new Map<string, { x: number; y: number }>();
@@ -1248,7 +1319,7 @@ export class Engine {
       if (this.selection.size === 1) {
         const id = [...this.selection][0];
         const card = this.cards.get(id);
-        if (card) {
+        if (card && card.kind !== 'swatch') {
           const handle = resizeHandleAt(card, world, HANDLE_SCREEN_PX / this.camera.zoom);
           if (handle) {
             mode = 'resize';
@@ -1261,6 +1332,7 @@ export class Engine {
       }
 
       const hit = hitTest(this.interactableCards(), world);
+      pressed = hit ? { id: hit.id, wasSelected: this.selection.has(hit.id) } : null;
       if (hit) {
         if (this.selectedFrameId) this.setSelectedFrameId(null);
         if (!this.selection.has(hit.id)) {
@@ -1424,6 +1496,12 @@ export class Engine {
         this.setSelection(hits.map((h) => h.id));
         this.emit('select', this.getSelection());
         this.clearMarquee();
+      } else if (mode === 'move' && !moved && pressed?.wasSelected) {
+        const card = this.cards.get(pressed.id);
+        if (card?.kind === 'swatch' && card.swatchColors && card.swatchColors.length > 1) {
+          const cell = paletteCellAt(card.swatchColors.length, card, toWorld(e));
+          if (cell !== null) this.emit('swatchCellClick', card.id, cell);
+        }
       } else if (mode === 'move' && moved) {
         const updates = [...this.selection].map((id) => {
           const c = this.cards.get(id);
@@ -1649,7 +1727,8 @@ export class Engine {
       this.handles.push(outline);
     }
 
-    if (selected.length === 1) {
+    if (selected.length === 1 && selected[0].kind !== 'swatch') {
+      // Swatches and palettes size themselves, so they get no resize handles.
       const card = selected[0];
       const corners: [number, number][] = [
         [card.x, card.y],
@@ -2125,6 +2204,8 @@ export class Engine {
         if (label) label.visible = false;
         const badge = this.cornerBadges.get(id);
         if (badge) badge.visible = false;
+        const decor = this.decor.get(id);
+        if (decor) decor.visible = false;
       }
     }
     const hiddenBySearch = (id: string) =>
@@ -2134,12 +2215,19 @@ export class Engine {
       const card = this.cards.get(id);
       if (!sprite || !card) continue;
       const hidden = hiddenBySearch(id);
-      sprite.visible = !hidden;
-      sprite.renderable = !hidden;
+      const selfDrawn = this.isSelfDrawn(card);
+      sprite.visible = !hidden && !selfDrawn;
+      sprite.renderable = !hidden && !selfDrawn;
       const label = this.noteLabels.get(id);
       if (label) label.visible = !hidden;
       const badge = this.cornerBadges.get(id);
       if (badge) badge.visible = !hidden;
+      if (selfDrawn) {
+        this.syncDecor(card); // zoom may have crossed the hex-label threshold
+        const decor = this.decor.get(id);
+        if (decor) decor.visible = !hidden;
+        continue;
+      }
       // Every pass, not just on first sight: pictures that finish later must appear, and zooming
       // in must swap in the sharper thumbnail.
       if (!hidden) this.requestLod(card, sprite);
@@ -2220,9 +2308,12 @@ export class Engine {
       if (!rectsIntersect(rect, card) || hiddenBySearch(id)) continue;
       const sprite = this.sprites.get(id);
       if (sprite) {
-        sprite.visible = true;
-        sprite.renderable = true;
+        // A self-drawn card shows its decor, never a flat rectangle under it.
+        sprite.visible = !this.isSelfDrawn(card);
+        sprite.renderable = !this.isSelfDrawn(card);
       }
+      const decor = this.decor.get(id);
+      if (decor) decor.visible = true;
       const label = this.noteLabels.get(id);
       if (label) label.visible = true;
       const badge = this.cornerBadges.get(id);

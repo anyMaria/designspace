@@ -1,3 +1,4 @@
+import { swatchColorsOf } from '@/lib/palette';
 import type { Item, Placement } from '@/state/types';
 import type { Platform } from '@/platform/types';
 import type { ItemCard } from './Engine';
@@ -49,10 +50,13 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       durationMs: null,
       videoUrl: null,
       pageCount: null,
+      swatchColors: null,
+      swatchName: null,
     };
   }
 
   if (item.kind === 'swatch') {
+    const colors = swatchColorsOf(item).map((c) => c.hex);
     return {
       id: item.id,
       x: placement.x,
@@ -61,15 +65,16 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       h: placement.h,
       z: placement.z,
       kind: 'swatch',
-      dominantColor: item.color ? hexToInt(item.color) : FALLBACK_COLOR,
+      dominantColor: hexToInt(colors[0]),
       thumbUrl128: null,
       thumbUrl512: null,
-      // "Color block with its HEX and an optional name" (§2.11's spec table).
-      noteText: [item.title || null, item.color?.toUpperCase() ?? null].filter(Boolean).join('\n'),
+      noteText: null, // drawn by decor/paletteDecor.ts, not as a text label
       frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
       pageCount: null,
+      swatchColors: colors,
+      swatchName: item.title.trim() || null,
     };
   }
 
@@ -99,6 +104,8 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       durationMs: null,
       videoUrl: null,
       pageCount: null,
+      swatchColors: null,
+      swatchName: null,
     };
   }
 
@@ -135,5 +142,7 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     videoUrl:
       item.kind === 'video' && item.filePath ? platform.media.originalUrl(item.filePath) : null,
     pageCount: item.kind === 'pdf' ? (item.pageCount ?? null) : null,
+    swatchColors: null,
+    swatchName: null,
   };
 }

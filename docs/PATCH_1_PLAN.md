@@ -422,7 +422,7 @@ Look: `docs/patch-1/mock-palettes.png`. Size: L. Version at the end: **0.4.0**.
 - `createExtractPaletteCommand`: now creates **one** palette (5–8 colours, unchanged ranking), named `en.palettes.fromItems(n)`, placed 48 units right of the selection's bounds.
 **Tests:** do → undo restores the exact previous state for each command (pattern: `swatchCommands.test.ts`).
 
-### C3 · Palette cards on the map `[ ]`
+### C3 · Palette cards on the map `[x]`
 **Files:** new `src/canvas/decor/paletteDecor.ts`, `src/canvas/Engine.ts`, `src/canvas/itemCards.ts`, `src/canvas/useEngineBindings.ts`.
 **Do**
 1. `ItemCard` gets `swatchColors: string[] | null` (hex list, swatches only) and `swatchName: string | null`.
