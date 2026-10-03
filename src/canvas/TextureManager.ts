@@ -5,20 +5,21 @@
  */
 export interface TextureManagerOptions<T> {
   decode: (url: string) => Promise<T>;
-  destroyItem: (item: T) => void;
+  destroyItem: (item: T, key: string) => void;
   maxConcurrentDecodes?: number;
   maxCachedItems?: number;
 }
 
 export class TextureManager<T> {
   private cache = new Map<string, T>();
-  private lruOrder: string[] = [];
+  /** Least recently used first (a Map keeps insertion order); `touch` re-inserts at the end. */
+  private lru = new Map<string, true>();
   private inFlight = new Map<string, Promise<T | null>>();
   private waiters: (() => void)[] = [];
   private activeDecodes = 0;
 
   private readonly decodeFn: (url: string) => Promise<T>;
-  private readonly destroyItem: (item: T) => void;
+  private readonly destroyItem: (item: T, key: string) => void;
   private readonly maxConcurrent: number;
   private readonly maxCached: number;
 
@@ -26,7 +27,7 @@ export class TextureManager<T> {
     this.decodeFn = opts.decode;
     this.destroyItem = opts.destroyItem;
     this.maxConcurrent = opts.maxConcurrentDecodes ?? 6;
-    this.maxCached = opts.maxCachedItems ?? 300;
+    this.maxCached = opts.maxCachedItems ?? 1500;
   }
 
   get(key: string): T | undefined {
@@ -87,19 +88,22 @@ export class TextureManager<T> {
     }
   }
 
-  private touch(key: string): void {
-    const idx = this.lruOrder.indexOf(key);
-    if (idx >= 0) this.lruOrder.splice(idx, 1);
-    this.lruOrder.push(key);
+  /** Marks a cached texture as recently used (so on-screen textures are never evicted). Does
+   * nothing for a key that isn't cached (still loading, or never loaded). */
+  touch(key: string): void {
+    if (!this.cache.has(key)) return;
+    this.lru.delete(key);
+    this.lru.set(key, true);
   }
 
   private evictIfNeeded(): void {
-    while (this.lruOrder.length > this.maxCached) {
-      const evictKey = this.lruOrder.shift();
+    while (this.lru.size > this.maxCached) {
+      const evictKey = this.lru.keys().next().value;
       if (evictKey === undefined) break;
+      this.lru.delete(evictKey);
       const item = this.cache.get(evictKey);
-      if (item !== undefined) this.destroyItem(item);
       this.cache.delete(evictKey);
+      if (item !== undefined) this.destroyItem(item, evictKey);
     }
   }
 
@@ -108,8 +112,8 @@ export class TextureManager<T> {
   }
 
   destroy(): void {
-    for (const item of this.cache.values()) this.destroyItem(item);
+    for (const [key, item] of this.cache) this.destroyItem(item, key);
     this.cache.clear();
-    this.lruOrder = [];
+    this.lru.clear();
   }
 }

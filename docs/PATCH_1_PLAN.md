@@ -173,7 +173,7 @@ new `crates/designspace-core/src/media_url.rs`, `src-tauri/src/media_protocol.rs
 
 **Done when:** unit tests for the queues still pass (update the fakes so `fetch` returns `{ ok: true, … }`); add one test per queue where `fetch` returns `ok: false` and the item ends `error`/`unsupported`.
 
-### A3 · The canvas refreshes pictures that arrive later, and sharpens on zoom `[ ]`
+### A3 · The canvas refreshes pictures that arrive later, and sharpens on zoom `[x]`
 **Why:** a card on screen when its thumbnail finishes stays a purple square until you pan away and back; zooming in never loads the sharper picture.
 
 **Files:** `src/canvas/Engine.ts`, `src/canvas/TextureManager.ts` (+ its test), new `tests/e2e/helpers/pixels.ts`, new `tests/e2e/patch1-thumbnails.spec.ts`, fixture `tests/e2e/fixtures/wide-circle.png` (already committed: 800×400, a (240,180,60) circle of radius 150 in the middle on a blue-green gradient).

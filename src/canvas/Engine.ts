@@ -214,6 +214,9 @@ export class Engine {
   private itemIndex = new SpatialIndex();
   private itemVisible = new Set<string>();
   private textureManager: TextureManager<Texture> | null = null;
+  /** Card id → the texture key it currently shows (or is loading). Includes the URL, so a
+   * re-made thumbnail is a new key. */
+  private appliedTexKey = new Map<string, string>();
 
   // Search Dim/Hide (§2.8) — a null set means "no active filter, everything matches".
   private searchMatches: Set<string> | null = null;
@@ -339,9 +342,22 @@ export class Engine {
         const bitmap = await createImageBitmap(blob);
         return Texture.from(bitmap);
       },
-      destroyItem: (tex) => tex.destroy(true),
+      destroyItem: (tex, key) => {
+        // A sprite still showing this texture goes back to its flat colour; the next cull reloads.
+        const id = key.split(':')[1] ?? '';
+        if (this.appliedTexKey.get(id) === key) {
+          const sprite = this.sprites.get(id);
+          const card = this.cards.get(id);
+          if (sprite && !sprite.destroyed) {
+            sprite.texture = Texture.WHITE;
+            if (card) sprite.tint = card.dominantColor;
+          }
+          this.appliedTexKey.delete(id);
+        }
+        tex.destroy(true);
+      },
       maxConcurrentDecodes: 6,
-      maxCachedItems: 300,
+      maxCachedItems: 1500,
     });
 
     this.detachInput = attachCanvasInput(container, this.camera, {
@@ -420,6 +436,7 @@ export class Engine {
       if (!next.has(id)) {
         sprite.destroy();
         this.sprites.delete(id);
+        this.appliedTexKey.delete(id);
         const label = this.noteLabels.get(id);
         if (label) {
           label.destroy();
@@ -991,6 +1008,7 @@ export class Engine {
   private clearItems(): void {
     for (const sprite of this.sprites.values()) sprite.destroy();
     this.sprites.clear();
+    this.appliedTexKey.clear();
     for (const label of this.noteLabels.values()) label.destroy();
     this.noteLabels.clear();
     for (const badge of this.cornerBadges.values()) badge.destroy();
@@ -1986,7 +2004,9 @@ export class Engine {
       if (label) label.visible = !hidden;
       const badge = this.cornerBadges.get(id);
       if (badge) badge.visible = !hidden;
-      if (!hidden && !this.itemVisible.has(id)) this.requestLod(card, sprite);
+      // Every pass, not just on first sight: pictures that finish later must appear, and zooming
+      // in must swap in the sharper thumbnail.
+      if (!hidden) this.requestLod(card, sprite);
     }
     this.itemVisible = nextVisible;
   }
@@ -2082,13 +2102,14 @@ export class Engine {
       const sprite = this.sprites.get(id);
       const url = card.thumbUrl512;
       if (!sprite || !url) continue;
-      const key = `t512:${id}`;
+      const key = `t512:${id}:${url}`;
       if (sprite.texture === this.textureManager.get(key)) continue;
       jobs.push(
         this.textureManager.request(key, url).then((texture) => {
           if (texture && !sprite.destroyed) {
             sprite.texture = texture;
             sprite.tint = 0xffffff;
+            this.appliedTexKey.set(id, key);
           }
         }),
       );
@@ -2118,19 +2139,32 @@ export class Engine {
     return g;
   }
 
-  private requestLod(card: ItemCard, sprite: Sprite): void {
-    const longSideWorld = Math.max(card.w, card.h);
-    const longSideScreen = longSideWorld * this.camera.zoom;
-    if (longSideScreen < canvasGeometry.farZoomThresholdPx) return; // flat color is correct as-is
-
+  /** Which texture a card should show right now, or null to keep whatever it shows (far zoom
+   * draws the flat colour; no thumbnail yet means the placeholder tint stays). The key contains
+   * the URL, so a re-made thumbnail (new URL) is a new key and gets loaded. */
+  private desiredTexture(card: ItemCard): { key: string; url: string } | null {
+    const longSideScreen = Math.max(card.w, card.h) * this.camera.zoom;
+    if (longSideScreen < canvasGeometry.farZoomThresholdPx) return null;
     const wantsT512 = longSideScreen > canvasGeometry.lod.t128Max;
-    const url = wantsT512 ? card.thumbUrl512 : card.thumbUrl128;
-    const key = wantsT512 ? `t512:${card.id}` : `t128:${card.id}`;
-    if (!url || !this.textureManager) return;
-    if (sprite.texture === this.textureManager.get(key)) return;
+    const url = wantsT512
+      ? (card.thumbUrl512 ?? card.thumbUrl128)
+      : (card.thumbUrl128 ?? card.thumbUrl512);
+    if (!url) return null;
+    return { key: `${wantsT512 ? 't512' : 't128'}:${card.id}:${url}`, url };
+  }
 
-    void this.textureManager.request(key, url).then((texture) => {
-      if (!texture || sprite.destroyed) return;
+  private requestLod(card: ItemCard, sprite: Sprite): void {
+    if (!this.textureManager) return;
+    const want = this.desiredTexture(card);
+    if (!want) return;
+    if (this.appliedTexKey.get(card.id) === want.key) {
+      this.textureManager.touch(want.key); // keep on-screen textures out of LRU eviction
+      return;
+    }
+    this.appliedTexKey.set(card.id, want.key); // also marks "in flight": no duplicate requests
+    void this.textureManager.request(want.key, want.url).then((texture) => {
+      if (sprite.destroyed || this.appliedTexKey.get(card.id) !== want.key) return; // superseded
+      if (!texture) return; // failed: keep the placeholder; a new URL (re-ingest) retries
       sprite.texture = texture;
       sprite.tint = 0xffffff;
     });
@@ -2163,7 +2197,10 @@ export class Engine {
       });
       if (this.videoPreviewId !== id) return; // hover moved on while this was loading
       const sprite = this.sprites.get(id);
-      if (sprite && !sprite.destroyed) sprite.texture = texture;
+      if (sprite && !sprite.destroyed) {
+        this.appliedTexKey.delete(id); // so stopVideoPreview → requestLod restores the poster
+        sprite.texture = texture;
+      }
     } catch {
       // Playback failed (e.g. a codec this browser can't decode) — leave the poster thumbnail
       // showing rather than surfacing an error for what's just a preview.
