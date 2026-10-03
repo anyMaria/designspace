@@ -78,6 +78,16 @@ export const en = {
       return `${parts.join(' and ')} ${notes + palettes === 1 ? "isn't" : "aren't"} classified`;
     },
   },
+  description: {
+    open: 'Description',
+    placeholder: 'What do you see? Why does it matter?',
+    add: 'Add description',
+    edit: 'Edit description',
+    editDetails: 'Edit details',
+    field: 'Description',
+    empty: 'Add a description…',
+    close: 'Close',
+  },
   actions: {
     tab: 'Actions',
     empty: 'Write #something in a note, like #dig-into, and it shows up here.',

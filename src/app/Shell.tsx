@@ -20,6 +20,7 @@ import { useSoftLimitNotice } from './useSoftLimitNotice';
 import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
 import { CanvasHoverOverlay } from '@/canvas/CanvasHoverOverlay';
+import { ThoughtBubbleOverlay } from '@/canvas/ThoughtBubbleOverlay';
 import type { Engine } from '@/canvas/Engine';
 import { useEngineBindings } from '@/canvas/useEngineBindings';
 import { useCanvasShortcuts } from '@/canvas/useCanvasShortcuts';
@@ -63,6 +64,7 @@ import { BoardsGallery } from '@/features/boards/BoardsGallery';
 import { useBoardStore } from '@/state/boardStore';
 import { useBoardUiStore } from '@/state/boardUiStore';
 import { useNoteCanvasBinding } from '@/canvas/useNoteCanvasBinding';
+import { DescriptionPanel } from '@/features/description/DescriptionPanel';
 import { NoteEditor } from '@/features/notes/NoteEditor';
 import { useFrameCanvasBinding } from '@/canvas/useFrameCanvasBinding';
 import { FrameRenameDialog } from '@/features/frames/FrameRenameDialog';
@@ -161,6 +163,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         onEngineReady={setEngine}
       />
       <CanvasHoverOverlay engine={engine} />
+      <ThoughtBubbleOverlay engine={engine} />
 
       {/* Library map / Board empty state — §2.14 */}
       {placementCount === 0 && !benchCount && (
@@ -493,6 +496,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         />
       )}
       <FocusView platform={platform} />
+      <DescriptionPanel platform={platform} engine={engine} />
       <NoteEditor platform={platform} engine={engine} />
       <TriageView platform={platform} />
       {useBoardUiStore((s) => s.galleryOpen) && <BoardsGallery platform={platform} />}

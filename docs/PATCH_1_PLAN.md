@@ -512,12 +512,12 @@ note no longer opens Details; try the dark Ink colour.
 
 Look: `docs/patch-1/mock-bubble.png`. Size: M. Version at the end: **0.6.0**.
 
-### E1 · A long description on every media item `[ ]`
+### E1 · A long description on every media item `[x]`
 **Files:** new `src/commands/descriptionCommands.ts` (+ test), `src/lib/search.ts` (+ test).
 - `createSetDescriptionCommand(platform, itemId, json, text)`: do/undo; writes `description` (JSON) and `description_text` in one `db.execute` and the store.
 - Search: add a `description` field to the MiniSearch index (`fields`, the document mapping from `item.descriptionText ?? ''`, boost 1). Update the search tests (an item found by a word that is only in its description).
 
-### E2 · The thought bubble on hover `[ ]`
+### E2 · The thought bubble on hover `[x]`
 **Files:** new `src/design/icons/ThoughtBubble.tsx`, `src/canvas/CanvasHoverOverlay.tsx` (from B3), new `src/state/descriptionStore.ts`.
 **Do**
 1. `ThoughtBubble` icon: 24×24, stroke 1.75, round caps, like Lucide. Paths from the mockup: a cloud `M8.5 15.5h9a3.5 3.5 0 0 0 .5-6.96A5 5 0 0 0 8.4 7.1 4.25 4.25 0 0 0 8.5 15.5Z`, two trailing circles `(5.2, 18.6, r 1.5)` and `(2.6, 21.6, r 0.9)` toward the bottom-left (toward the photo's corner); prop `filled` adds three dots (r 0.5, filled) at `(10.6, 11.6)`, `(13.4, 11.6)`, `(16.2, 11.6)` = "has a description".
@@ -526,7 +526,7 @@ Look: `docs/patch-1/mock-bubble.png`. Size: M. Version at the end: **0.6.0**.
 4. Click → `descriptionStore.open(itemId)`; clicking again closes it.
 5. Test hooks: the bubble has `data-testid="thought-bubble"` and `data-has-description="true|false"`; the panel has `data-testid="description-panel"`.
 
-### E3 · The description panel `[ ]`
+### E3 · The description panel `[x]`
 **Files:** new `src/features/description/DescriptionPanel.tsx`, `src/app/Shell.tsx`.
 - Anchored to the item: `left = right edge + 12`, `top = card top`, **height = the card's on-screen height** clamped to 240 … (window height − 32), width `fit-content` with `min-width: 320px; max-width: 480px` (Q: "a minimum width so everything shows similarly"). If there's no room on the right, open on the left. Re-position every frame while open (like `NoteEditor`); hide (not close) while the item is off screen.
 - Content: the item title (bold 17), the description editor (TipTap with `noteExtensions` incl. hashtag decorations, placeholder `en.description.placeholder` "What do you see? Why does it matter?"), scrolling inside; under a hairline, read-only chips for Type, Vibes, Movement, Tags (criterion colour dots), and an "Edit details" button that selects the item and opens Details.

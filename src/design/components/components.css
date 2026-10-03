@@ -524,3 +524,23 @@
   font-weight: 700;
   color: var(--note-hash);
 }
+
+/* The description editor (Patch 1 · E3): plain text on the panel, same hashtag look as notes. */
+.ds-description-editor .ProseMirror {
+  outline: none;
+  min-height: 100%;
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+.ds-description-editor .ProseMirror p {
+  margin: 0 0 var(--space-2);
+}
+.ds-description-editor .ProseMirror ul,
+.ds-description-editor .ProseMirror ol {
+  margin: 0 0 var(--space-2);
+  padding-left: 22px;
+}
+.ds-description-editor .ds-hashtag {
+  font-weight: 700;
+  color: var(--lavender);
+}
