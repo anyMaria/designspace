@@ -2845,3 +2845,35 @@ filter, and the one-off re-derive of an existing library.
 
 **Not verifiable in the cloud (Owner checks on Windows):** real full screen and F11 in WebView2, and the
 window-state plugin no longer restoring full screen.
+
+## Patch 1 · Phase C: palettes (v0.4.0)
+
+- **Model:** a palette is the existing `swatch` item with a list of colours (`items.swatch_colors`,
+  migration 002). One colour is drawn as a plain swatch, two or more as a two-column card whose size
+  is a pure function of the colour count (`lib/palette.ts`). Old swatches (only `color`) keep working
+  through `swatchColorsOf`.
+- **C0:** migration `002_patch1.sql` adds `swatch_colors`, `description`, `description_text` and
+  `thumb_v` (the last two are for Phases E and F). `ensureLibraryReady` now backs up before migrating an
+  existing library on Tauri; a failed backup is logged and the migration still runs, because this
+  migration only adds columns. A future destructive migration must stop instead.
+- **C2:** colour changes are one command that rewrites the colour columns and resizes every placement
+  (the size is derived from the colours, so resizing is not a separate undo step). "Extract palette"
+  now makes one palette placed 48 units to the right of the selection (it used to make 5–8 swatches).
+  Combine puts the colours in reading order (rows within 40 units, then left to right) and trashes the
+  old swatches in the same undo step.
+- **C3:** cards that draw themselves have a "decor" container instead of a visible sprite
+  (`canvas/decor/paletteDecor.ts`); notes will use it in Phase D1. Palettes have no resize handles.
+  Clicking a colour cell of an already selected palette copies that colour; a single swatch still
+  copies its hex when selected or clicked.
+- **C4:** the editor lives in the Details panel for swatches/palettes (name, reorderable colour grid,
+  HSV wheel with Value, H/S/V sliders, hex field, Pick from a photo, Eyedropper where the webview has
+  it, Remove, Copy all). Dragging a control edits local state and commits one command on release.
+  "Pick from a photo" reads the `t512` thumbnail at the clicked point (`engine.startPointPick`).
+  Double-click on a swatch/palette opens the panel on Details (no Focus view). A new swatch from the
+  + menu is selected right away.
+- **C5:** right-click: Combine into palette (2+ swatches), Edit palette and Copy all colors (one).
+  Swatches no longer offer "Extract palette" (their derived `palette` field would have made it appear).
+- **Fixed on the way:** Ctrl+A also selected items sitting in the Trash.
+- **Not done (optional in the plan):** dragging a swatch onto a palette to add its colour.
+- **Not verifiable in the cloud:** the Eyedropper (a Chromium API the cloud browser exposes but WebView2
+  may not), and the pre-migration backup (Tauri only).

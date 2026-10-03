@@ -15,6 +15,9 @@ import {
   createRemoveFromBoardCommand,
 } from '@/commands/boardCommands';
 import { createExtractPaletteCommand } from '@/commands/swatchCommands';
+import { createCombineIntoPaletteCommand } from '@/commands/paletteCommands';
+import { swatchColorsOf } from '@/lib/palette';
+import { useUiStore } from '@/state/uiStore';
 import { useBoardStore } from '@/state/boardStore';
 import { switchSpace } from '@/features/boards/switchSpace';
 import { useListStore } from '@/state/listStore';
@@ -146,8 +149,46 @@ export function ContextMenu({
       .getState()
       .execute(command)
       .then(() => {
-        useToastStore.getState().show(`Extracted ${items.length} swatches`);
+        const n = items[0]?.swatchColors?.length ?? 0;
+        if (n > 0) useToastStore.getState().show(en.palettes.extracted(n));
       });
+  }
+
+  function combinePalette(): void {
+    onClose();
+    const result = createCombineIntoPaletteCommand(platform, ids);
+    if (!result) return;
+    const count = result.item.swatchColors?.length ?? 0;
+    void useHistoryStore
+      .getState()
+      .execute(result.command)
+      .then(() => {
+        engine?.setSelection([result.item.id]);
+        useLibraryStore.getState().setSelection([result.item.id]);
+        useToastStore.getState().show(en.palettes.combined(count), {
+          actionLabel: en.toasts.undo,
+          onAction: () => void useHistoryStore.getState().undo(),
+        });
+      });
+  }
+
+  function editPalette(): void {
+    onClose();
+    useUiStore.setState({ panelOpen: true, panelTab: 'details' });
+  }
+
+  function copyColors(): void {
+    onClose();
+    const item = selectedItems[0];
+    if (!item) return;
+    void navigator.clipboard
+      .writeText(
+        swatchColorsOf(item)
+          .map((c) => c.hex)
+          .join('\n'),
+      )
+      .then(() => useToastStore.getState().show(en.palettes.copiedAll))
+      .catch((err: unknown) => logger.warn('Copy all colors failed', err));
   }
 
   function moveToTrash(): void {
@@ -206,6 +247,13 @@ export function ContextMenu({
       label: en.swatches.extractPalette,
       onSelect: extractPalette,
     },
+    'combine-palette': {
+      id: 'combine-palette',
+      label: en.palettes.combine,
+      onSelect: combinePalette,
+    },
+    'edit-palette': { id: 'edit-palette', label: en.palettes.edit, onSelect: editPalette },
+    'copy-colors': { id: 'copy-colors', label: en.palettes.copyAll, onSelect: copyColors },
     'create-board': {
       id: 'create-board',
       label: en.boards.createFromSelection,

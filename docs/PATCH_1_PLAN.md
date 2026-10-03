@@ -449,7 +449,7 @@ Lives in the right panel's Details tab when one swatch/palette is selected (Q7).
 8. Add menu: keep "Swatch" (Q: "it could still be in the menu swatches"); a new swatch is selected right away so the editor shows.
 **Done when:** screenshot matches `mock-palettes.png` (right, adapted to the 288 px panel width); every change is one undo step.
 
-### C5 · Combining swatches, and menus `[ ]`
+### C5 · Combining swatches, and menus `[x]`
 **Files:** `src/canvas/contextMenuItems.ts`, `ContextMenu.tsx`, `src/i18n/en.ts`.
 - Right-click with 2+ swatches/palettes selected: "Combine into palette" (C2). With one: "Edit palette" (opens Details) and "Copy all colors".
 - "Extract palette" on photos creates one palette (C2).

@@ -48,7 +48,7 @@ test('Extract palette turns a right-clicked image into swatches', async ({ page 
   await page.mouse.click(item0.x, item0.y, { button: 'right' });
   await page.waitForTimeout(200);
   await page.getByRole('menuitem', { name: 'Extract palette' }).click();
-  await expect(page.getByText(/^Extracted \d+ swatches$/)).toBeVisible();
+  await expect(page.getByText(/^Extracted a palette of \d+ colors$/)).toBeVisible();
 
   expect(errors, errors.join('\n')).toEqual([]);
 });

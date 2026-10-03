@@ -50,6 +50,21 @@ describe('contextMenuItemIds', () => {
     );
   });
 
+  it('swatches never offer Extract palette; they offer Combine, Edit and Copy instead', () => {
+    const sw = (id: string) =>
+      item({ id, kind: 'swatch', filePath: null, palette: [{ hex: '#ffffff', weight: 1 }] });
+    const one = contextMenuItemIds([sw('a')], ctx);
+    expect(one).not.toContain('extract-palette');
+    expect(one).toEqual(expect.arrayContaining(['edit-palette', 'copy-colors']));
+    expect(one).not.toContain('combine-palette');
+    const two = contextMenuItemIds([sw('a'), sw('b')], ctx);
+    expect(two).toContain('combine-palette');
+    expect(two).not.toContain('edit-palette');
+    expect(
+      contextMenuItemIds([sw('a'), item({ id: 'b', kind: 'note', filePath: null })], ctx),
+    ).not.toContain('combine-palette');
+  });
+
   it('create board, trash and stacking always; remove-from-board only on a board', () => {
     const off = contextMenuItemIds([item({ kind: 'note', filePath: null })], ctx);
     expect(off).toEqual(
