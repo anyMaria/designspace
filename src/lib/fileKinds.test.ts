@@ -1,5 +1,6 @@
-import { ALL_SUPPORTED_EXTENSIONS, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
+  ALL_SUPPORTED_EXTENSIONS,
   detectMediaKind,
   extensionOf,
   isSupportedFont,
