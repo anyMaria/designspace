@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Tool, WheelMode } from '@/canvas/input';
 
-export type PanelTab = 'list' | 'details';
+export type PanelTab = 'list' | 'details' | 'actions';
 export type DotGridDensity = 'fine' | 'normal' | 'wide';
 /** "System" follows the OS `prefers-reduced-motion` media query; "On"/"Off" override it —
  * Settings → Canvas (§2.14). */

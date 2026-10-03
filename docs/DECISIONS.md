@@ -2877,3 +2877,25 @@ window-state plugin no longer restoring full screen.
 - **Not done (optional in the plan):** dragging a swatch onto a palette to add its colour.
 - **Not verifiable in the cloud:** the Eyedropper (a Chromium API the cloud browser exposes but WebView2
   may not), and the pre-migration backup (Tauri only).
+
+## Patch 1 · Phase D: notebook notes and #actions (v0.5.0)
+
+- **D1:** notes draw themselves through the decor container (`canvas/decor/noteDecor.ts`): paper with the
+  top-right corner cut and a fold, ruled lines every 30 units, and the text as a Pixi `Text` clipped by
+  a mask the size of the paper. Text comes from `lib/noteTagged.ts` (`<b>`, `<i>`, `<dshash>` tags);
+  Pixi only parses tags that exist in `tagStyles`. New notes are 280×212; existing notes keep their
+  size. Added the dark **Ink** colour. After the camera settles, world-space text is re-rasterised at
+  1×/2×/4× so it stays sharp when zoomed in. Pixi puts the first line about 5 px higher than CSS's 30 px
+  line box, so `noteGeometry.textOffsetY` nudges the canvas text down to match the editor.
+- **D2:** the editor is laid out in world units and scaled with the camera, with the same paper CSS, so
+  opening a note moves no letter. The colour dots float above the paper. Hashtags are decorated while
+  typing (`lib/tiptap/hashtagDecorations.ts`, needs `@tiptap/pm`). On close the note grows (never
+  shrinks) to fit its text, in the same undo step as the text. One e2e spec (`smoke-m4-notes`) now
+  double-clicks further from the corner, since a 280-wide note centred near the corner went off screen.
+- **D3:** selecting only notes no longer switches the panel to Details; one note shows `NoteDetails`
+  (colours, Edit note, its #actions). Bulk edits apply to media kinds only and the panel says how many
+  notes/palettes weren't classified. A right-click on notes shows a short menu of its own.
+- **D4:** a third panel tab, "Actions" (with a count), lists every #hashtag in notes and, once Phase E
+  lands, in descriptions (`lib/actions.ts`). Click goes to the item (switching space when needed),
+  hover highlights it. Search already finds hashtags (checked in `patch1-actions.spec.ts`). Ticking
+  actions off is not in Patch 1 (Q6).

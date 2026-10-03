@@ -492,7 +492,7 @@ Look: `docs/patch-1/mock-notes.png`. Size: M. Version at the end: **0.5.0**.
 - Bulk edits (Type, Vibe, Movement, Tags, Artist) apply only to media kinds (image, video, pdf, font, link); show "2 notes and 1 palette aren't classified" when the selection has others.
 - Right-click on a note: "Edit note", note colours, Bring to front / Send to back, Move to Trash.
 
-### D4 · #actions `[ ]`
+### D4 · #actions `[x]`
 **Files:** new `src/lib/hashtags.ts` (+ test), new `src/features/actions/useActions.ts`, `ActionsPanel.tsx`, `src/app/Shell.tsx`, `src/state/uiStore.ts` (`panelTab` gains `'actions'`), `src/i18n/en.ts`.
 **Do**
 1. `hashtags.ts`: `HASHTAG_RE` (Appendix A.10), `extractHashtags(text): string[]` (lower-cased, unique, in order of appearance) and `hashtagLines(text): { tag: string; line: string }[]` (the line of text each hashtag sits in, trimmed, max 160 chars).

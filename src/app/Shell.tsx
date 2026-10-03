@@ -39,6 +39,8 @@ import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
 import { PaletteEditor } from '@/features/palettes/PaletteEditor';
 import { NoteDetails } from '@/features/notes/NoteDetails';
+import { ActionsPanel } from '@/features/actions/ActionsPanel';
+import { useActions } from '@/features/actions/useActions';
 import { BulkDetailsPanel } from '@/features/details/BulkDetailsPanel';
 import { TriageView } from '@/features/triage/TriageView';
 import { openInboxTriage } from '@/features/triage/openInboxTriage';
@@ -96,6 +98,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const panelOpen = useUiStore((s) => s.panelOpen);
   const togglePanel = useUiStore((s) => s.togglePanel);
   const panelTab = useUiStore((s) => s.panelTab);
+  const { count: actionCount } = useActions();
   const setPanelTab = useUiStore((s) => s.setPanelTab);
   const minimapOpen = useUiStore((s) => s.minimapOpen);
   const fullscreen = useUiStore((s) => s.fullscreen);
@@ -417,11 +420,14 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             tabs={[
               { id: 'list', label: en.panel.list },
               { id: 'details', label: en.panel.details },
+              { id: 'actions', label: `${en.actions.tab} ${actionCount}` },
             ]}
             value={panelTab}
             onChange={setPanelTab}
           />
-          {panelTab === 'list' ? (
+          {panelTab === 'actions' ? (
+            <ActionsPanel platform={platform} engine={engine} />
+          ) : panelTab === 'list' ? (
             listExpanded ? (
               <div
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
