@@ -245,7 +245,7 @@ new `crates/designspace-core/src/media_url.rs`, `src-tauri/src/media_protocol.rs
 3. The browser `<input accept>` stays as is.
 **Owner check:** Files… on Windows shows images, videos, PDFs and fonts together.
 
-### A8 · Dimming only when it means something, and never stuck `[ ]`
+### A8 · Dimming only when it means something, and never stuck `[x]`
 **Why:** the "opacity drops all of a sudden, illegible" bug.
 
 **Files:** new `src/canvas/cardAlpha.ts` (+ test), `src/canvas/Engine.ts`, `src/features/list/ListPanel.tsx`, `src/state/connectionsUiStore.ts`, `src/canvas/useConnectionsBinding.ts`, `src/features/connections/ConnectionsPopover.tsx`, `src/i18n/en.ts`.

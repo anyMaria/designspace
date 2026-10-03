@@ -2,6 +2,8 @@
 // shader/uniform sync. This polyfill installs the static fallback and must load before any
 // renderer initializes — see node_modules/pixi.js/skills/pixijs-environments/SKILL.md.
 import 'pixi.js/unsafe-eval';
+import { cardAlpha, connectionRelatedSet } from './cardAlpha';
+import { distanceToSegment } from '@/lib/lineAnchors';
 import {
   Application,
   Assets,
@@ -115,7 +117,6 @@ const LINE_WIDTH_PX = 1.5;
 const LINE_WIDTH_HOVERED_PX = 2.5;
 const LINE_OPACITY = 0.7;
 const LINE_OFFSET_PX = 4; // spacing between up to 3 parallel lines for the same pair
-const CONNECTIONS_DIM_ALPHA = 0.35;
 
 /** A `Hub` (from `lib/connections.ts`) plus the display label the caller already resolved via
  * `formatHubLabel` — Engine stays free of term/item lookups, matching how `ScoredCandidate`'s
@@ -223,6 +224,13 @@ export class Engine {
   private searchMode: 'dim' | 'hide' = 'dim';
   // List panel group hover (§2.9) — takes priority over search alpha while set.
   private hoverHighlight: Set<string> | null = null;
+  /** Who set `hoverHighlight`: a List/Actions panel row, or a hub star on the map. Hub stars are
+   * re-created every frame so their `pointerout` never fires; see `recheckHubHighlight`. */
+  private hoverHighlightSource: 'panel' | 'hub' | null = null;
+  /** Last pointer position (screen px, relative to the container); null when it left the map. */
+  private lastPointer: { x: number; y: number } | null = null;
+  /** True while a card is being moved or resized: connection dimming pauses. */
+  private dragging = false;
   // Rediscover's pulse (§2.15) — cancels the running ticker callback, if any.
   private pulseStop: (() => void) | null = null;
   // On-hover/selection connections (§2.10) — the "from" item(s) plus scored candidates to draw
@@ -737,8 +745,9 @@ export class Engine {
   /** List panel group hover (§2.9 "makes its items glow... while the rest dims") — takes
    * priority over the search Dim/Hide alpha while active, so hovering a group previews it even
    * with a search filter on; clearing it (`null`) falls back to whatever the search filter says. */
-  setHoverHighlight(ids: Set<string> | null): void {
+  setHoverHighlight(ids: Set<string> | null, source: 'panel' | 'hub' = 'panel'): void {
     this.hoverHighlight = ids;
+    this.hoverHighlightSource = ids ? source : null;
     this.refreshAlpha();
     this.scheduleFrame();
   }
@@ -951,7 +960,25 @@ export class Engine {
   }
 
   private refreshAlpha(): void {
-    for (const [id, sprite] of this.sprites) sprite.alpha = this.alphaFor(id);
+    const related = connectionRelatedSet(this.connectionSources);
+    for (const id of this.sprites.keys()) this.setCardAlpha(id, this.alphaFor(id, related));
+  }
+
+  /** Every display object that belongs to a card (its picture, note label, corner badge), so a
+   * faded card never keeps dark text on a dark card. */
+  private forEachCardVisual(id: string, fn: (visual: Sprite | Text) => void): void {
+    const sprite = this.sprites.get(id);
+    if (sprite) fn(sprite);
+    const label = this.noteLabels.get(id);
+    if (label) fn(label);
+    const badge = this.cornerBadges.get(id);
+    if (badge) fn(badge);
+  }
+
+  private setCardAlpha(id: string, alpha: number): void {
+    this.forEachCardVisual(id, (v) => {
+      v.alpha = alpha;
+    });
   }
 
   /** Rediscover's "make it pulse" (§2.15) — a brief alpha oscillation, not a selection outline
@@ -960,43 +987,44 @@ export class Engine {
   pulseItem(id: string, durationMs = 1400): void {
     this.pulseStop?.();
     this.pulseStop = null;
-    const sprite = this.sprites.get(id);
-    if (!sprite || !this.app) return;
+    if (!this.sprites.has(id) || !this.app) return;
 
     const start = performance.now();
     const baseAlpha = this.alphaFor(id);
     const tick = () => {
       const elapsed = performance.now() - start;
       if (elapsed >= durationMs) {
-        sprite.alpha = this.alphaFor(id);
+        this.setCardAlpha(id, this.alphaFor(id));
         this.app?.ticker.remove(tick);
         if (this.pulseStop === stop) this.pulseStop = null;
         return;
       }
       const phase = (elapsed / 220) * Math.PI;
       const wave = (Math.sin(phase) + 1) / 2; // 0..1
-      sprite.alpha = baseAlpha * (0.4 + 0.6 * wave);
+      this.setCardAlpha(id, baseAlpha * (0.4 + 0.6 * wave));
     };
     const stop = () => {
       this.app?.ticker.remove(tick);
-      sprite.alpha = this.alphaFor(id);
+      this.setCardAlpha(id, this.alphaFor(id));
     };
     this.pulseStop = stop;
     this.app.ticker.add(tick);
   }
 
-  private alphaFor(id: string): number {
-    if (this.hoverHighlight) return this.hoverHighlight.has(id) ? 1 : 0.12;
-    if (this.connectionSources.length > 0) {
-      const related = new Set<string>();
-      for (const { fromId, candidates } of this.connectionSources) {
-        related.add(fromId);
-        for (const c of candidates) related.add(c.id);
-      }
-      return related.has(id) ? 1 : CONNECTIONS_DIM_ALPHA;
-    }
-    const isMatch = !this.searchMatches || this.searchMatches.has(id);
-    return isMatch || this.searchMode === 'hide' ? 1 : 0.12;
+  private alphaFor(
+    id: string,
+    related: Set<string> | null = connectionRelatedSet(this.connectionSources),
+  ): number {
+    return cardAlpha(
+      id,
+      {
+        hoverHighlight: this.hoverHighlight,
+        searchMatches: this.searchMatches,
+        searchMode: this.searchMode,
+        suppressConnectionDim: this.dragging,
+      },
+      related,
+    );
   }
 
   private interactableCards(): ItemCard[] {
@@ -1269,7 +1297,11 @@ export class Engine {
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      const crect = container.getBoundingClientRect();
+      this.lastPointer = { x: e.clientX - crect.left, y: e.clientY - crect.top };
       if (mode === 'idle') {
+        // The pointer is on the map, so it can't be on a List row any more.
+        if (this.hoverHighlightSource === 'panel') this.setHoverHighlight(null);
         const world = toWorld(e);
         const hit = hitTest(this.interactableCards(), world);
         if (hit?.id !== this.hoveredId) {
@@ -1283,7 +1315,13 @@ export class Engine {
       const dx = e.clientX - startScreen.x;
       const dy = e.clientY - startScreen.y;
       const justStartedMoving = !moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX;
-      if (justStartedMoving) moved = true;
+      if (justStartedMoving) {
+        moved = true;
+        if (mode === 'move' || mode === 'resize') {
+          this.dragging = true; // no connection dimming while dragging
+          this.refreshAlpha();
+        }
+      }
       if (!moved) return;
       if (justStartedMoving && mode === 'marquee') container.setPointerCapture(e.pointerId);
       const world = toWorld(e);
@@ -1367,6 +1405,10 @@ export class Engine {
     };
 
     const onPointerUp = (e: PointerEvent) => {
+      if (this.dragging) {
+        this.dragging = false;
+        this.refreshAlpha();
+      }
       if (mode === 'marquee' && moved) {
         const world = toWorld(e);
         const rect = normalizeRect(startWorld, world);
@@ -1449,7 +1491,24 @@ export class Engine {
     };
 
     container.addEventListener('pointerdown', onPointerDown);
+    const onPointerLeave = () => {
+      this.lastPointer = null;
+      if (this.hoverHighlightSource === 'hub') this.setHoverHighlight(null, 'hub');
+      if (this.hoveredConnectionLine) {
+        this.hoveredConnectionLine = null;
+        this.emit('connectionLineHover', null);
+        this.scheduleFrame();
+      }
+      if (this.hoveredId !== null) {
+        this.hoveredId = null;
+        this.emit('hover', null);
+        this.drawConnectHandle();
+        this.updateVideoPreview();
+      }
+    };
+
     container.addEventListener('pointermove', onPointerMove);
+    container.addEventListener('pointerleave', onPointerLeave);
     container.addEventListener('pointerup', onPointerUp);
     container.addEventListener('dblclick', onDblClick);
     container.addEventListener('contextmenu', onContextMenu);
@@ -1457,6 +1516,7 @@ export class Engine {
     return () => {
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
+      container.removeEventListener('pointerleave', onPointerLeave);
       container.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('dblclick', onDblClick);
       container.removeEventListener('contextmenu', onContextMenu);
@@ -1641,7 +1701,10 @@ export class Engine {
     if (!this.overlayLayer || !this.app) return;
     for (const g of this.connectionLineGraphics) g.destroy();
     this.connectionLineGraphics = [];
-    if (this.connectionSources.length === 0) return;
+    if (this.connectionSources.length === 0) {
+      this.recheckHoveredLine(null);
+      return;
+    }
 
     const { width: vw, height: vh } = this.app.screen;
     const centerScreen = (card: ItemCard) => {
@@ -1651,6 +1714,7 @@ export class Engine {
     };
 
     const seenPairs = new Set<string>();
+    let hoveredSegment: { a: { x: number; y: number }; b: { x: number; y: number } } | null = null;
     for (const { fromId, candidates } of this.connectionSources) {
       const fromCard = this.cards.get(fromId);
       if (!fromCard) continue;
@@ -1680,6 +1744,7 @@ export class Engine {
           this.hoveredConnectionLine?.fromId === fromId &&
           this.hoveredConnectionLine?.toId === candidate.id;
         const isSelectedPair = this.isSelectedConnectionPair(fromId, candidate.id);
+        if (isHoveredPair) hoveredSegment = { a: fromScreen, b: toScreen };
 
         criteria.forEach((criterion, i) => {
           const offset = (i - (criteria.length - 1) / 2) * LINE_OFFSET_PX;
@@ -1724,6 +1789,31 @@ export class Engine {
         });
       }
     }
+    this.recheckHoveredLine(hoveredSegment);
+  }
+
+  /** Lines are re-created every frame, so a hovered line's `pointerout` can be lost. Drop the
+   * hover when the pointer is no longer near the line's new position (the slack covers the
+   * up-to-3 parallel offset lines). */
+  private recheckHoveredLine(
+    segment: { a: { x: number; y: number }; b: { x: number; y: number } } | null,
+  ): void {
+    if (!this.hoveredConnectionLine) return;
+    const p = this.lastPointer;
+    const near =
+      !!p && !!segment && distanceToSegment(p, segment.a, segment.b) <= 6 + LINE_OFFSET_PX;
+    if (near) return;
+    this.hoveredConnectionLine = null;
+    this.emit('connectionLineHover', null);
+  }
+
+  /** Stars are re-created every frame, so their `pointerout` never fires when they move away or
+   * disappear: clear a hub highlight unless the pointer is still on one of the stars just drawn. */
+  private recheckHubHighlight(stars: { x: number; y: number; r: number }[]): void {
+    if (this.hoverHighlightSource !== 'hub') return;
+    const p = this.lastPointer;
+    const stillOver = !!p && stars.some((st) => Math.hypot(p.x - st.x, p.y - st.y) <= st.r);
+    if (!stillOver) this.setHoverHighlight(null, 'hub');
   }
 
   /** §2.10/§4.9 Show all: a labeled star per hub at the centroid of its member items' current
@@ -1735,7 +1825,11 @@ export class Engine {
     if (!this.overlayLayer || !this.app) return;
     for (const g of this.hubDisplayObjects) g.destroy();
     this.hubDisplayObjects = [];
-    if (this.showAllHubs.length === 0) return;
+    const stars: { x: number; y: number; r: number }[] = [];
+    if (this.showAllHubs.length === 0) {
+      this.recheckHubHighlight(stars);
+      return;
+    }
 
     const { width: vw, height: vh } = this.app.screen;
     const screenCenterOf = (id: string) => {
@@ -1782,10 +1876,11 @@ export class Engine {
       star.eventMode = 'static';
       star.cursor = 'pointer';
       const memberSet = new Set(hub.itemIds);
-      star.on('pointerover', () => this.setHoverHighlight(memberSet));
-      star.on('pointerout', () => this.setHoverHighlight(null));
+      star.on('pointerover', () => this.setHoverHighlight(memberSet, 'hub'));
+      star.on('pointerout', () => this.setHoverHighlight(null, 'hub'));
       this.overlayLayer.addChild(star);
       this.hubDisplayObjects.push(star);
+      stars.push({ x: hx, y: hy, r: HUB_STAR_RADIUS_PX });
 
       const label = new Text({
         text: hub.label,
@@ -1797,6 +1892,7 @@ export class Engine {
       this.overlayLayer.addChild(label);
       this.hubDisplayObjects.push(label);
     }
+    this.recheckHubHighlight(stars);
   }
 
   /** Constellations' own hub rendering (§2.10: "Hubs are glowing, labeled stars"), distinct from
@@ -1807,7 +1903,11 @@ export class Engine {
     if (!this.overlayLayer || !this.app) return;
     for (const g of this.constellationOverlay) g.destroy();
     this.constellationOverlay = [];
-    if (!this.constellationsOn) return;
+    const stars: { x: number; y: number; r: number }[] = [];
+    if (!this.constellationsOn) {
+      this.recheckHubHighlight(stars);
+      return;
+    }
 
     const { width: vw, height: vh } = this.app.screen;
 
@@ -1833,10 +1933,11 @@ export class Engine {
       star.eventMode = 'static';
       star.cursor = 'grab';
       const memberSet = new Set(hub.itemIds);
-      star.on('pointerover', () => this.setHoverHighlight(memberSet));
-      star.on('pointerout', () => this.setHoverHighlight(null));
+      star.on('pointerover', () => this.setHoverHighlight(memberSet, 'hub'));
+      star.on('pointerout', () => this.setHoverHighlight(null, 'hub'));
       this.overlayLayer.addChild(star);
       this.constellationOverlay.push(star);
+      stars.push({ x: pos.x, y: pos.y, r: CONSTELLATION_HUB_STAR_RADIUS_PX });
 
       const label = new Text({
         text: hub.label,
@@ -1879,6 +1980,7 @@ export class Engine {
       this.overlayLayer.addChild(label);
       this.constellationOverlay.push(label);
     }
+    this.recheckHubHighlight(stars);
   }
 
   // ----------------------------------------------------------------------------- Camera / fly-to

@@ -437,6 +437,7 @@ export const en = {
     connectedManually: 'Connected manually',
     dock: 'Connections',
     display: 'Display',
+    displayOff: 'Off',
     onHover: 'On hover',
     showAll: 'Show all',
     strength: (n: number) => `Link items that share at least ${n} thing${n === 1 ? '' : 's'}`,
