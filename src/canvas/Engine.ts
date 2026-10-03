@@ -660,7 +660,7 @@ export class Engine {
     const pad = isNote ? noteGeometry.pad : NOTE_TEXT_PADDING_WORLD;
     const wrapWidth = Math.max(card.w - pad * 2, 1);
     const x = card.x + pad;
-    const y = card.y + pad;
+    const y = card.y + pad + (isNote ? noteGeometry.textOffsetY : 0);
     const style = isNote ? noteStyles[card.noteColor ?? 'cream'] : null;
     const fill = style ? style.text : readableTextColor(card.dominantColor);
     const existing = this.noteLabels.get(card.id);

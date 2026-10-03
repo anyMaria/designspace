@@ -476,7 +476,7 @@ Look: `docs/patch-1/mock-notes.png`. Size: M. Version at the end: **0.5.0**.
 6. Text sharpness when zoomed in: on camera change (debounced 150 ms) set `resolution = devicePixelRatio × step` on every world-space `Text` (step 1 at zoom ≤ 1, 2 up to 2, else 4).
 **Tests:** `noteBodyToTaggedText` (paragraphs, heading, bold, italic, lists, hashtags, empty body, malformed body → `''`).
 
-### D2 · The note editor matches the paper exactly `[ ]`
+### D2 · The note editor matches the paper exactly `[x]`
 **Files:** `src/features/notes/NoteEditor.tsx`, `src/design/components/components.css` (or a new `notes.css`), new `src/lib/tiptap/hashtagDecorations.ts`, `src/lib/noteText.ts`, `package.json`.
 **Do**
 1. `pnpm add @tiptap/pm@3.31.3` (same version as `@tiptap/core`; it is installed but not importable under pnpm without this).

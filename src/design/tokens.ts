@@ -115,6 +115,9 @@ export const noteGeometry = {
   fold: 22,
   defaultW: 280,
   defaultH: 212,
+  /** Pixi places the first line a few px higher than CSS's 30px line box; this nudges the canvas
+   * label down so it sits exactly where the editor's text does (measured at 100 %). */
+  textOffsetY: 5,
 } as const;
 
 /** World-unit sizes and geometry — see §3.4, §4.6. */

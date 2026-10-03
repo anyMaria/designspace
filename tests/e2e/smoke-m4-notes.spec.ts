@@ -16,7 +16,7 @@ test('double-clicking empty canvas creates a note, typing saves it, and it is se
   const box = await canvas.boundingBox();
   if (!box) throw new Error('canvas not found');
   // Far from any seeded item, so the double-click lands on empty canvas.
-  const emptySpot = { x: box.x + 60, y: box.y + 60 };
+  const emptySpot = { x: box.x + 220, y: box.y + 200 }; // the note is 280 wide: keep it on screen
 
   await page.mouse.dblclick(emptySpot.x, emptySpot.y);
 

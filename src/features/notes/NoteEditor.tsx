@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import type { Engine } from '@/canvas/Engine';
 import type { Platform } from '@/platform/types';
@@ -7,11 +7,15 @@ import { useNoteEditStore } from '@/state/noteEditStore';
 import { useHistoryStore } from '@/commands/history';
 import { createSaveNoteBodyCommand } from '@/commands/noteCommands';
 import { createSetItemFieldCommand } from '@/commands/itemCommands';
-import { noteColorNames, noteColors, type NoteColor } from '@/design/tokens';
+import {
+  noteColorNames,
+  noteColors,
+  noteGeometry,
+  noteStyles,
+  type NoteColor,
+} from '@/design/tokens';
 import { noteExtensions, emptyNoteBody } from '@/lib/noteText';
 import { en } from '@/i18n/en';
-
-const MIN_OVERLAY_SIZE_PX = 180;
 
 /** §2.11 "TipTap editing in place (DOM overlay)" — a positioned `<div>` layered over the note's
  * current on-screen rect, tracked every frame via `engine.getScreenRect` (there's no
@@ -28,6 +32,8 @@ function NoteEditorInner({
   engine: Engine;
 }) {
   const item = useLibraryStore((s) => s.items.get(itemId));
+  const placement = useLibraryStore((s) => s.placements.get(itemId));
+  const paperRef = useRef<HTMLDivElement>(null);
   const [rect, setRect] = useState(() => engine.getScreenRect(itemId));
   const rafRef = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,9 +55,21 @@ function NoteEditorInner({
 
   function save(): void {
     if (!editor) return;
+    // Grow the note when the text needs more room (never shrink): whole lines plus the padding.
+    const { pad, lineHeight } = noteGeometry;
+    const scrollHeight = paperRef.current?.scrollHeight ?? 0;
+    const needed = Math.ceil((scrollHeight - 2 * pad) / lineHeight) * lineHeight + 2 * pad;
     void useHistoryStore
       .getState()
-      .execute(createSaveNoteBodyCommand(platform, itemId, editor.getJSON(), editor.getText()));
+      .execute(
+        createSaveNoteBodyCommand(
+          platform,
+          itemId,
+          editor.getJSON(),
+          editor.getText(),
+          scrollHeight > 0 ? needed : undefined,
+        ),
+      );
   }
 
   function close(): void {
@@ -72,7 +90,9 @@ function NoteEditorInner({
   }, []);
 
   function onDocumentMouseDown(e: MouseEvent): void {
-    if (containerRef.current && !containerRef.current.contains(e.target as Node)) close();
+    const target = e.target as Element;
+    if (target.closest?.('[data-note-editor-chrome]')) return; // the colour dots
+    if (containerRef.current && !containerRef.current.contains(target)) close();
   }
   useEffect(() => {
     window.addEventListener('mousedown', onDocumentMouseDown, true);
@@ -86,34 +106,69 @@ function NoteEditorInner({
       .execute(createSetItemFieldCommand(platform, itemId, 'color', color));
   }
 
-  if (!item || item.kind !== 'note' || !rect) return null;
+  if (!item || item.kind !== 'note' || !rect || !placement) return null;
+
+  const colorName = (item.color as NoteColor | null) ?? 'cream';
+  const style = noteStyles[colorName] ?? noteStyles.cream;
+  const css = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
+  const { pad, lineHeight, fontSize } = noteGeometry;
+  // Laid out in world units and scaled with the camera, so opening a note moves no letter.
+  const zoom = engine.camera.zoom;
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'fixed',
-        left: rect.x,
-        top: rect.y,
-        width: Math.max(rect.w, MIN_OVERLAY_SIZE_PX),
-        height: Math.max(rect.h, MIN_OVERLAY_SIZE_PX),
-        background: `var(--${item.color ?? 'cream'})`,
-        color: 'var(--canvas)',
-        borderRadius: 'var(--radius-sm)',
-        boxShadow: 'var(--shadow-float)',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 30,
-        overflow: 'hidden',
-      }}
-    >
+    <>
+      <div
+        ref={containerRef}
+        style={{
+          position: 'fixed',
+          left: rect.x,
+          top: rect.y,
+          width: placement.w,
+          height: placement.h,
+          transform: `scale(${zoom})`,
+          transformOrigin: '0 0',
+          zIndex: 30,
+        }}
+      >
+        <div
+          ref={paperRef}
+          className="ds-note-paper"
+          style={
+            {
+              '--paper': css(noteColors[colorName]),
+              '--rule': `rgba(255,255,255,${style.ruleAlpha})`,
+              '--fold': css(style.fold),
+              '--note-text': css(style.text),
+              '--note-hash': css(style.hashtag),
+              '--note-pad': `${pad}px`,
+              '--note-line': `${lineHeight}px`,
+              '--note-font': `${fontSize}px`,
+              '--note-fold-size': `${noteGeometry.fold}px`,
+              '--note-radius': `${noteGeometry.radius}px`,
+            } as CSSProperties
+          }
+        >
+          <EditorContent editor={editor} />
+        </div>
+      </div>
+      {/* The colour dots float above the paper (not scaled), so they never cover the text. */}
       <div
         style={{
+          position: 'fixed',
+          left: rect.x,
+          top: rect.y - 8,
+          transform: 'translateY(-100%)',
+          zIndex: 31,
           display: 'flex',
-          gap: 4,
-          padding: 6,
-          borderBottom: '1px solid rgba(0,0,0,0.12)',
+          gap: 6,
+          padding: '6px 8px',
+          borderRadius: 'var(--radius-pill)',
+          background: 'var(--surface-1-92)',
+          border: '1px solid var(--hairline)',
+          boxShadow: 'var(--shadow-float)',
         }}
+        onMouseDown={(e) => e.stopPropagation()}
+        data-note-editor-chrome
       >
         {noteColorNames.map((name) => (
           <button
@@ -122,24 +177,18 @@ function NoteEditorInner({
             aria-label={en.notes.colorLabel(name)}
             onClick={() => setColor(name)}
             style={{
-              width: 16,
-              height: 16,
+              width: 18,
+              height: 18,
               borderRadius: '50%',
-              border: item.color === name ? '2px solid var(--canvas)' : '1px solid rgba(0,0,0,0.2)',
-              background: `#${noteColors[name].toString(16).padStart(6, '0')}`,
+              border: colorName === name ? '2px solid var(--text-1)' : '1px solid var(--hairline)',
+              background: css(noteColors[name]),
               cursor: 'pointer',
               padding: 0,
             }}
           />
         ))}
       </div>
-      <div
-        style={{ flex: 1, overflow: 'auto', padding: 'var(--space-3)' }}
-        className="ds-note-editor"
-      >
-        <EditorContent editor={editor} />
-      </div>
-    </div>
+    </>
   );
 }
 

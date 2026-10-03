@@ -453,3 +453,74 @@
 .ds-note-editor .ProseMirror p:last-child {
   margin-bottom: 0;
 }
+
+/* The note editor (Patch 1 · D2): the same paper as the canvas, laid out in world units. */
+.ds-note-paper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--note-pad);
+  overflow-y: auto;
+  scrollbar-width: none;
+  color: var(--note-text);
+  font: 500 var(--note-font) / var(--note-line) var(--font-ui);
+  border-radius: var(--note-radius);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--note-fold-size)) 0,
+    100% var(--note-fold-size),
+    100% 100%,
+    0 100%
+  );
+  background-color: var(--paper);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--note-line) - 1px),
+    var(--rule) calc(var(--note-line) - 1px),
+    var(--rule) var(--note-line)
+  );
+  background-origin: content-box;
+  background-clip: border-box;
+  background-attachment: local;
+}
+.ds-note-paper::-webkit-scrollbar {
+  display: none;
+}
+.ds-note-paper::before {
+  /* the folded corner: the lower-left half of the cut square */
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: var(--note-fold-size);
+  height: var(--note-fold-size);
+  background: linear-gradient(45deg, var(--fold) 50%, transparent 50%);
+  pointer-events: none;
+}
+.ds-note-paper .ProseMirror {
+  outline: none;
+  min-height: 100%;
+}
+.ds-note-paper .ProseMirror p,
+.ds-note-paper .ProseMirror li > p {
+  margin: 0;
+}
+.ds-note-paper .ProseMirror h1,
+.ds-note-paper .ProseMirror h2,
+.ds-note-paper .ProseMirror h3 {
+  font-size: var(--note-font);
+  line-height: var(--note-line);
+  font-weight: 700;
+  margin: 0;
+}
+.ds-note-paper .ProseMirror ul,
+.ds-note-paper .ProseMirror ol {
+  margin: 0;
+  padding-left: 22px;
+}
+.ds-note-paper .ds-hashtag {
+  font-weight: 700;
+  color: var(--note-hash);
+}

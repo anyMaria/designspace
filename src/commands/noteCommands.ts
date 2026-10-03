@@ -128,27 +128,47 @@ export function createSaveNoteBodyCommand(
   itemId: string,
   body: unknown,
   plainText: string,
+  /** Grow the note to this height (world units) in the same undo step; never used to shrink. */
+  newHeight?: number,
 ): Command {
   const previous = useLibraryStore.getState().items.get(itemId);
+  const previousHeight = useLibraryStore.getState().placements.get(itemId)?.h ?? null;
   const previousBody = previous?.body ?? null;
   const previousText = previous?.bodyText ?? null;
 
-  async function apply(nextBody: unknown, nextText: string | null): Promise<void> {
+  async function apply(
+    nextBody: unknown,
+    nextText: string | null,
+    height: number | null,
+  ): Promise<void> {
     const current = useLibraryStore.getState().items.get(itemId);
     if (!current) return;
     const updatedAt = new Date().toISOString();
     useLibraryStore
       .getState()
       .upsertItem({ ...current, body: nextBody, bodyText: nextText, updatedAt });
-    await platform.db.execute(
-      'UPDATE items SET body = ?, body_text = ?, updated_at = ? WHERE id = ?',
-      [nextBody !== null ? JSON.stringify(nextBody) : null, nextText, updatedAt, itemId],
-    );
+    const statements: { sql: string; params: unknown[] }[] = [
+      {
+        sql: 'UPDATE items SET body = ?, body_text = ?, updated_at = ? WHERE id = ?',
+        params: [nextBody !== null ? JSON.stringify(nextBody) : null, nextText, updatedAt, itemId],
+      },
+    ];
+    const placement = useLibraryStore.getState().placements.get(itemId);
+    if (height !== null && placement && placement.h !== height) {
+      useLibraryStore.getState().upsertPlacement({ ...placement, h: height });
+      statements.push({
+        sql: 'UPDATE placements SET h = ? WHERE item_id = ?',
+        params: [height, itemId],
+      });
+    }
+    await platform.db.batch(statements);
   }
+
+  const grow = newHeight !== undefined && previousHeight !== null && newHeight > previousHeight;
 
   return {
     label: 'Edit note',
-    do: () => apply(body, plainText),
-    undo: () => apply(previousBody, previousText),
+    do: () => apply(body, plainText, grow ? newHeight : null),
+    undo: () => apply(previousBody, previousText, grow ? previousHeight : null),
   };
 }
