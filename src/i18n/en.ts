@@ -414,6 +414,7 @@ export const en = {
     zoomOut: 'Zoom out',
     panelToggle: 'List/Details panel',
     minimapToggle: 'Minimap',
+    fullscreen: 'Full screen',
     favorite: 'Favorite',
     rediscover: 'Rediscover',
     inboxTriage: 'Inbox triage',
@@ -545,6 +546,12 @@ export const en = {
     cancel: 'Cancel',
     add: 'Add',
     empty: "This folder doesn't have any files Designspace can add yet.",
+  },
+  fullscreen: {
+    enter: 'Full screen',
+    exit: 'Exit full screen',
+    hint: 'Full screen · press F11 to leave',
+    setting: 'Open in full screen',
   },
   patch1: {
     refreshingPreviews: (n: number) => `Refreshing previews for ${n} items…`,

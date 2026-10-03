@@ -300,7 +300,7 @@ new `crates/designspace-core/src/media_url.rs`, `src-tauri/src/media_protocol.rs
 
 Size: M. Version at the end: **0.3.0**.
 
-### B1 · Immersive full screen `[ ]`
+### B1 · Immersive full screen `[x]`
 **Files:** `src/platform/types.ts`, `TauriPlatform.ts`, `BrowserPlatform.ts`, `src-tauri/capabilities/default.json`, `src-tauri/src/lib.rs`, `src/state/uiStore.ts`, `src/state/loadMachineSettings.ts`, `src/app/useGlobalShortcuts.ts`, `src/app/App.tsx`, `src/app/Shell.tsx`, `src/features/settings/CanvasSection.tsx`, `src/features/shortcuts/ShortcutListOverlay.tsx`, `src/i18n/en.ts`.
 
 **Do**

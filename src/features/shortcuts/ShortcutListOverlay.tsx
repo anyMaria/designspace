@@ -29,6 +29,7 @@ const ROWS: ShortcutRow[] = [
   { action: en.shortcuts.zoomOut, keys: ['Ctrl', '−'] },
   { action: en.shortcuts.panelToggle, keys: ['L'] },
   { action: en.shortcuts.minimapToggle, keys: ['M'] },
+  { action: en.shortcuts.fullscreen, keys: ['F11'] },
   { action: en.shortcuts.favorite, keys: ['S'] },
   { action: en.shortcuts.rediscover, keys: ['R'] },
   { action: en.shortcuts.inboxTriage, keys: ['I'] },

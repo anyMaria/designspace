@@ -3,6 +3,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { readImage, readText, writeImage, writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { Image } from '@tauri-apps/api/image';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import type {
   AppPaths,
   BackupInfo,
@@ -160,6 +161,11 @@ export class TauriPlatform implements Platform {
   machineSettings = {
     read: (): Promise<string | null> => invoke<string | null>('machine_settings_read'),
     write: (json: string): Promise<void> => invoke<void>('machine_settings_write', { json }),
+  };
+
+  window = {
+    isFullscreen: (): Promise<boolean> => getCurrentWindow().isFullscreen(),
+    setFullscreen: (on: boolean): Promise<void> => getCurrentWindow().setFullscreen(on),
   };
 
   clipboard = {

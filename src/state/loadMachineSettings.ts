@@ -7,6 +7,7 @@ import { useUiStore, type DotGridDensity, type ReduceMotionSetting } from './uiS
 interface MachineSettingsJson {
   wheelMode?: WheelMode;
   minimapOpen?: boolean;
+  startFullscreen?: boolean;
   dotGridDensity?: DotGridDensity;
   reduceMotion?: ReduceMotionSetting;
 }
@@ -15,6 +16,7 @@ function isRelevantChange(state: MachineSettingsJson, prev: MachineSettingsJson)
   return (
     state.wheelMode !== prev.wheelMode ||
     state.minimapOpen !== prev.minimapOpen ||
+    state.startFullscreen !== prev.startFullscreen ||
     state.dotGridDensity !== prev.dotGridDensity ||
     state.reduceMotion !== prev.reduceMotion
   );
@@ -35,6 +37,7 @@ export async function loadMachineSettings(platform: Platform): Promise<void> {
   useUiStore.setState({
     ...(parsed.wheelMode !== undefined && { wheelMode: parsed.wheelMode }),
     ...(parsed.minimapOpen !== undefined && { minimapOpen: parsed.minimapOpen }),
+    ...(parsed.startFullscreen !== undefined && { startFullscreen: parsed.startFullscreen }),
     ...(parsed.dotGridDensity !== undefined && { dotGridDensity: parsed.dotGridDensity }),
     ...(parsed.reduceMotion !== undefined && { reduceMotion: parsed.reduceMotion }),
   });
@@ -49,6 +52,7 @@ export function startMachineSettingsPersistence(platform: Platform): void {
     const json = JSON.stringify({
       wheelMode: state.wheelMode,
       minimapOpen: state.minimapOpen,
+      startFullscreen: state.startFullscreen,
       dotGridDensity: state.dotGridDensity,
       reduceMotion: state.reduceMotion,
     } satisfies MachineSettingsJson);

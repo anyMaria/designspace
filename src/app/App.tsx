@@ -22,6 +22,8 @@ import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
 import { logger } from '@/lib/logger';
 import { useToastStore } from '@/state/toastStore';
+import { useUiStore } from '@/state/uiStore';
+import { setFullscreen } from './fullscreen';
 import { en } from '@/i18n/en';
 import { useReducedMotionSync } from '@/lib/useReducedMotionSync';
 import { DesignPage } from '@/design/DesignPage';
@@ -120,6 +122,8 @@ export function App() {
         void resumePendingAiAnalysis(platform);
         void purgeExpiredTrash(platform);
         void maybeBackupAtStartup(platform);
+        if (platform.kind === 'tauri' && useUiStore.getState().startFullscreen)
+          void setFullscreen(platform, true);
         if (!cancelled)
           setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: null });
       } catch (err) {

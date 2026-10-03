@@ -7,11 +7,14 @@ import {
   Settings as SettingsIcon,
   PanelRight,
   Download,
+  Fullscreen,
+  Minimize,
 } from 'lucide-react';
 import type { Platform, LibraryInfo } from '@/platform';
 import { useUiStore } from '@/state/uiStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
+import { toggleFullscreen } from './fullscreen';
 import { useSoftLimitNotice } from './useSoftLimitNotice';
 import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
@@ -80,7 +83,7 @@ export interface ShellProps {
 }
 
 export function Shell({ platform, library, libraryBoardId, benchCount }: ShellProps) {
-  useGlobalShortcuts();
+  useGlobalShortcuts(platform);
   useUndoRedoShortcuts();
   useSoftLimitNotice();
   const tool = useUiStore((s) => s.tool);
@@ -91,6 +94,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const panelTab = useUiStore((s) => s.panelTab);
   const setPanelTab = useUiStore((s) => s.setPanelTab);
   const minimapOpen = useUiStore((s) => s.minimapOpen);
+  const fullscreen = useUiStore((s) => s.fullscreen);
   const settingsOpen = useUiStore((s) => s.settingsOpen);
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
   const [engine, setEngine] = useState<Engine | null>(null);
@@ -226,6 +230,17 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           gap: 'var(--space-2)',
         }}
       >
+        <IconButton
+          icon={
+            fullscreen ? (
+              <Minimize size={20} strokeWidth={1.75} />
+            ) : (
+              <Fullscreen size={20} strokeWidth={1.75} />
+            )
+          }
+          label={fullscreen ? en.fullscreen.exit : en.fullscreen.enter}
+          onClick={() => void toggleFullscreen(platform)}
+        />
         <IconButton
           icon={<Download size={20} strokeWidth={1.75} />}
           label={en.export.action}
