@@ -1,8 +1,9 @@
 import type { DbRow, Platform } from '@/platform';
 import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
-import { extractFontDerivatives } from '@/lib/fontRender';
+import { extractFontDerivatives, SPECIMEN_ASPECT } from '@/lib/fontRender';
 import { CURRENT_DERIVED_V } from './ingestQueue';
+import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
 import { queueAiAnalysis } from './aiQueue';
 
 export interface FontQueueItem {
@@ -62,6 +63,8 @@ export class FontIngestQueue {
         `UPDATE items SET font_meta = ?, status = 'ok', derived_v = ?, updated_at = ? WHERE id = ?`,
         [JSON.stringify(meta), CURRENT_DERIVED_V, now, item.itemId],
       );
+
+      await fitPlacementsToAspect(this.platform, item.itemId, SPECIMEN_ASPECT);
 
       const current = useLibraryStore.getState().items.get(item.itemId);
       if (current) {

@@ -2,6 +2,7 @@ import type { DbRow, Platform } from '@/platform';
 import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
 import type { IngestRequest, IngestResponse } from './ingest.worker';
+import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
 import { queueAiAnalysis } from './aiQueue';
 
 /** Minimal Worker surface this module needs — lets tests inject a fake. */
@@ -140,6 +141,8 @@ export class IngestQueue {
         result.itemId,
       ],
     );
+
+    await fitPlacementsToAspect(this.platform, result.itemId, result.width / result.height);
 
     const item = useLibraryStore.getState().items.get(result.itemId);
     if (item) {

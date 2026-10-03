@@ -6,6 +6,7 @@ import { useImportStore } from '@/state/importStore';
 import { useToastStore } from '@/state/toastStore';
 import { useHistoryStore } from '@/commands/history';
 import { createAddItemsCommand, createRestoreItemCommand } from '@/commands/itemCommands';
+import { PLACEHOLDER_SIZE } from './fitPlacements';
 import { getIngestQueue } from '@/workers/ingestQueue';
 import { getVideoIngestQueue } from '@/workers/videoIngestQueue';
 import { getPdfIngestQueue } from '@/workers/pdfIngestQueue';
@@ -30,7 +31,6 @@ import { logger } from '@/lib/logger';
  * and `nextZ` below take an explicit occupied-rects list instead, and the Library's own is
  * fetched with one extra query (`fetchPlacementSnapshot`) only when it's actually needed. */
 
-const PLACEHOLDER_SIZE = 320; // square, until ingest reports the real aspect ratio (§2.4)
 const LIBRARY_BOARD_KIND = 'library';
 // The plan's "arrival area" spirals out from "the last arrival point, or the viewport center if
 // that point is off-screen" (§4.9) — meaningful only while the Library map itself is the visible

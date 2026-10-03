@@ -198,7 +198,7 @@ new `crates/designspace-core/src/media_url.rs`, `src-tauri/src/media_protocol.rs
 
 **Done when:** the new spec passes; all existing e2e specs pass; TextureManager unit tests updated (LRU order, `touch`, destroy callback receives the key).
 
-### A4 · Cards take the real shape of their picture `[ ]`
+### A4 · Cards take the real shape of their picture `[x]`
 **Why:** imports are 320×320 squares forever, so photos are squashed.
 
 **Files:** new `src/features/import/fitPlacements.ts` (+ test), `src/features/import/importItems.ts`, `src/features/import/importLink.ts`, the four ingest queues, `src/lib/fontRender.ts`.

@@ -3,6 +3,7 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
 import { extractVideoDerivatives } from '@/lib/videoFrame';
 import { CURRENT_DERIVED_V } from './ingestQueue';
+import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
 import { queueAiAnalysis } from './aiQueue';
 
 export interface VideoQueueItem {
@@ -75,6 +76,8 @@ export class VideoIngestQueue {
           item.itemId,
         ],
       );
+
+      await fitPlacementsToAspect(this.platform, item.itemId, derived.width / derived.height);
 
       const current = useLibraryStore.getState().items.get(item.itemId);
       if (current) {

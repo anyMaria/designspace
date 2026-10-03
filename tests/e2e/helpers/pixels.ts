@@ -35,7 +35,8 @@ export async function waitForPixel(
   const start = Date.now();
   let last = await pixelAt(page, x, y);
   while (!test(last)) {
-    if (Date.now() - start > timeoutMs) throw new Error(`pixel at ${x},${y} stayed ${last.join(",")}`);
+    if (Date.now() - start > timeoutMs)
+      throw new Error(`pixel at ${x},${y} stayed ${last.join(',')}`);
     await page.waitForTimeout(500);
     last = await pixelAt(page, x, y);
   }

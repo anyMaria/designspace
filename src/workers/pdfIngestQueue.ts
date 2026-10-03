@@ -3,6 +3,7 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
 import { extractPdfDerivatives } from '@/lib/pdfRender';
 import { CURRENT_DERIVED_V } from './ingestQueue';
+import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
 import { queueAiAnalysis } from './aiQueue';
 
 export interface PdfQueueItem {
@@ -44,6 +45,8 @@ async function deriveAndPersist(
       itemId,
     ],
   );
+
+  await fitPlacementsToAspect(platform, itemId, derived.width / derived.height);
 
   const current = useLibraryStore.getState().items.get(itemId);
   if (current) {

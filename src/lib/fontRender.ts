@@ -11,6 +11,8 @@ import { colors } from '@/design/tokens';
 
 const SPECIMEN_W = 512;
 const SPECIMEN_H = 320; // 320 × 200 card aspect (§2.4's Font row), doubled for T512
+/** The font card's shape; ingest reshapes the 320×320 placeholder to it (Patch 1 · A4). */
+export const SPECIMEN_ASPECT = SPECIMEN_W / SPECIMEN_H;
 const THUMB_W = 128;
 const THUMB_H = 80;
 const WEBP_QUALITY = 0.82;
