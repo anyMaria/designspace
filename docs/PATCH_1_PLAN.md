@@ -570,7 +570,7 @@ Size: S. Version at the end: **0.7.0**.
 
 Look: `docs/patch-1/mock-maps.png`. Size: L. Version at the end: **0.8.0**.
 
-### G1 · A minimap that shows connections `[ ]`
+### G1 · A minimap that shows connections `[x]`
 **Files:** `src/canvas/Minimap.tsx`, new `src/canvas/minimapDraw.ts` (+ test for the maths), `src/canvas/Engine.ts` (a `connectionsChanged` event emitted from `setConnections`), `src/design/tokens.*`.
 - Replace the `<div>` dots (one DOM node per item) with one DPR-aware `<canvas>`, 240×160.
 - Draw, coalesced to one `requestAnimationFrame` per change: every placement as a rect with its real shape and its card colour (min 2 px), My connections (white, α 0.9), the current hover/selection lines (criterion colours, from the new engine event), then the viewport rectangle (accent).

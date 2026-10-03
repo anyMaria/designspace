@@ -4,6 +4,7 @@
 import 'pixi.js/unsafe-eval';
 import { cardAlpha, connectionRelatedSet } from './cardAlpha';
 import { drawPalette, paletteDrawKey } from './decor/paletteDecor';
+import { CRITERION_COLOR } from './criterionColor';
 import { drawNotePaper, notePaperKey } from './decor/noteDecor';
 import { paletteCellAt } from '@/lib/palette';
 import { clipSegmentToBoxes, distanceToSegment, edgePoint } from '@/lib/lineAnchors';
@@ -104,6 +105,9 @@ interface EngineEvents {
   dblclick: (id: string | null, world: { x: number; y: number }) => void;
   /** A click on a colour cell of an already-selected palette (Patch 1 · C3). */
   swatchCellClick: (id: string, index: number) => void;
+  /** The hover/selection connection lines changed (Patch 1 · G1): one entry per related pair, in
+   * the colour of its strongest criterion. The minimap draws them. */
+  connectionsChanged: (lines: { fromId: string; toId: string; color: number }[]) => void;
   contextmenu: (id: string | null, screen: { x: number; y: number }) => void;
   hover: (id: string | null) => void;
   /** A connection line was hovered (or un-hovered, `null`) — §2.10's "Hovering a line shows what
@@ -125,15 +129,6 @@ interface EngineEvents {
   frameRenameRequest: (frameId: string) => void;
 }
 
-const CRITERION_COLOR: Record<Criterion, number> = {
-  type: criterionColors.type,
-  vibe: criterionColors.vibe,
-  movement: criterionColors.movement,
-  tag: criterionColors.tags,
-  color: criterionColors.color,
-  manual: criterionColors.manual,
-  similar: criterionColors.similar,
-};
 const LINE_WIDTH_PX = 1.5;
 const LINE_WIDTH_HOVERED_PX = 2.5;
 const LINE_OPACITY = 0.7;
@@ -341,6 +336,7 @@ export class Engine {
     resize: new Set(),
     dblclick: new Set(),
     swatchCellClick: new Set(),
+    connectionsChanged: new Set(),
     contextmenu: new Set(),
     hover: new Set(),
     connectionLineHover: new Set(),
@@ -906,6 +902,14 @@ export class Engine {
     this.connectionSources = sources;
     this.refreshAlpha();
     this.scheduleFrame();
+    const lines: { fromId: string; toId: string; color: number }[] = [];
+    for (const { fromId, candidates } of sources) {
+      for (const c of candidates) {
+        const criterion = CRITERION_ORDER.find((k) => (c.shared[k]?.length ?? 0) > 0);
+        if (criterion) lines.push({ fromId, toId: c.id, color: CRITERION_COLOR[criterion] });
+      }
+    }
+    this.emit('connectionsChanged', lines);
   }
 
   /** "Show all" mode (§2.10). Unlike Hover, Show all doesn't dim unrelated items — the plan only

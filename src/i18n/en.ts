@@ -78,6 +78,19 @@ export const en = {
       return `${parts.join(' and ')} ${notes + palettes === 1 ? "isn't" : "aren't"} classified`;
     },
   },
+  overview: {
+    title: 'Overview',
+    myLayout: 'My layout',
+    clusters: 'Clusters',
+    thumbnails: 'Thumbnails',
+    dots: 'Dots',
+    hint: 'Double-click an item to go to it · Esc to close',
+    tooLong: 'Too many links to draw — showing My connections only',
+    expand: 'Open the Overview (O)',
+    arranging: 'Arranging…',
+    close: 'Close the Overview',
+    legend: 'Connections',
+  },
   description: {
     open: 'Description',
     placeholder: 'What do you see? Why does it matter?',
