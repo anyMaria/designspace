@@ -270,7 +270,7 @@ new `crates/designspace-core/src/media_url.rs`, `src-tauri/src/media_protocol.rs
    - Read `c1 = pixelAt(p1)`; click `p0` (selects the unclassified item 0); wait 500 ms; `pixelAt(p1)` must be `near(c1, 10)`. Before this task it drops to about a third of its brightness.
    Existing `smoke-m3-*` specs must pass.
 
-### A9 · Pinch to zoom on the trackpad `[ ]`
+### A9 · Pinch to zoom on the trackpad `[x]`
 **Files:** `src-tauri/tauri.conf.json`, new `src/app/pageZoomGuard.ts` (+ test), `src/app/main.tsx`, `src/design/global.css`, `src/canvas/CanvasView.tsx`.
 
 **Do**

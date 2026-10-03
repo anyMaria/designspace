@@ -16,6 +16,11 @@ body,
   margin: 0;
 }
 
+html,
+body {
+  touch-action: pan-x pan-y; /* the browser never pinch-zooms the page; the map does (A9) */
+}
+
 body {
   background: var(--canvas);
   color: var(--text-1);

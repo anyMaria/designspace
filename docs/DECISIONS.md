@@ -2779,3 +2779,46 @@ Also found: the migrator never backed up before migrating (required by `CLAUDE.m
 new migration, Patch 1 C0), links whose cover failed were never retried, and both Connections and
 Rediscover used the same `Share2` icon. The owner's Urbanist font files (v1.303, OFL) were added under
 `src/design/fonts/urbanist/` so the coding sessions have them; they are wired up in Patch 1 task B5.
+
+## Patch 1 · Phase A: make your things show up (v0.2.0)
+
+All nine tasks (A1–A9) are in. What changed, and what could not be checked without Windows:
+
+- **A1 `media://`:** a new pure module `designspace_core::media_url` decodes the percent-encoded path
+  *before* splitting it, and cache keys go through the same `cache_file_name` that `cache_put` uses.
+  Every error status is now logged (`media:// 404 for …`), so the next problem of this kind shows in
+  Settings → About → Open logs folder. Path safety is unchanged (`..` is still rejected after decoding).
+- **A2:** every `fetch` of a media/cache URL now throws on a non-2xx answer instead of reading an error
+  page as a file. A failed read of an original marks the item `error` (it used to stay `pending`).
+  Settings → About → Diagnostics → "Check media loading" fetches a few originals and thumbnails.
+  Its strings live in `en.settings.diagnostics` (next to the existing Drop inspector strings), not in a
+  new `en.diagnostics` group as the plan's Appendix B named it.
+- **A3:** `TextureManager` keeps LRU order in a `Map`, exposes `touch`, and passes the key to
+  `destroyItem`; its default cache is 1,500 textures. The engine tracks the texture key each card shows
+  (the key contains the URL), asks for the right texture on every cull pass, and resets a sprite whose
+  texture was evicted. Covered by `tests/e2e/patch1-thumbnails.spec.ts`.
+- **A4:** after a successful ingest the 320×320 placeholder is reshaped to the picture's aspect
+  (`fitPlacementsToAspect`). Deliberately *not* a Command: it is derived data like the thumbnail, and an
+  Undo would bring the squashed card back. Placements the owner already resized are left alone. Font
+  cards become 320×200. Links reshape to their cover's aspect.
+- **A5:** `CURRENT_DERIVED_V` is now 2, so every library is re-derived once on the first launch after
+  the update. Links with a cover are re-queued through the image worker too. More than 20 items shows
+  "Refreshing previews for N items…".
+- **A6:** a link card shows the site and title until its cover is actually ready.
+- **A7:** "All supported files" is the first Files… filter (Windows pre-selects the first one).
+- **A8:** dimming rules moved to the pure `canvas/cardAlpha.ts`. Nothing dims when no source has a
+  candidate; a card's label and badge fade with its picture; nothing dims while a card is dragged;
+  group/hub highlights are cleared when the pointer leaves the map, when the stars are redrawn away from
+  the pointer, when the List unmounts or scrolls. Connections has a third Display option, "Off".
+  A hovered connection line is released when the pointer is more than 6 px (+ the 4 px parallel-line
+  offset) from it.
+- **A9:** `zoomHotkeysEnabled` is now `true` (wry maps it to both zoom keys and touchpad pinch), a
+  capture-phase guard (`app/pageZoomGuard.ts`) cancels the browser's own Ctrl+wheel / Ctrl +/−/0 page
+  zoom, and the canvas wheel handler still zooms the map. **Deviation from plan §2.2**, as the Patch 1
+  plan said. Caveat for a future macOS/Linux build: there, `zoomHotkeysEnabled` injects Tauri's own
+  Ctrl/⌘ +/− zoom script (needs `core:webview:allow-set-webview-zoom`); check that it respects
+  `defaultPrevented` before shipping on those platforms.
+
+**Not verifiable in the cloud (Owner checks on Windows):** the protocol fix itself (the browser build
+serves `blob:` URLs and never goes through Rust), pinch on a real trackpad, the Files… dialog's default
+filter, and the one-off re-derive of an existing library.

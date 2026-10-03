@@ -68,7 +68,7 @@ export function CanvasView({ tool, wheelMode, benchCount, onEngineReady }: Canva
     // UI overlays, which sit in a later sibling and must always hit-test above the canvas.
     <div
       ref={containerRef}
-      style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}
+      style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden', touchAction: 'none' }}
     >
       {engine && <DotGrid engine={engine} />}
     </div>
