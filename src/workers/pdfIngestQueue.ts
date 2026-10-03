@@ -32,7 +32,7 @@ async function deriveAndPersist(
   queueAiAnalysis(platform, itemId);
   await platform.db.execute(
     `UPDATE items SET width = ?, height = ?, page_count = ?, cover_page = ?, palette = ?,
-     color_families = ?, status = 'ok', derived_v = ?, updated_at = ? WHERE id = ?`,
+     color_families = ?, status = 'ok', thumb_v = thumb_v + 1, derived_v = ?, updated_at = ? WHERE id = ?`,
     [
       derived.width,
       derived.height,
@@ -55,6 +55,7 @@ async function deriveAndPersist(
       width: derived.width,
       height: derived.height,
       pageCount: derived.pageCount,
+      thumbV: (current.thumbV ?? 0) + 1,
       coverPage: derived.coverPage,
       palette: derived.palette,
       colorFamilies: derived.colorFamilies,

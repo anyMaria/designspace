@@ -1,3 +1,4 @@
+import { thumbUrl } from '@/lib/thumbs';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ExternalLink, Sparkles, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
@@ -168,7 +169,7 @@ export function DetailsPanel({
           }}
         >
           <img
-            src={platform.cache.url(`t512/${item.id}`)}
+            src={thumbUrl(platform, item, 512)}
             alt=""
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />

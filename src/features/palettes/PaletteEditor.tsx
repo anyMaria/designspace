@@ -1,3 +1,5 @@
+import { useLibraryStore } from '@/state/libraryStore';
+import { thumbUrl } from '@/lib/thumbs';
 import { useEffect, useRef, useState } from 'react';
 import { Pipette, Plus } from 'lucide-react';
 import type { Platform } from '@/platform/types';
@@ -130,7 +132,15 @@ export function PaletteEditor({
     engine.startPointPick((hit) => {
       setPicking(false);
       if (!hit) return;
-      void colorAtUrl(platform.cache.url(`t512/${hit.id}`), hit.u, hit.v).then((hex) => {
+      void colorAtUrl(
+        thumbUrl(
+          platform,
+          { id: hit.id, thumbV: useLibraryStore.getState().items.get(hit.id)?.thumbV },
+          512,
+        ),
+        hit.u,
+        hit.v,
+      ).then((hex) => {
         if (hex) addColor(hex);
       });
     });

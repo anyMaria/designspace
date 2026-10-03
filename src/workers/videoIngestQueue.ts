@@ -63,7 +63,7 @@ export class VideoIngestQueue {
       queueAiAnalysis(this.platform, item.itemId);
       await this.platform.db.execute(
         `UPDATE items SET width = ?, height = ?, duration_ms = ?, poster_ms = ?, palette = ?,
-         color_families = ?, status = 'ok', derived_v = ?, updated_at = ? WHERE id = ?`,
+         color_families = ?, status = 'ok', thumb_v = thumb_v + 1, derived_v = ?, updated_at = ? WHERE id = ?`,
         [
           derived.width,
           derived.height,
@@ -83,6 +83,7 @@ export class VideoIngestQueue {
       if (current) {
         useLibraryStore.getState().upsertItem({
           ...current,
+          thumbV: (current.thumbV ?? 0) + 1,
           width: derived.width,
           height: derived.height,
           durationMs: derived.durationMs,

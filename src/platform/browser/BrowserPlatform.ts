@@ -133,7 +133,8 @@ export class BrowserPlatform implements Platform {
     },
     has: async (keys: string[]): Promise<boolean[]> =>
       Promise.all(keys.map((k) => idbHas(STORE_CACHE, k))),
-    url: (key: string): string => this.objectUrlFor(STORE_CACHE, key),
+    // The version is ignored: blob URLs are replaced on every `put`.
+    url: (key: string, _version?: number): string => this.objectUrlFor(STORE_CACHE, key),
     delete: async (keys: string[]): Promise<void> => {
       for (const key of keys) {
         await idbDelete(STORE_CACHE, key);

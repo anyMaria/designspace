@@ -1,3 +1,4 @@
+import { thumbUrl } from '@/lib/thumbs';
 import { useMemo, useState, type ReactNode } from 'react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
@@ -156,7 +157,7 @@ export function BulkDetailsPanel({
             >
               {isMediaKind(item.kind) && item.status === 'ok' && (
                 <img
-                  src={platform.cache.url(`t128/${item.id}`)}
+                  src={thumbUrl(platform, item, 128)}
                   alt=""
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />

@@ -60,7 +60,7 @@ export class FontIngestQueue {
       await this.platform.cache.put(`t512/${item.itemId}`, new Uint8Array(t512));
       queueAiAnalysis(this.platform, item.itemId);
       await this.platform.db.execute(
-        `UPDATE items SET font_meta = ?, status = 'ok', derived_v = ?, updated_at = ? WHERE id = ?`,
+        `UPDATE items SET font_meta = ?, status = 'ok', thumb_v = thumb_v + 1, derived_v = ?, updated_at = ? WHERE id = ?`,
         [JSON.stringify(meta), CURRENT_DERIVED_V, now, item.itemId],
       );
 
@@ -71,6 +71,7 @@ export class FontIngestQueue {
         useLibraryStore.getState().upsertItem({
           ...current,
           fontMeta: meta,
+          thumbV: (current.thumbV ?? 0) + 1,
           status: 'ok',
           derivedV: CURRENT_DERIVED_V,
           updatedAt: now,

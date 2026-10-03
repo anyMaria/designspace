@@ -1,3 +1,4 @@
+import { thumbUrl } from '@/lib/thumbs';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { X, ArrowUpDown } from 'lucide-react';
 import type { Platform } from '@/platform/types';
@@ -228,7 +229,7 @@ export function TriageView({ platform }: { platform: Platform }) {
           >
             {item.status === 'ok' && (
               <img
-                src={platform.cache.url(`t512/${item.id}`)}
+                src={thumbUrl(platform, item, 512)}
                 alt={item.title}
                 style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
               />

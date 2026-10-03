@@ -131,7 +131,7 @@ export class IngestQueue {
     queueAiAnalysis(this.platform, result.itemId);
     await this.platform.db.execute(
       `UPDATE items SET width = ?, height = ?, palette = ?, color_families = ?, phash = ?,
-       status = 'ok', derived_v = ?, updated_at = ? WHERE id = ?`,
+       status = 'ok', thumb_v = thumb_v + 1, derived_v = ?, updated_at = ? WHERE id = ?`,
       [
         result.width,
         result.height,
@@ -155,6 +155,7 @@ export class IngestQueue {
         palette: result.palette,
         colorFamilies: result.colorFamilies,
         phash: result.phash,
+        thumbV: (item.thumbV ?? 0) + 1,
         status: 'ok',
         derivedV: CURRENT_DERIVED_V,
         updatedAt: now,

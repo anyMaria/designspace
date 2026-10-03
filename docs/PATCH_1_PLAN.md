@@ -548,7 +548,7 @@ find the photo by a word from the description; see the #tag in Actions.
 
 Size: S. Version at the end: **0.7.0**.
 
-### F1 · Thumbnails get a version (no more stale pictures) `[ ]`
+### F1 · Thumbnails get a version (no more stale pictures) `[x]`
 **Files:** `src/platform/types.ts`, `TauriPlatform.ts`, `BrowserPlatform.ts`, new `src/lib/thumbs.ts`, the ten `cache.url(` call sites (`grep -rn "cache.url(" src`), the four ingest queues (and PDF "Set as cover").
 - `cache.url(key, version = 0)`: Tauri appends `?v=<version>` when `version > 0` (the Rust protocol ignores the query); the browser ignores it (its blob URLs are replaced on every `put`).
 - `thumbUrl(platform, item, 128 | 512)` = `platform.cache.url(\`t${size}/${item.id}\`, item.thumbV ?? 0)`; use it everywhere a thumbnail URL is built (not in `aiQueue.ts`).

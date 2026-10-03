@@ -1,3 +1,4 @@
+import { thumbUrl } from '@/lib/thumbs';
 import { swatchColorsOf } from '@/lib/palette';
 import type { Item, Placement } from '@/state/types';
 import type { Platform } from '@/platform/types';
@@ -93,8 +94,8 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       z: placement.z,
       kind: 'link',
       dominantColor,
-      thumbUrl128: thumbReady ? platform.cache.url(`t128/${item.id}`) : null,
-      thumbUrl512: thumbReady ? platform.cache.url(`t512/${item.id}`) : null,
+      thumbUrl128: thumbReady ? thumbUrl(platform, item, 128) : null,
+      thumbUrl512: thumbReady ? thumbUrl(platform, item, 512) : null,
       // "Preview image (or custom cover) + footer: favicon · domain · 2-line title" (§2.4's spec
       // table) — a plain-text approximation (domain + title, no favicon glyph) reusing the same
       // Text-overlay machinery as the note/swatch/unsupported-fallback labels, shown until the
@@ -137,8 +138,8 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     z: placement.z,
     kind: item.kind,
     dominantColor,
-    thumbUrl128: ready ? platform.cache.url(`t128/${item.id}`) : null,
-    thumbUrl512: ready ? platform.cache.url(`t512/${item.id}`) : null,
+    thumbUrl128: ready ? thumbUrl(platform, item, 128) : null,
+    thumbUrl512: ready ? thumbUrl(platform, item, 512) : null,
     noteText: fallbackText,
     frameId: placement.frameId,
     durationMs: item.kind === 'video' ? (item.durationMs ?? null) : null,

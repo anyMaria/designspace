@@ -77,7 +77,10 @@ export class TauriPlatform implements Platform {
     put: (key: string, bytes: Uint8Array) =>
       invoke<void>('cache_put', { key, bytes: Array.from(bytes) }),
     has: (keys: string[]) => invoke<boolean[]>('cache_has', { keys }),
-    url: (key: string): string => convertFileSrc(`cache/${key}`, 'media'),
+    url: (key: string, version = 0): string => {
+      const url = convertFileSrc(`cache/${key}`, 'media');
+      return version > 0 ? `${url}?v=${version}` : url; // the protocol ignores the query
+    },
     delete: async (keys: string[]): Promise<void> => {
       for (const key of keys) await invoke<void>('cache_delete', { prefix: key });
     },

@@ -1,3 +1,4 @@
+import { thumbUrl } from '@/lib/thumbs';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -451,7 +452,7 @@ function Tile({
     >
       {item.status === 'ok' && (
         <img
-          src={platform.cache.url(`t128/${id}`)}
+          src={thumbUrl(platform, item, 128)}
           alt=""
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
