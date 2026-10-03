@@ -108,6 +108,8 @@ export const canvasGeometry = {
 /** Motion durations in ms — mirrors the CSS custom properties in tokens.css. */
 export const motion = {
   hover: 120,
+  /** How long the pointer rests on a card before its name pill appears (B3). */
+  hoverName: 350,
   panel: 200,
   overlay: 320,
   flyTo: 500,

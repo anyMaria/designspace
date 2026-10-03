@@ -326,7 +326,7 @@ Size: M. Version at the end: **0.3.0**.
 4. Shortcuts on the existing buttons: Search `Ctrl+K`, Connections `C`, Select `V`, Hand `H`, Rediscover `R`, Settings `Ctrl+,`, Panel `L`, Full screen `F11`. The top-left and top-right clusters use `tooltipPlacement="bottom"` (a tooltip above them would leave the screen).
 **Done when:** hovering any icon button for 0.5 s shows the styled tooltip with its shortcut; `/design` shows an example.
 
-### B3 · Names on hover `[ ]`
+### B3 · Names on hover `[x]`
 **Files:** new `src/canvas/CanvasHoverOverlay.tsx`, `src/app/Shell.tsx`, `src/state/uiStore.ts` + `loadMachineSettings.ts` (`showNamesOnHover`, default `true`), `src/features/settings/CanvasSection.tsx`, `src/design/tokens.*`.
 **Do**
 1. `CanvasHoverOverlay` (mounted once in `Shell`, after `CanvasView`) listens to `engine.on('hover', id)` and to camera changes (`useCameraState(engine)`).

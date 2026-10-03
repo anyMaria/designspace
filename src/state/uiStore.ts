@@ -15,6 +15,8 @@ interface UiState {
   minimapOpen: boolean;
   /** Machine setting: open the app in full screen (Patch 1 · B1). */
   startFullscreen: boolean;
+  /** Machine setting: the name pill under a hovered card (Patch 1 · B3). */
+  showNamesOnHover: boolean;
   /** Live state, not persisted. */
   fullscreen: boolean;
   dotGridDensity: DotGridDensity;
@@ -27,6 +29,7 @@ interface UiState {
   setPanelTab: (tab: PanelTab) => void;
   toggleMinimap: () => void;
   setStartFullscreen: (v: boolean) => void;
+  setShowNamesOnHover: (v: boolean) => void;
   setFullscreen: (v: boolean) => void;
   setDotGridDensity: (v: DotGridDensity) => void;
   setReduceMotion: (v: ReduceMotionSetting) => void;
@@ -42,6 +45,7 @@ export const useUiStore = create<UiState>((set) => ({
   panelTab: 'list',
   minimapOpen: true,
   startFullscreen: true,
+  showNamesOnHover: true,
   fullscreen: false,
   dotGridDensity: 'normal',
   reduceMotion: 'system',
@@ -53,6 +57,7 @@ export const useUiStore = create<UiState>((set) => ({
   setPanelTab: (panelTab) => set({ panelTab }),
   toggleMinimap: () => set((s) => ({ minimapOpen: !s.minimapOpen })),
   setStartFullscreen: (startFullscreen) => set({ startFullscreen }),
+  setShowNamesOnHover: (showNamesOnHover) => set({ showNamesOnHover }),
   setFullscreen: (fullscreen) => set({ fullscreen }),
   setDotGridDensity: (dotGridDensity) => set({ dotGridDensity }),
   setReduceMotion: (reduceMotion) => set({ reduceMotion }),

@@ -13,6 +13,8 @@ export function CanvasSection() {
   const toggleMinimap = useUiStore((s) => s.toggleMinimap);
   const startFullscreen = useUiStore((s) => s.startFullscreen);
   const setStartFullscreen = useUiStore((s) => s.setStartFullscreen);
+  const showNames = useUiStore((s) => s.showNamesOnHover);
+  const setShowNames = useUiStore((s) => s.setShowNamesOnHover);
   const reduceMotion = useUiStore((s) => s.reduceMotion);
   const setReduceMotion = useUiStore((s) => s.setReduceMotion);
 
@@ -54,6 +56,15 @@ export function CanvasSection() {
           checked={startFullscreen}
           onChange={() => setStartFullscreen(!startFullscreen)}
           label={en.fullscreen.setting}
+        />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>{en.settings.canvas.showNames}</span>
+        <Toggle
+          checked={showNames}
+          onChange={() => setShowNames(!showNames)}
+          label={en.settings.canvas.showNames}
         />
       </div>
 

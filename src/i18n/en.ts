@@ -224,6 +224,7 @@ export const en = {
       dotNormal: 'Normal',
       dotWide: 'Wide',
       minimap: 'Minimap',
+      showNames: 'Show names on hover',
       reduceMotion: 'Reduce motion',
       motionSystem: 'System',
       motionOn: 'On',
