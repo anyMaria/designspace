@@ -2746,3 +2746,36 @@ covering import flows (`app-shell`, `smoke-m1-settings-empty`, `smoke-m2-list`) 
 ---
 
 *(Later milestones append below this line.)*
+
+## Patch 1: owner review of the v0.1.0 Windows build (planning session, 2026-10-03)
+
+The owner installed the Windows build and reported that nothing showed (photos, links, fonts: "only a
+light purple square"), that opacity dropped "all of a sudden" until things were illegible, that pinch
+didn't zoom and that Files… only offered images, plus a list of feature requests. This session only
+diagnosed and planned; the work itself is specified task by task in `docs/PATCH_1_PLAN.md`, with
+screenshots and mockups in `docs/patch-1/`. The root causes, recorded here because each one passed
+every existing test:
+
+- **`media://` never worked on Windows.** Tauri's `convertFileSrc` runs `encodeURIComponent` over the
+  whole path (`tauri-2.12.0/scripts/core.js`), so `/` arrives as `%2F`; `media_protocol.rs` split the raw
+  path on `/` without decoding, so every request was a 404. The browser dev build serves `blob:` URLs and
+  never goes through this code, which is why no cloud test could see it. Behind it, a second mismatch:
+  `cache_put` flattens `t128/<id>` to the file `t128_<id>`, but the protocol looked for the nested path.
+- **The canvas only requested a texture when a card first became visible** (`cullItems` →
+  `requestLod` for newly visible ids). A thumbnail that finished while its card was on screen was never
+  shown, and zooming in never upgraded `t128` to `t512`. Reproduced in the browser build by panning away
+  and back (`docs/patch-1/bug-stale-texture-*.png`).
+- **Imports keep their 320×320 placeholder forever** (the M5-4/M5-5 "logged deviation"), so every
+  non-square picture is squashed (`bug-squashed.png`). It would have been the next thing the owner saw.
+- **Dimming:** `setConnections([{ fromId, candidates: [] }])` still dimmed everything else to 35 %, and
+  only the sprite was dimmed, not its text label. Reproduced: selecting an unclassified demo item drops
+  its neighbour from rgb(148,184,158) to rgb(70,73,77).
+- **Pinch:** wry 0.57 maps `zoomHotkeysEnabled` to both `IsZoomControlEnabled` and
+  `IsPinchZoomEnabled` (`src/webview2/mod.rs:639,660`); with pinch off, WebView2 never passes touchpad
+  pinches to the page. The fix (Patch 1, A9) turns the flag on and blocks page zoom in JavaScript.
+- **Files…:** the Windows dialog pre-selects the first filter, which was "Images".
+
+Also found: the migrator never backed up before migrating (required by `CLAUDE.md`; fixed with the first
+new migration, Patch 1 C0), links whose cover failed were never retried, and both Connections and
+Rediscover used the same `Share2` icon. The owner's Urbanist font files (v1.303, OFL) were added under
+`src/design/fonts/urbanist/` so the coding sessions have them; they are wired up in Patch 1 task B5.
