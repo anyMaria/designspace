@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { migrations, splitStatements } from './migrator';
+import { LATEST_SCHEMA_VERSION, migrations, splitStatements } from './migrator';
 
 describe('splitStatements', () => {
   it('splits simple statements on semicolons', () => {
@@ -41,5 +41,13 @@ describe('migrations', () => {
     expect(versions).toEqual(sorted);
     expect(new Set(versions).size).toBe(versions.length);
     expect(versions[0]).toBe(1);
+    versions.forEach((v, i) => expect(v).toBe(i + 1));
+    expect(LATEST_SCHEMA_VERSION).toBe(versions[versions.length - 1]);
+  });
+
+  it('migration 002 adds the four Patch 1 columns as four statements', () => {
+    const statements = splitStatements(migrations[1].sql);
+    expect(statements).toHaveLength(4);
+    for (const s of statements) expect(s).toMatch(/^ALTER TABLE items ADD COLUMN /);
   });
 });

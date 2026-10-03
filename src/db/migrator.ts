@@ -1,5 +1,6 @@
 import type { Platform } from '@/platform/types';
 import migration001 from './migrations/001_init.sql?raw';
+import migration002 from './migrations/002_patch1.sql?raw';
 
 export interface Migration {
   version: number;
@@ -9,7 +10,12 @@ export interface Migration {
 
 // Add new migrations here, in order, as `src/db/migrations/NNN_name.sql` — never edit a
 // shipped one (CLAUDE.md "Migrations only", plan §5.3).
-export const migrations: Migration[] = [{ version: 1, name: 'init', sql: migration001 }];
+export const migrations: Migration[] = [
+  { version: 1, name: 'init', sql: migration001 },
+  { version: 2, name: 'patch1', sql: migration002 },
+];
+
+export const LATEST_SCHEMA_VERSION = Math.max(...migrations.map((m) => m.version));
 
 /**
  * Splits a `.sql` file into individual statements. Strips `--` line comments and splits on `;`
@@ -62,7 +68,8 @@ async function tableExists(db: Platform['db'], table: string): Promise<boolean> 
   return rows.length > 0;
 }
 
-async function currentVersion(db: Platform['db']): Promise<number> {
+/** The database's current `schema_version` (0 for a brand-new, empty database). */
+export async function readSchemaVersion(db: Platform['db']): Promise<number> {
   if (!(await tableExists(db, 'meta'))) return 0;
   const rows = await db.select<{ value: string }>(
     "SELECT value FROM meta WHERE key = 'schema_version'",
@@ -73,7 +80,7 @@ async function currentVersion(db: Platform['db']): Promise<number> {
 
 /** Runs every migration newer than the database's current schema_version, each in one transaction. */
 export async function runMigrations(db: Platform['db']): Promise<{ from: number; to: number }> {
-  const from = await currentVersion(db);
+  const from = await readSchemaVersion(db);
   const pending = migrations.filter((m) => m.version > from).sort((a, b) => a.version - b.version);
 
   let version = from;

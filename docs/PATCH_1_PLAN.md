@@ -385,7 +385,7 @@ Look: `docs/patch-1/mock-palettes.png`. Size: L. Version at the end: **0.4.0**.
 
 **Model in one sentence:** a palette is the existing `swatch` item with a list of colours. One colour is drawn as a swatch; two or more are drawn as a palette card with two columns of rounded squares that move together.
 
-### C0 · Migration 002 and a backup before migrating `[ ]`
+### C0 · Migration 002 and a backup before migrating `[x]`
 **Files:** new `src/db/migrations/002_patch1.sql`, `src/db/migrator.ts` (+ test), `src/platform/bootstrap.ts`, `src/db/rowMapping.ts` (+ test), `src/state/types.ts`.
 **Do**
 1. `002_patch1.sql` (exactly):
