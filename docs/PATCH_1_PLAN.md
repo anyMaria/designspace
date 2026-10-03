@@ -10,7 +10,7 @@
 | Owner | @anyMaria |
 | Written | 2026-10-03, from the owner's review of the v0.1.0 Windows build |
 | Based on | `main` at `a4d1e38` |
-| Status | Ready to build, starting with Phase A |
+| Status | Phases A–G built on `claude/tender-lamport-v06daw` (v0.8.0); waiting for the owner's Windows checks |
 | Pictures | `docs/patch-1/` (bug screenshots, mockups, type and icon previews) |
 
 ## How to use this document
