@@ -4,7 +4,10 @@ import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useHistoryStore } from '@/commands/history';
 import { useToastStore } from '@/state/toastStore';
+import { noteColorNames, type NoteColor } from '@/design/tokens';
+import { useNoteEditStore } from '@/state/noteEditStore';
 import {
+  createSetItemFieldCommand,
   createStackOrderCommand,
   createTidyUpCommand,
   createTrashCommand,
@@ -191,6 +194,20 @@ export function ContextMenu({
       .catch((err: unknown) => logger.warn('Copy all colors failed', err));
   }
 
+  function editNote(): void {
+    onClose();
+    useNoteEditStore.getState().open(state.itemId);
+  }
+
+  function setNoteColor(color: NoteColor): void {
+    onClose();
+    for (const id of ids) {
+      void useHistoryStore
+        .getState()
+        .execute(createSetItemFieldCommand(platform, id, 'color', color));
+    }
+  }
+
   function moveToTrash(): void {
     onClose();
     void useHistoryStore
@@ -210,10 +227,16 @@ export function ContextMenu({
     .map((id) => useLibraryStore.getState().items.get(id))
     .filter((i): i is Item => !!i);
 
-  const entries: Record<
-    ContextMenuItemId,
-    { id: string; label: string; disabled?: boolean; onSelect: () => void }
-  > = {
+  type Entry = { id: string; label: string; disabled?: boolean; onSelect: () => void };
+  const colorEntries = Object.fromEntries(
+    noteColorNames.map((c) => [
+      `note-color-${c}`,
+      { id: `note-color-${c}`, label: en.notes.colorLabel(c), onSelect: () => setNoteColor(c) },
+    ]),
+  ) as Record<`note-color-${NoteColor}`, Entry>;
+  const entries: Record<ContextMenuItemId, Entry> = {
+    ...colorEntries,
+    'edit-note': { id: 'edit-note', label: en.notes.edit, onSelect: editNote },
     'copy-image': {
       id: 'copy-image',
       label: en.contextMenu.copyImage,

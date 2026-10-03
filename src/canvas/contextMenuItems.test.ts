@@ -65,8 +65,28 @@ describe('contextMenuItemIds', () => {
     ).not.toContain('combine-palette');
   });
 
+  it('a note gets its own short menu: edit (one only), colours, stacking, trash', () => {
+    const note = (id: string) => item({ id, kind: 'note', filePath: null });
+    const one = contextMenuItemIds([note('a')], ctx);
+    expect(one).toEqual([
+      'edit-note',
+      'note-color-cream',
+      'note-color-blush',
+      'note-color-sage',
+      'note-color-sky',
+      'note-color-lavender',
+      'note-color-ink',
+      'bring-to-front',
+      'send-to-back',
+      'move-to-trash',
+    ]);
+    expect(contextMenuItemIds([note('a'), note('b')], ctx)).not.toContain('edit-note');
+    expect(one).not.toContain('create-board');
+    expect(one).not.toContain('connect-to');
+  });
+
   it('create board, trash and stacking always; remove-from-board only on a board', () => {
-    const off = contextMenuItemIds([item({ kind: 'note', filePath: null })], ctx);
+    const off = contextMenuItemIds([item({ kind: 'swatch', filePath: null })], ctx);
     expect(off).toEqual(
       expect.arrayContaining(['bring-to-front', 'send-to-back', 'create-board', 'move-to-trash']),
     );

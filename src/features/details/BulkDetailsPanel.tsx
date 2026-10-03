@@ -11,15 +11,28 @@ import {
 } from '@/commands/itemTermCommands';
 import { useToastStore } from '@/state/toastStore';
 import { Chip, Button } from '@/design/components';
+import { isMediaKind } from '@/lib/itemKinds';
 import { en } from '@/i18n/en';
 
 /** Details panel for several selected items — §2.6 "Several items selected". Single-item editing
  * lives in `DetailsPanel.tsx`; the two share the vocabulary chip styling but not much logic, since
  * "mixed" state and union-with-counts don't apply to a single item. */
-export function BulkDetailsPanel({ platform, items }: { platform: Platform; items: Item[] }) {
+export function BulkDetailsPanel({
+  platform,
+  items: selected,
+}: {
+  platform: Platform;
+  items: Item[];
+}) {
   const terms = useTermStore((s) => s.terms);
   const allItemTerms = useTermStore((s) => s.itemTerms);
+  const allIds = useMemo(() => selected.map((i) => i.id), [selected]);
+  // Classification (Type, Vibe, Movement, Tags, Artist) only applies to collected media; notes and
+  // palettes are left out (Patch 1 · D3).
+  const items = useMemo(() => selected.filter((i) => isMediaKind(i.kind)), [selected]);
   const itemIds = useMemo(() => items.map((i) => i.id), [items]);
+  const noteCount = selected.filter((i) => i.kind === 'note').length;
+  const paletteCount = selected.filter((i) => i.kind === 'swatch').length;
 
   const typeTerms = useMemo(
     () => [...terms.values()].filter((t) => t.facet === 'type').sort((a, b) => a.sort - b.sort),
@@ -66,7 +79,7 @@ export function BulkDetailsPanel({ platform, items }: { platform: Platform; item
 
   const artists = new Set(items.map((i) => i.artist ?? ''));
   const artistMixed = artists.size > 1;
-  const allFavorite = items.every((i) => i.favorite);
+  const allFavorite = selected.every((i) => i.favorite);
 
   const [draftVibe, setDraftVibe] = useState('');
   const [draftMovement, setDraftMovement] = useState('');
@@ -106,15 +119,15 @@ export function BulkDetailsPanel({ platform, items }: { platform: Platform; item
   function toggleFavorite(): void {
     void useHistoryStore
       .getState()
-      .execute(createBulkSetItemFieldCommand(platform, itemIds, 'favorite', !allFavorite));
+      .execute(createBulkSetItemFieldCommand(platform, allIds, 'favorite', !allFavorite));
   }
 
   function moveToTrash(): void {
     void useHistoryStore
       .getState()
-      .execute(createTrashCommand(platform, itemIds))
+      .execute(createTrashCommand(platform, allIds))
       .then(() => {
-        useToastStore.getState().show(`Moved ${itemIds.length} items to Trash`, {
+        useToastStore.getState().show(`Moved ${allIds.length} items to Trash`, {
           actionLabel: en.toasts.undo,
           onAction: () => void useHistoryStore.getState().undo(),
         });
@@ -127,7 +140,7 @@ export function BulkDetailsPanel({ platform, items }: { platform: Platform; item
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
         <div style={{ display: 'flex' }}>
-          {items.slice(0, 4).map((item, i) => (
+          {selected.slice(0, 4).map((item, i) => (
             <div
               key={item.id}
               style={{
@@ -141,7 +154,7 @@ export function BulkDetailsPanel({ platform, items }: { platform: Platform; item
                 flexShrink: 0,
               }}
             >
-              {item.status === 'ok' && (
+              {isMediaKind(item.kind) && item.status === 'ok' && (
                 <img
                   src={platform.cache.url(`t128/${item.id}`)}
                   alt=""
@@ -151,75 +164,90 @@ export function BulkDetailsPanel({ platform, items }: { platform: Platform; item
             </div>
           ))}
         </div>
-        <span className="font-display">{en.details.itemsSelected(items.length)}</span>
+        <span className="font-display">{en.details.itemsSelected(selected.length)}</span>
       </div>
 
-      <Field label={en.vocabulary.facets.type}>
-        <div
-          style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)', alignItems: 'center' }}
-        >
-          {typeTerms.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className="ds-chip"
-              style={
-                t.id === commonTypeId
-                  ? { background: 'var(--accent)', color: 'var(--on-accent)' }
-                  : undefined
-              }
-              onClick={() => setType({ id: t.id })}
+      {noteCount + paletteCount > 0 && (
+        <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
+          {en.notes.notClassified(noteCount, paletteCount)}
+        </span>
+      )}
+
+      {items.length > 0 && (
+        <>
+          <Field label={en.vocabulary.facets.type}>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 'var(--space-1)',
+                alignItems: 'center',
+              }}
             >
-              {t.name}
-            </button>
-          ))}
-          {!commonTypeId && <span style={{ color: 'var(--text-3)' }}>{en.details.mixed}</span>}
-        </div>
-      </Field>
+              {typeTerms.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="ds-chip"
+                  style={
+                    t.id === commonTypeId
+                      ? { background: 'var(--accent)', color: 'var(--on-accent)' }
+                      : undefined
+                  }
+                  onClick={() => setType({ id: t.id })}
+                >
+                  {t.name}
+                </button>
+              ))}
+              {!commonTypeId && <span style={{ color: 'var(--text-3)' }}>{en.details.mixed}</span>}
+            </div>
+          </Field>
 
-      <UnionFacetField
-        label={en.vocabulary.facets.vibe}
-        entries={vibeUnion}
-        total={items.length}
-        draft={draftVibe}
-        onDraftChange={setDraftVibe}
-        onAdd={(name) => addTerm('vibe', name)}
-        onRemove={removeTerm}
-        placeholder={en.details.vibePlaceholder}
-      />
-      <UnionFacetField
-        label={en.vocabulary.facets.movement}
-        entries={movementUnion}
-        total={items.length}
-        draft={draftMovement}
-        onDraftChange={setDraftMovement}
-        onAdd={(name) => addTerm('movement', name)}
-        onRemove={removeTerm}
-        placeholder={en.details.movementPlaceholder}
-      />
-      <UnionFacetField
-        label={en.vocabulary.facets.tag}
-        entries={tagUnion}
-        total={items.length}
-        draft={draftTag}
-        onDraftChange={setDraftTag}
-        onAdd={(name) => addTerm('tag', name)}
-        onRemove={removeTerm}
-        placeholder={en.details.tagsPlaceholder}
-      />
+          <UnionFacetField
+            label={en.vocabulary.facets.vibe}
+            entries={vibeUnion}
+            total={items.length}
+            draft={draftVibe}
+            onDraftChange={setDraftVibe}
+            onAdd={(name) => addTerm('vibe', name)}
+            onRemove={removeTerm}
+            placeholder={en.details.vibePlaceholder}
+          />
+          <UnionFacetField
+            label={en.vocabulary.facets.movement}
+            entries={movementUnion}
+            total={items.length}
+            draft={draftMovement}
+            onDraftChange={setDraftMovement}
+            onAdd={(name) => addTerm('movement', name)}
+            onRemove={removeTerm}
+            placeholder={en.details.movementPlaceholder}
+          />
+          <UnionFacetField
+            label={en.vocabulary.facets.tag}
+            entries={tagUnion}
+            total={items.length}
+            draft={draftTag}
+            onDraftChange={setDraftTag}
+            onAdd={(name) => addTerm('tag', name)}
+            onRemove={removeTerm}
+            placeholder={en.details.tagsPlaceholder}
+          />
 
-      <Field label={en.details.artist}>
-        <input
-          aria-label={en.details.artist}
-          key={artistMixed ? 'mixed' : (items[0]?.artist ?? '')}
-          className="ds-chip-input__field"
-          defaultValue={artistMixed ? '' : (items[0]?.artist ?? '')}
-          placeholder={
-            artistMixed ? en.details.artistMixedPlaceholder : en.details.artistPlaceholder
-          }
-          onBlur={(e) => setArtist(e.target.value)}
-        />
-      </Field>
+          <Field label={en.details.artist}>
+            <input
+              aria-label={en.details.artist}
+              key={artistMixed ? 'mixed' : (items[0]?.artist ?? '')}
+              className="ds-chip-input__field"
+              defaultValue={artistMixed ? '' : (items[0]?.artist ?? '')}
+              placeholder={
+                artistMixed ? en.details.artistMixedPlaceholder : en.details.artistPlaceholder
+              }
+              onBlur={(e) => setArtist(e.target.value)}
+            />
+          </Field>
+        </>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>{en.details.favorite}</span>

@@ -38,6 +38,7 @@ import { ToastHost } from '@/features/toasts/ToastHost';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
 import { PaletteEditor } from '@/features/palettes/PaletteEditor';
+import { NoteDetails } from '@/features/notes/NoteDetails';
 import { BulkDetailsPanel } from '@/features/details/BulkDetailsPanel';
 import { TriageView } from '@/features/triage/TriageView';
 import { openInboxTriage } from '@/features/triage/openInboxTriage';
@@ -125,7 +126,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   // the panel switches to Details"), extended here to canvas selection generally since the List
   // panel's own click-to-select doesn't exist until it does (M2-8).
   useEffect(() => {
-    if (selection.size >= 1) setPanelTab('details');
+    // Only notes selected: stay where you are (a note isn't classified, so Details has little to
+    // show). Anything else switches to Details.
+    const { items: all } = useLibraryStore.getState();
+    if ([...selection].some((id) => all.get(id)?.kind !== 'note')) setPanelTab('details');
   }, [selection, setPanelTab]);
 
   useEngineBindings(engine, platform);
@@ -429,6 +433,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             )
           ) : selectedItems.length > 1 ? (
             <BulkDetailsPanel platform={platform} items={selectedItems} />
+          ) : selectedItem?.kind === 'note' ? (
+            <NoteDetails platform={platform} item={selectedItem} />
           ) : selectedItem?.kind === 'swatch' ? (
             <PaletteEditor platform={platform} item={selectedItem} engine={engine} />
           ) : selectedItem ? (

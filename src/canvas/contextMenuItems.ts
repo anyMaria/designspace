@@ -1,4 +1,5 @@
 import type { Item } from '@/state/types';
+import { noteColorNames, type NoteColor } from '@/design/tokens';
 
 export type ContextMenuItemId =
   | 'copy-image'
@@ -14,6 +15,8 @@ export type ContextMenuItemId =
   | 'copy-colors'
   | 'create-board'
   | 'remove-from-board'
+  | 'edit-note'
+  | `note-color-${NoteColor}`
   | 'move-to-trash';
 
 const MEDIA_KINDS = new Set(['image', 'video', 'pdf', 'font', 'link']);
@@ -21,6 +24,13 @@ const MEDIA_KINDS = new Set(['image', 'video', 'pdf', 'font', 'link']);
 /** Which right-click entries make sense for what was clicked (Patch 1 · B6), in menu order. */
 export function contextMenuItemIds(items: Item[], ctx: { onBoard: boolean }): ContextMenuItemId[] {
   const ids: ContextMenuItemId[] = [];
+  // Notes are written, not collected: a short menu of their own.
+  if (items.length > 0 && items.every((i) => i.kind === 'note')) {
+    if (items.length === 1) ids.push('edit-note');
+    ids.push(...noteColorNames.map((c): ContextMenuItemId => `note-color-${c}`));
+    ids.push('bring-to-front', 'send-to-back', 'move-to-trash');
+    return ids;
+  }
   if (items.length === 1 && items[0]?.kind === 'image') ids.push('copy-image');
   if (items.length > 0 && items.every((i) => !!i.filePath)) ids.push('show-in-explorer');
   ids.push('bring-to-front', 'send-to-back');

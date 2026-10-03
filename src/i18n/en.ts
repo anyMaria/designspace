@@ -66,6 +66,23 @@ export const en = {
   },
   notes: {
     colorLabel: (name: string) => `${name.charAt(0).toUpperCase()}${name.slice(1)} note color`,
+    edit: 'Edit note',
+    colors: 'Note color',
+    actionsHeading: 'Actions in this note',
+    noActions: 'No #actions yet',
+    notClassified: (notes: number, palettes: number) => {
+      const parts = [
+        notes > 0 ? `${notes} note${notes === 1 ? '' : 's'}` : null,
+        palettes > 0 ? `${palettes} palette${palettes === 1 ? '' : 's'}` : null,
+      ].filter(Boolean);
+      return `${parts.join(' and ')} ${notes + palettes === 1 ? "isn't" : "aren't"} classified`;
+    },
+  },
+  actions: {
+    tab: 'Actions',
+    empty: 'Write #something in a note, like #dig-into, and it shows up here.',
+    note: 'Note',
+    description: 'Description',
   },
   video: {
     unsupportedFallback: "Can't play this video",

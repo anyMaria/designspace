@@ -485,7 +485,7 @@ Look: `docs/patch-1/mock-notes.png`. Size: M. Version at the end: **0.5.0**.
 4. `hashtagDecorations.ts`: a TipTap `Extension` with a ProseMirror plugin (`@tiptap/pm/state` `Plugin`, `@tiptap/pm/view` `Decoration`, `DecorationSet`) that adds `Decoration.inline(from, to, { class: 'ds-hashtag' })` for every hashtag in text nodes (same regex). `.ds-hashtag` = bold + the hashtag colour, **no** background or padding (so it matches the canvas). Add it to `noteExtensions`.
 5. When the editor closes, grow the note if the text needs more room: `needed = ceil((contentScrollHeight - 2*pad) / 30) * 30 + 2*pad`; if `needed > h`, the save command also sets the placement height (undo restores it). Never shrink automatically.
 
-### D3 · Notes are not "media": no classification `[ ]`
+### D3 · Notes are not "media": no classification `[x]`
 **Files:** `src/app/Shell.tsx`, new `src/features/notes/NoteDetails.tsx`, `src/features/details/DetailsPanel.tsx`, `BulkDetailsPanel.tsx`, `src/canvas/contextMenuItems.ts`.
 - Selecting only notes no longer switches the panel to Details (the selection effect checks `[...selection].some(id => kind !== 'note')` using `getState()`).
 - If the Details tab is open on one note, show `NoteDetails`: the colour dots, an "Edit note" button, and the note's #actions as chips. No Type/Vibe/Movement/Tags/Artist/Source/Why.
