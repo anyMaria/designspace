@@ -414,7 +414,7 @@ Look: `docs/patch-1/mock-palettes.png`. Size: L. Version at the end: **0.4.0**.
 - `hexToHsv(hex)` / `hsvToHex(h, s, v)` with culori (`converter('hsv')`, `formatHex({ mode: 'hsv', h, s, v })`; culori leaves `h` undefined for greys: use 0). `h` in degrees 0–360, `s`, `v` in 0–1.
 **Tests:** every function, including round trips (`hsvToHex(hexToHsv(x)) === x` within 1 step per channel) and odd counts.
 
-### C2 · Palette commands `[ ]`
+### C2 · Palette commands `[x]`
 **File:** new `src/commands/paletteCommands.ts` (+ test); `src/commands/swatchCommands.ts`.
 - `createSetSwatchColorsCommand(platform, itemId, next: SwatchColor[])`: do/undo between previous and next colours. Each apply updates, in the store and in one `db.batch`: `swatch_colors` (JSON), `color` (first hex), `palette` (`paletteEntriesOf`), `color_families`, and **every placement's** `w,h` = `paletteCardSize(n)` (`UPDATE placements SET w = ?, h = ? WHERE item_id = ?`; also the current-board placement in the store). Keep `x,y`.
 - `createCreatePaletteCommand(platform, boardId, isLibraryBoard, centreX, centreY, colors, name)`: generalises today's swatch creation (same insert, plus the new column and the right size). Keep `createCreateSwatchCommand` as a wrapper (one `#8C8C8C` colour).
