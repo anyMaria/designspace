@@ -555,7 +555,7 @@ Size: S. Version at the end: **0.7.0**.
 - Every write of `t128`/`t512` for an item also runs `thumb_v = thumb_v + 1` in the same `UPDATE` and bumps `thumbV` in the store.
 - Because A3's texture keys contain the URL, the canvas reloads changed thumbnails by itself.
 
-### F2 · A preview text for all font cards `[ ]`
+### F2 · A preview text for all font cards `[x]`
 **Files:** `src/state/settingsStore.ts`, `src/state/loadSettings.ts`, `src/lib/fontRender.ts` (+ test for the wrapping helper), `src/workers/fontIngestQueue.ts`, `src/features/focus/FontFocusViewer.tsx`, `src/features/settings/CanvasSection.tsx`.
 - Library setting `fontPreviewText` (in `meta.settings`, default `en.fonts.defaultPreview` = "Sphinx of black quartz, judge my vow", Q12).
 - `drawSpecimen(…, previewText)`: the sample wraps onto at most 2 lines with an ellipsis (`wrapLines(measure, text, maxWidth, maxLines)`, unit-tested with a fake `measure`), instead of being squeezed by `fillText`'s `maxWidth`.

@@ -1,5 +1,6 @@
 import type { DbRow, Platform } from '@/platform/types';
 import { useSettingsStore } from './settingsStore';
+import { DEFAULT_PREVIEW_TEXT } from '@/lib/fontPreview';
 
 /** The shape stored under `meta.settings` — kept loose (all fields optional) so a future
  * milestone can add a key without a migration. */
@@ -7,6 +8,7 @@ interface LibrarySettingsJson {
   offlineMode?: boolean;
   aiEnabled?: boolean;
   backupExtraDestination?: string | null;
+  fontPreviewText?: string;
 }
 
 async function readSettingsJson(platform: Platform): Promise<LibrarySettingsJson> {
@@ -27,7 +29,21 @@ export async function loadSettings(platform: Platform): Promise<void> {
     offlineMode: parsed.offlineMode ?? false,
     aiEnabled: parsed.aiEnabled ?? true,
     backupExtraDestination: parsed.backupExtraDestination ?? null,
+    fontPreviewText: parsed.fontPreviewText?.trim() || DEFAULT_PREVIEW_TEXT,
   });
+}
+
+/** Patch 1 · F2: the text shown on every font card. Persisted like every other library setting;
+ * the caller re-renders the specimens (`rerenderFontSpecimens`) when the owner asks for it. */
+export async function setFontPreviewText(platform: Platform, value: string): Promise<void> {
+  const text = value.trim() || DEFAULT_PREVIEW_TEXT;
+  const parsed = await readSettingsJson(platform);
+  parsed.fontPreviewText = text;
+  await platform.db.execute(
+    "INSERT INTO meta (key, value) VALUES ('settings', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    [JSON.stringify(parsed)],
+  );
+  useSettingsStore.setState({ fontPreviewText: text });
 }
 
 /** §7's "Offline mode, which turns [link previews and image downloads] off" (Settings →

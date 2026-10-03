@@ -110,6 +110,10 @@ export const en = {
   },
   font: {
     unsupportedFallback: "Can't read this font",
+    defaultPreview: 'Sphinx of black quartz, judge my vow',
+    useEverywhere: 'Show this text on all font cards',
+    previewSetting: 'Font preview text',
+    updatingCards: (n: number) => `Updating ${n} font cards…`,
     sampleTextLabel: 'Sample text',
     sampleTextPlaceholder: 'Type to preview…',
     sizeWaterfall: 'Size waterfall',

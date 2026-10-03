@@ -16,7 +16,7 @@ export const SPECIMEN_ASPECT = SPECIMEN_W / SPECIMEN_H;
 const THUMB_W = 128;
 const THUMB_H = 80;
 const WEBP_QUALITY = 0.82;
-const SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow';
+import { DEFAULT_PREVIEW_TEXT } from './fontPreview';
 
 export interface FontVariationAxis {
   tag: string;
@@ -76,11 +76,57 @@ function readMeta(font: fontkit.Font): FontMeta {
   };
 }
 
+/** Wraps `text` onto at most `maxLines` lines no wider than `maxWidth` (as `measure` reports),
+ * breaking at spaces (or inside a very long word), and ending the last line with an ellipsis when
+ * the text doesn't fit (Patch 1 · F2). `measure` is the canvas's `measureText`, injected so this
+ * stays testable. */
+export function wrapLines(
+  measure: (s: string) => number,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0 || maxLines < 1) return [];
+  const lines: string[] = [];
+  let line = '';
+  let i = 0;
+  while (i < words.length && lines.length < maxLines) {
+    const candidate = line ? `${line} ${words[i]}` : words[i];
+    if (measure(candidate) <= maxWidth || !line) {
+      line = candidate;
+      i++;
+      // a single word wider than the line: cut it, the rest continues on the next line
+      if (measure(line) > maxWidth) {
+        let cut = line;
+        while (cut.length > 1 && measure(cut) > maxWidth) cut = cut.slice(0, -1);
+        words[i - 1] = line.slice(cut.length);
+        line = cut;
+        if (words[i - 1]) i--;
+        lines.push(line);
+        line = '';
+      }
+    } else {
+      lines.push(line);
+      line = '';
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  if (i < words.length || (lines.length === maxLines && line && !lines.includes(line))) {
+    // Out of lines with text left over: end the last line with an ellipsis that still fits.
+    let last = lines[maxLines - 1] ?? '';
+    while (last.length > 0 && measure(`${last}…`) > maxWidth) last = last.slice(0, -1);
+    lines[maxLines - 1] = `${last.trimEnd()}…`;
+  }
+  return lines.slice(0, maxLines);
+}
+
 function drawSpecimen(
   localFamily: string,
   meta: FontMeta,
   w: number,
   h: number,
+  previewText: string,
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -103,7 +149,10 @@ function drawSpecimen(
 
   ctx.font = `${Math.round(16 * scale)}px "${localFamily}"`;
   ctx.fillStyle = toHexColor(colors.text2);
-  ctx.fillText(SAMPLE_TEXT, 24 * scale, 270 * scale, w - 48 * scale);
+  const lineHeight = 22 * scale;
+  wrapLines((s) => ctx.measureText(s).width, previewText, w - 48 * scale, 2).forEach((l, i) =>
+    ctx.fillText(l, 24 * scale, 262 * scale + i * lineHeight),
+  );
 
   return canvas;
 }
@@ -142,6 +191,7 @@ export async function registerFontFace(bytes: ArrayBuffer, localFamily: string):
 export async function extractFontDerivatives(
   bytes: ArrayBuffer,
   localFamily: string,
+  previewText: string = DEFAULT_PREVIEW_TEXT,
 ): Promise<FontDerivatives> {
   const font = parseFont(bytes);
   const meta = readMeta(font);
@@ -150,8 +200,8 @@ export async function extractFontDerivatives(
     // The specimen's family-name line is drawn in the UI font; make sure it is ready.
     await document.fonts.load(`600 24px ${fonts.ui}`).catch(() => []);
     const [t128, t512] = await Promise.all([
-      canvasToWebp(drawSpecimen(localFamily, meta, THUMB_W, THUMB_H)),
-      canvasToWebp(drawSpecimen(localFamily, meta, SPECIMEN_W, SPECIMEN_H)),
+      canvasToWebp(drawSpecimen(localFamily, meta, THUMB_W, THUMB_H, previewText)),
+      canvasToWebp(drawSpecimen(localFamily, meta, SPECIMEN_W, SPECIMEN_H, previewText)),
     ]);
     return { ...meta, t128, t512 };
   } finally {

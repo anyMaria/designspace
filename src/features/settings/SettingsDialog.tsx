@@ -55,7 +55,7 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
           ) : section === 'library' ? (
             <LibrarySection platform={platform} library={library} />
           ) : section === 'canvas' ? (
-            <CanvasSection />
+            <CanvasSection platform={platform} />
           ) : section === 'vocabularies' ? (
             <VocabularySection platform={platform} />
           ) : section === 'contentNetwork' ? (

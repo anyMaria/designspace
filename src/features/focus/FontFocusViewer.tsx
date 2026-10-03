@@ -4,11 +4,13 @@ import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
 import type { FontVariationAxis } from '@/lib/fontRender';
 import { registerFontFace } from '@/lib/fontRender';
+import { Button } from '@/design/components';
+import { useSettingsStore } from '@/state/settingsStore';
+import { applyFontPreview } from './applyFontPreview';
 import { en } from '@/i18n/en';
 
 const SIZE_WATERFALL = [12, 16, 20, 24, 32, 48, 64, 96];
 const GLYPH_GRID_LIMIT = 200;
-const DEFAULT_SAMPLE = 'Sphinx of black quartz, judge my vow';
 
 function characterSetSample(font: fontkit.Font): string[] {
   const chars: string[] = [];
@@ -28,7 +30,8 @@ function characterSetSample(font: fontkit.Font): string[] {
  * long gone by the time Focus view opens. */
 export function FontFocusViewer({ platform, item }: { platform: Platform; item: Item }) {
   const [ready, setReady] = useState(false);
-  const [sampleText, setSampleText] = useState(DEFAULT_SAMPLE);
+  const previewText = useSettingsStore((s) => s.fontPreviewText);
+  const [sampleText, setSampleText] = useState(previewText);
   const [glyphs, setGlyphs] = useState<string[]>([]);
   const [axisValues, setAxisValues] = useState<Record<string, number>>({});
   const fontRef = useRef<fontkit.Font | null>(null);
@@ -120,6 +123,13 @@ export function FontFocusViewer({ platform, item }: { platform: Platform; item: 
         />
       </div>
 
+      <Button
+        variant="secondary"
+        onClick={() => void applyFontPreview(platform, sampleText || previewText)}
+      >
+        {en.font.useEverywhere}
+      </Button>
+
       {meta.variableAxes.length > 0 && (
         <div>
           <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4 }}>
@@ -173,7 +183,7 @@ export function FontFocusViewer({ platform, item }: { platform: Platform; item: 
                 textOverflow: 'ellipsis',
               }}
             >
-              {sampleText || DEFAULT_SAMPLE}
+              {sampleText || previewText}
             </div>
           ))}
         </div>

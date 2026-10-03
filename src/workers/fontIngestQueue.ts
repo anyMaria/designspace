@@ -1,5 +1,6 @@
 import type { DbRow, Platform } from '@/platform';
 import { useLibraryStore } from '@/state/libraryStore';
+import { useSettingsStore } from '@/state/settingsStore';
 import { logger } from '@/lib/logger';
 import { extractFontDerivatives, SPECIMEN_ASPECT } from '@/lib/fontRender';
 import { CURRENT_DERIVED_V } from './ingestQueue';
@@ -54,7 +55,11 @@ export class FontIngestQueue {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
-      const { t128, t512, ...meta } = await extractFontDerivatives(bytes, item.itemId);
+      const { t128, t512, ...meta } = await extractFontDerivatives(
+        bytes,
+        item.itemId,
+        useSettingsStore.getState().fontPreviewText,
+      );
 
       await this.platform.cache.put(`t128/${item.itemId}`, new Uint8Array(t128));
       await this.platform.cache.put(`t512/${item.itemId}`, new Uint8Array(t512));
@@ -121,5 +126,17 @@ export async function resumePendingFontIngest(platform: Platform): Promise<numbe
   if (rows.length === 0) return 0;
   getFontIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path })));
 
+  return rows.length;
+}
+
+/** Queues every font item again so each card re-draws its sample line with the current preview
+ * text. Each finished item bumps its `thumb_v` (F1), so the cards update one by one. */
+export async function rerenderFontSpecimens(platform: Platform): Promise<number> {
+  const rows = await platform.db.select<PendingRow>(
+    `SELECT id, file_path FROM items
+     WHERE kind = 'font' AND deleted_at IS NULL AND file_path IS NOT NULL`,
+  );
+  if (rows.length === 0) return 0;
+  getFontIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path })));
   return rows.length;
 }

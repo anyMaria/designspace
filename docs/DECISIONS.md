@@ -2920,3 +2920,17 @@ window-state plugin no longer restoring full screen.
   for a single media item. Hashtags in descriptions appear in the Actions tab (`lib/actions.ts`).
 - The e2e persistence check loads `/` after writing, not `/?seed=demo`: the demo flag re-seeds a fresh
   library on every load, so the description would (correctly) be gone.
+
+## Patch 1 · Phase F: fonts on the map (v0.7.0)
+
+- **F1:** `cache.url(key, version)` adds `?v=<thumb_v>` on Tauri (the `media://` handler ignores the
+  query; the browser build's blob URLs are replaced on every `put`). Every thumbnail URL is built with
+  `lib/thumbs.ts`'s `thumbUrl` (the AI queue still uses the plain key). Each ingest success runs
+  `thumb_v = thumb_v + 1` in the same `UPDATE` and bumps `thumbV` in the store, so the canvas
+  (whose texture keys contain the URL, A3) reloads re-made thumbnails by itself.
+- **F2:** a library setting `fontPreviewText` (default "Sphinx of black quartz, judge my vow"). The
+  specimen wraps it onto at most two lines with an ellipsis (`wrapLines`, unit-tested with a fake
+  measure) instead of squeezing it with `fillText`'s `maxWidth`. Editing it in Settings → Canvas or
+  pressing "Show this text on all font cards" in the type tester saves it and re-queues every font
+  (`rerenderFontSpecimens`), so cards update one at a time. The type tester's sample field starts with
+  the preview text and still changes freely.

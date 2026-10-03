@@ -2,9 +2,13 @@ import type { ReactNode } from 'react';
 import { Tabs, Toggle } from '@/design/components';
 import { useUiStore } from '@/state/uiStore';
 import { en } from '@/i18n/en';
+import type { Platform } from '@/platform/types';
+import { useSettingsStore } from '@/state/settingsStore';
+import { applyFontPreview } from '@/features/focus/applyFontPreview';
 
 /** Settings → Canvas (§2.14): mouse wheel mode, dot grid density, minimap on/off, reduce motion. */
-export function CanvasSection() {
+export function CanvasSection({ platform }: { platform: Platform }) {
+  const fontPreview = useSettingsStore((s) => s.fontPreviewText);
   const wheelMode = useUiStore((s) => s.wheelMode);
   const setWheelMode = useUiStore((s) => s.setWheelMode);
   const dotGridDensity = useUiStore((s) => s.dotGridDensity);
@@ -67,6 +71,22 @@ export function CanvasSection() {
           label={en.settings.canvas.showNames}
         />
       </div>
+
+      <Field label={en.font.previewSetting}>
+        <input
+          aria-label={en.font.previewSetting}
+          key={fontPreview}
+          className="ds-chip-input__field"
+          defaultValue={fontPreview}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+          }}
+          onBlur={(e) => {
+            const next = e.target.value.trim();
+            if (next && next !== fontPreview) void applyFontPreview(platform, next);
+          }}
+        />
+      </Field>
 
       <Field label={en.settings.canvas.reduceMotion}>
         <Tabs
