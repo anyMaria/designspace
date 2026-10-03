@@ -402,7 +402,7 @@ Look: `docs/patch-1/mock-palettes.png`. Size: L. Version at the end: **0.4.0**.
 4. Types and mapping: `Item` gets optional `swatchColors?: SwatchColor[] | null`, `description?: unknown`, `descriptionText?: string | null`, `thumbV?: number`; `rowToItem` maps `swatch_colors` (JSON), `description` (JSON), `description_text`, `thumb_v` (number, default 0).
 **Tests:** migrations stay ordered with no gaps; `splitStatements(002)` gives 4 statements; `rowToItem` maps the new columns.
 
-### C1 · Palette maths (pure) `[ ]`
+### C1 · Palette maths (pure) `[x]`
 **File:** new `src/lib/palette.ts` (+ test). Constants in `tokens.ts` → `paletteGeometry = { cell: 96, gap: 8, pad: 8, cellRadius: 12, cardRadius: 20, singleSize: 160, singleRadius: 16, labelMinCellPx: 72 }`.
 - `SwatchColor = { hex: string; name?: string }`.
 - `normalizeHex(input)`: accepts `#abc`, `abc`, `#aabbcc`, `AABBCC` → `#AABBCC`, else `null`.
