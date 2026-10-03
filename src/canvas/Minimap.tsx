@@ -32,7 +32,23 @@ export function Minimap({ engine }: { engine: Engine | null }) {
 
   useEffect(() => {
     if (!engine) return;
-    return engine.on('connectionsChanged', setHoverLines);
+    // Coalesced to one animation frame, and an empty → empty change is ignored: the engine
+    // re-emits on every store change, and a synchronous setState from there loops with the
+    // binding that calls `setConnections`.
+    let raf = 0;
+    let latest: { fromId: string; toId: string; color: number }[] = [];
+    const off = engine.on('connectionsChanged', (lines) => {
+      latest = lines;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setHoverLines((prev) => (prev.length === 0 && latest.length === 0 ? prev : latest));
+      });
+    });
+    return () => {
+      off();
+      cancelAnimationFrame(raf);
+    };
   }, [engine]);
 
   // One repaint per change, coalesced to one animation frame.

@@ -389,7 +389,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       </div>
 
       {/* Bottom-left: minimap — §2.1 */}
-      {minimapOpen && (
+      {minimapOpen && engine && (
         <Panel
           style={{
             position: 'absolute',
