@@ -22,6 +22,8 @@ import { sortItems } from '@/features/list/listGrouping';
 import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
 import type { ContextMenuState } from './useContextMenu';
+import { contextMenuItemIds, type ContextMenuItemId } from './contextMenuItems';
+import type { Item } from '@/state/types';
 
 /** Right-click menu for a canvas item — §2.4. "Create board from selection" (M4-2) and, while
  * viewing a board, "Remove from board" (M4-3 — deletes only this board's placement, unlike Move
@@ -163,6 +165,64 @@ export function ContextMenu({
       });
   }
 
+  const selectedItems = ids
+    .map((id) => useLibraryStore.getState().items.get(id))
+    .filter((i): i is Item => !!i);
+
+  const entries: Record<
+    ContextMenuItemId,
+    { id: string; label: string; disabled?: boolean; onSelect: () => void }
+  > = {
+    'copy-image': {
+      id: 'copy-image',
+      label: en.contextMenu.copyImage,
+      onSelect: () => void copyImage(),
+    },
+    'show-in-explorer': {
+      id: 'show-in-explorer',
+      label: en.contextMenu.showInExplorer,
+      disabled: platform.kind !== 'tauri',
+      onSelect: () => void showInExplorer(),
+    },
+    'bring-to-front': {
+      id: 'bring-to-front',
+      label: en.contextMenu.bringToFront,
+      onSelect: () => stack(true),
+    },
+    'send-to-back': {
+      id: 'send-to-back',
+      label: en.contextMenu.sendToBack,
+      onSelect: () => stack(false),
+    },
+    'tidy-up': { id: 'tidy-up', label: en.contextMenu.tidyUp, onSelect: tidyUp },
+    'connect-to': { id: 'connect-to', label: en.connections.connectTo, onSelect: connectTo },
+    'back-to-inbox': {
+      id: 'back-to-inbox',
+      label: en.contextMenu.backToInbox,
+      onSelect: backToInbox,
+    },
+    'extract-palette': {
+      id: 'extract-palette',
+      label: en.swatches.extractPalette,
+      onSelect: extractPalette,
+    },
+    'create-board': {
+      id: 'create-board',
+      label: en.boards.createFromSelection,
+      onSelect: createBoard,
+    },
+    'remove-from-board': {
+      id: 'remove-from-board',
+      label: en.boards.removeFromBoard,
+      onSelect: removeFromBoard,
+    },
+    'move-to-trash': {
+      id: 'move-to-trash',
+      label: en.contextMenu.moveToTrash,
+      onSelect: moveToTrash,
+    },
+  };
+
   return (
     <>
       <div
@@ -174,64 +234,7 @@ export function ContextMenu({
         <Popover>
           <Menu
             aria-label="Item"
-            items={[
-              {
-                id: 'copy-image',
-                label: en.contextMenu.copyImage,
-                onSelect: () => void copyImage(),
-              },
-              {
-                id: 'show-in-explorer',
-                label: en.contextMenu.showInExplorer,
-                disabled: platform.kind !== 'tauri',
-                onSelect: () => void showInExplorer(),
-              },
-              {
-                id: 'bring-to-front',
-                label: en.contextMenu.bringToFront,
-                onSelect: () => stack(true),
-              },
-              {
-                id: 'send-to-back',
-                label: en.contextMenu.sendToBack,
-                onSelect: () => stack(false),
-              },
-              {
-                id: 'tidy-up',
-                label: en.contextMenu.tidyUp,
-                onSelect: tidyUp,
-              },
-              {
-                id: 'connect-to',
-                label: en.connections.connectTo,
-                onSelect: connectTo,
-              },
-              {
-                id: 'back-to-inbox',
-                label: en.contextMenu.backToInbox,
-                onSelect: backToInbox,
-              },
-              {
-                id: 'extract-palette',
-                label: en.swatches.extractPalette,
-                onSelect: extractPalette,
-              },
-              {
-                id: 'create-board',
-                label: en.boards.createFromSelection,
-                onSelect: createBoard,
-              },
-              ...(onBoard
-                ? [
-                    {
-                      id: 'remove-from-board',
-                      label: en.boards.removeFromBoard,
-                      onSelect: removeFromBoard,
-                    },
-                  ]
-                : []),
-              { id: 'move-to-trash', label: en.contextMenu.moveToTrash, onSelect: moveToTrash },
-            ]}
+            items={contextMenuItemIds(selectedItems, { onBoard }).map((id) => entries[id])}
           />
         </Popover>
       </div>

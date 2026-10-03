@@ -363,7 +363,7 @@ The font files are already in the repo: `src/design/fonts/urbanist/Urbanist-Vari
 9. Update plan §3.2 Typography, the README credits (Urbanist, OFL), and DECISIONS.
 **Done when:** screenshots of the map, Details, Settings and `/design` all use Urbanist; canvas labels too.
 
-### B6 · A right-click menu that fits what you clicked `[ ]`
+### B6 · A right-click menu that fits what you clicked `[x]`
 **Files:** new `src/canvas/contextMenuItems.ts` (+ test), `src/canvas/ContextMenu.tsx`.
 **Do:** `contextMenuItemIds(items: Item[], ctx: { onBoard: boolean; platformKind })` returns the ids to show, in today's order:
 copy-image only for exactly one image; show-in-explorer only when every item has a `filePath`; tidy-up only for 2+; connect-to only for exactly 1; back-to-inbox only when all are media kinds (image/video/pdf/font/link); extract-palette only when at least one item has a `palette`; create-board, remove-from-board (on a board) and move-to-trash always. Later phases add their own ids here. `ContextMenu.tsx` maps ids to the existing actions.
