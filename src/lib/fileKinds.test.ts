@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { ALL_SUPPORTED_EXTENSIONS, describe, expect, it } from 'vitest';
 import {
   detectMediaKind,
   extensionOf,
@@ -69,5 +69,14 @@ describe('detectMediaKind', () => {
 
   it('returns null for anything unsupported', () => {
     expect(detectMediaKind('notes.txt')).toBeNull();
+  });
+});
+
+describe('ALL_SUPPORTED_EXTENSIONS', () => {
+  it('covers every kind we can detect', () => {
+    for (const ext of ALL_SUPPORTED_EXTENSIONS) expect(detectMediaKind(`x.${ext}`)).not.toBeNull();
+    expect(ALL_SUPPORTED_EXTENSIONS).toEqual(
+      expect.arrayContaining(['jpg', 'mp4', 'pdf', 'woff2']),
+    );
   });
 });

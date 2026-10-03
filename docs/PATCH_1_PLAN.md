@@ -237,7 +237,7 @@ new `crates/designspace-core/src/media_url.rs`, `src-tauri/src/media_protocol.rs
 ### A6 · Link cards show the site and title until the picture is there `[x]`
 **Files:** `src/canvas/itemCards.ts`. **Do:** in the link branch, `noteText: thumbReady ? null : [safeDomain(item.url), item.title || null].filter(Boolean).join('\n')` (today it hides the text as soon as a cover path exists, even while the cover is still loading or failed). **Test:** extend or add a unit test for `itemToCard` (link with `coverPath` and `status: 'pending'` → has `noteText`).
 
-### A7 · Files… shows every supported file `[ ]`
+### A7 · Files… shows every supported file `[x]`
 **Files:** `src/lib/fileKinds.ts`, `src/features/import/AddMenu.tsx`, `src/i18n/en.ts`.
 **Do**
 1. `fileKinds.ts`: export the four extension lists as arrays (`IMAGE_EXTENSIONS`, `VIDEO_EXTENSIONS`, `PDF_EXTENSIONS`, `FONT_EXTENSIONS`) and `ALL_SUPPORTED_EXTENSIONS`; keep the existing Sets built from them.

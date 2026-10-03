@@ -308,6 +308,11 @@ export const en = {
     note: 'Note',
     swatch: 'Swatch',
     frame: 'Frame',
+    filterAll: 'All supported files',
+    filterImages: 'Images',
+    filterVideos: 'Videos',
+    filterPdfs: 'PDFs',
+    filterFonts: 'Fonts',
   },
   zoomMenu: {
     label: 'Zoom',

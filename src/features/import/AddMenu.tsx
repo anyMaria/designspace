@@ -19,12 +19,21 @@ import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDia
 import { LinkDialog } from './LinkDialog';
 import { importLink } from './importLink';
 import { useSettingsStore } from '@/state/settingsStore';
+import {
+  ALL_SUPPORTED_EXTENSIONS,
+  FONT_EXTENSIONS,
+  IMAGE_EXTENSIONS,
+  PDF_EXTENSIONS,
+  VIDEO_EXTENSIONS,
+} from '@/lib/fileKinds';
 
+// Windows pre-selects the first filter, so "All supported files" must come first.
 const MEDIA_FILTERS: FileFilter[] = [
-  { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg'] },
-  { name: 'Videos', extensions: ['mp4', 'webm', 'm4v', 'mov'] },
-  { name: 'PDFs', extensions: ['pdf'] },
-  { name: 'Fonts', extensions: ['ttf', 'otf', 'woff', 'woff2'] },
+  { name: en.addMenu.filterAll, extensions: ALL_SUPPORTED_EXTENSIONS },
+  { name: en.addMenu.filterImages, extensions: IMAGE_EXTENSIONS },
+  { name: en.addMenu.filterVideos, extensions: VIDEO_EXTENSIONS },
+  { name: en.addMenu.filterPdfs, extensions: PDF_EXTENSIONS },
+  { name: en.addMenu.filterFonts, extensions: FONT_EXTENSIONS },
 ];
 
 export interface AddMenuProps {
