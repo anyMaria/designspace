@@ -1,20 +1,19 @@
 import { test, expect } from '@playwright/test';
 
-test('the Add menu creates a swatch (click copies its HEX), and Extract palette turns a selection into swatches', async ({
-  page,
-}) => {
+test('the Add menu creates a swatch and clicking it copies its HEX', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (msg) => {
     if (msg.type() === 'error') errors.push(msg.text());
   });
 
-  await page.goto('/?seed=demo', { waitUntil: 'networkidle' });
+  // An empty library: new swatches land at the viewport centre only when it is free (B7).
+  await page.goto('/', { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
 
   // Add menu → Swatch creates a default-grey swatch and selects nothing new automatically, so
   // click it once to select (and copy its HEX).
-  await page.getByRole('button', { name: 'Add' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Swatch', exact: true }).click();
   await page.waitForTimeout(300);
 
@@ -28,7 +27,21 @@ test('the Add menu creates a swatch (click copies its HEX), and Extract palette 
   // The Details panel shows the Color field for the selected swatch.
   await expect(page.getByLabel('Color', { exact: true })).toHaveValue('#8c8c8c');
 
-  // Right-click a real image, Extract palette.
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('Extract palette turns a right-clicked image into swatches', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text());
+  });
+
+  await page.goto('/?seed=demo', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  const box = await page.locator('canvas').first().boundingBox();
+  if (!box) throw new Error('canvas not found');
+
   await page.keyboard.press('l');
   await page.waitForTimeout(200);
   const item0 = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
