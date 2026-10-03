@@ -336,7 +336,7 @@ Size: M. Version at the end: **0.3.0**.
 5. `data-testid="hover-name"`. Setting: Settings → Canvas → "Show names on hover".
 **Test:** e2e `patch1-hover-name.spec.ts`: on `/?seed=demo`, hover `(cx + 160, cy + 173)` (demo item 0, see A8) for 600 ms → `getByTestId('hover-name')` shows "BAUHAUS 1"; move the mouse to (5, 5) → it disappears.
 
-### B4 · Lines stop at the edges of the pictures `[ ]`
+### B4 · Lines stop at the edges of the pictures `[x]`
 **Files:** new `src/lib/lineAnchors.ts` (+ test), `src/canvas/Engine.ts`.
 **Do**
 1. `lineAnchors.ts` (code in Appendix A.6): `edgePoint(box, toward, gap)` and `clipSegmentToBoxes(a, b, gap)` (returns `null` when the boxes overlap so much that the clipped segment would point backwards), `distanceToSegment(p, a, b)`.

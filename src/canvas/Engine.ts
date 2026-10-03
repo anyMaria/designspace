@@ -3,7 +3,7 @@
 // renderer initializes — see node_modules/pixi.js/skills/pixijs-environments/SKILL.md.
 import 'pixi.js/unsafe-eval';
 import { cardAlpha, connectionRelatedSet } from './cardAlpha';
-import { distanceToSegment } from '@/lib/lineAnchors';
+import { clipSegmentToBoxes, distanceToSegment, edgePoint } from '@/lib/lineAnchors';
 import {
   Application,
   Assets,
@@ -116,6 +116,7 @@ const CRITERION_COLOR: Record<Criterion, number> = {
 const LINE_WIDTH_PX = 1.5;
 const LINE_WIDTH_HOVERED_PX = 2.5;
 const LINE_OPACITY = 0.7;
+const LINE_GAP_PX = 6; // space between a picture's edge and the line that leaves it
 const LINE_OFFSET_PX = 4; // spacing between up to 3 parallel lines for the same pair
 
 /** A `Hub` (from `lib/connections.ts`) plus the display label the caller already resolved via
@@ -1707,10 +1708,9 @@ export class Engine {
     }
 
     const { width: vw, height: vh } = this.app.screen;
-    const centerScreen = (card: ItemCard) => {
-      const cx = card.x + card.w / 2;
-      const cy = card.y + card.h / 2;
-      return this.camera.worldToScreen(cx, cy, vw, vh);
+    const boxScreen = (card: ItemCard) => {
+      const tl = this.camera.worldToScreen(card.x, card.y, vw, vh);
+      return { x: tl.x, y: tl.y, w: card.w * this.camera.zoom, h: card.h * this.camera.zoom };
     };
 
     const seenPairs = new Set<string>();
@@ -1718,7 +1718,7 @@ export class Engine {
     for (const { fromId, candidates } of this.connectionSources) {
       const fromCard = this.cards.get(fromId);
       if (!fromCard) continue;
-      const fromScreen = centerScreen(fromCard);
+      const fromBox = boxScreen(fromCard);
 
       for (const candidate of candidates) {
         const pairKey = [fromId, candidate.id].sort().join('|');
@@ -1727,7 +1727,12 @@ export class Engine {
 
         const toCard = this.cards.get(candidate.id);
         if (!toCard) continue;
-        const toScreen = centerScreen(toCard);
+        // Lines stop at the edge of each picture, on the side facing the other one (B4);
+        // pictures so close that the clipped line would point backwards get no line.
+        const clipped = clipSegmentToBoxes(fromBox, boxScreen(toCard), LINE_GAP_PX);
+        if (!clipped) continue;
+        const fromScreen = clipped.from;
+        const toScreen = clipped.to;
 
         const criteria = (Object.keys(candidate.shared) as Criterion[])
           .filter((c) => (candidate.shared[c]?.length ?? 0) > 0)
@@ -1837,6 +1842,12 @@ export class Engine {
       if (!card) return null;
       return this.camera.worldToScreen(card.x + card.w / 2, card.y + card.h / 2, vw, vh);
     };
+    const screenBoxOf = (id: string) => {
+      const card = this.cards.get(id);
+      if (!card) return null;
+      const tl = this.camera.worldToScreen(card.x, card.y, vw, vh);
+      return { x: tl.x, y: tl.y, w: card.w * this.camera.zoom, h: card.h * this.camera.zoom };
+    };
 
     for (const hub of this.showAllHubs) {
       const members = hub.itemIds
@@ -1853,9 +1864,21 @@ export class Engine {
         // A manual hub's "value" IS the connected item's own id (see `computeHubs`), so each
         // edge here is exactly one manual connection: member <-> hub.value.
         const isSelected = isManual && this.isSelectedConnectionPair(member.id, hub.value);
+        // The edge leaves the picture at its edge (B4) and stops short of the star.
+        const box = screenBoxOf(member.id);
+        const dirLen = Math.hypot(hx - member.pos.x, hy - member.pos.y);
+        if (!box || dirLen === 0) continue;
+        const start = edgePoint(box, { x: hx, y: hy }, LINE_GAP_PX);
+        const ux = (hx - member.pos.x) / dirLen;
+        const uy = (hy - member.pos.y) / dirLen;
+        const end = {
+          x: hx - ux * (HUB_STAR_RADIUS_PX + 2),
+          y: hy - uy * (HUB_STAR_RADIUS_PX + 2),
+        };
+        if ((end.x - start.x) * ux + (end.y - start.y) * uy <= 0) continue; // nothing left to draw
         const edge = new Graphics()
-          .moveTo(member.pos.x, member.pos.y)
-          .lineTo(hx, hy)
+          .moveTo(start.x, start.y)
+          .lineTo(end.x, end.y)
           .stroke({
             color,
             width: isSelected ? LINE_WIDTH_HOVERED_PX : HUB_LINE_WIDTH_PX,
