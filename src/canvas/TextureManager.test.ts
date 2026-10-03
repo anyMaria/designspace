@@ -97,4 +97,38 @@ describe('TextureManager', () => {
     expect(destroyed.sort()).toEqual(['a', 'b']);
     expect(manager.cachedCount).toBe(0);
   });
+
+  it('touch() protects a cached key from eviction and ignores uncached keys', async () => {
+    const destroyed: string[] = [];
+    const decode = vi.fn().mockImplementation((url: string) => Promise.resolve({ id: url }));
+    const manager = new TextureManager<{ id: string }>({
+      decode,
+      destroyItem: (item) => destroyed.push(item.id),
+      maxCachedItems: 2,
+    });
+
+    await manager.request('a', 'a');
+    await manager.request('b', 'b');
+    manager.touch('a'); // 'b' is now the least recently used
+    manager.touch('never-loaded'); // must not throw or create an entry
+    await manager.request('c', 'c');
+
+    expect(destroyed).toEqual(['b']);
+    expect(manager.cachedCount).toBe(2);
+  });
+
+  it('passes the key to destroyItem on eviction and on destroy()', async () => {
+    const destroyed: string[] = [];
+    const decode = vi.fn().mockImplementation((url: string) => Promise.resolve({ id: url }));
+    const manager = new TextureManager<{ id: string }>({
+      decode,
+      destroyItem: (_item, key) => destroyed.push(key),
+      maxCachedItems: 1,
+    });
+    await manager.request('k1', 'u1');
+    await manager.request('k2', 'u2');
+    expect(destroyed).toEqual(['k1']);
+    manager.destroy();
+    expect(destroyed).toEqual(['k1', 'k2']);
+  });
 });

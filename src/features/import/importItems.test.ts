@@ -24,7 +24,7 @@ vi.mock('@/workers/fontIngestQueue', () => ({
 }));
 
 // Imported after the mocks above so `importItems.ts` picks up the mocked ingest queues.
-const { importFiles, importPaths } = await import('./importItems');
+const { freeCentreFor, importFiles, importPaths } = await import('./importItems');
 
 function makeFile(name: string, content = 'x', type = 'image/png'): File {
   return new File([content], name, { type });
@@ -287,5 +287,35 @@ describe('importPaths', () => {
 
     expect(useLibraryStore.getState().items.size).toBe(1);
     expect(useHistoryStore.getState().past[0]?.label).toBe('Add item');
+  });
+});
+
+describe('freeCentreFor', () => {
+  it('returns the viewport centre when the spot is free, and moves aside when it is taken', () => {
+    useLibraryStore.setState({ placements: new Map() });
+    expect(freeCentreFor({ x: 500, y: 400 }, { w: 200, h: 200 })).toEqual({ x: 500, y: 400 });
+
+    useLibraryStore.setState({
+      placements: new Map([
+        [
+          'a',
+          {
+            boardId: 'lib',
+            itemId: 'a',
+            x: 400,
+            y: 300,
+            w: 200,
+            h: 200,
+            z: 0,
+            frameId: null,
+            addedAt: '',
+          },
+        ],
+      ]),
+    });
+    const next = freeCentreFor({ x: 500, y: 400 }, { w: 200, h: 200 });
+    expect(next).not.toEqual({ x: 500, y: 400 });
+    const overlaps = Math.abs(next.x - 500) < 200 && Math.abs(next.y - 400) < 200; // two 200-wide boxes
+    expect(overlaps).toBe(false);
   });
 });

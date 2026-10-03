@@ -25,7 +25,9 @@ export function ImportProgressCard() {
         padding: 'var(--space-4)',
       }}
     >
-      <span>{en.importProgress.adding(done, total)}</span>
+      <span style={{ minWidth: '16ch', textAlign: 'center' }}>
+        {en.importProgress.adding(done, total)}
+      </span>
       <ProgressBar
         value={total > 0 ? done / total : undefined}
         label={en.importProgress.adding(done, total)}

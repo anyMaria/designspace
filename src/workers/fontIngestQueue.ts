@@ -1,8 +1,9 @@
 import type { DbRow, Platform } from '@/platform';
 import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
-import { extractFontDerivatives } from '@/lib/fontRender';
+import { extractFontDerivatives, SPECIMEN_ASPECT } from '@/lib/fontRender';
 import { CURRENT_DERIVED_V } from './ingestQueue';
+import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
 import { queueAiAnalysis } from './aiQueue';
 
 export interface FontQueueItem {
@@ -51,6 +52,7 @@ export class FontIngestQueue {
     try {
       const url = this.platform.media.originalUrl(item.relPath);
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
       const { t128, t512, ...meta } = await extractFontDerivatives(bytes, item.itemId);
 
@@ -61,6 +63,8 @@ export class FontIngestQueue {
         `UPDATE items SET font_meta = ?, status = 'ok', derived_v = ?, updated_at = ? WHERE id = ?`,
         [JSON.stringify(meta), CURRENT_DERIVED_V, now, item.itemId],
       );
+
+      await fitPlacementsToAspect(this.platform, item.itemId, SPECIMEN_ASPECT);
 
       const current = useLibraryStore.getState().items.get(item.itemId);
       if (current) {
@@ -106,13 +110,15 @@ interface PendingRow extends DbRow {
 
 /** Font's counterpart to `ingestQueue.ts`'s `resumePendingIngest` — kept separate to avoid a
  * circular import between the two modules; `App.tsx` calls all four at startup. */
-export async function resumePendingFontIngest(platform: Platform): Promise<void> {
+export async function resumePendingFontIngest(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingRow>(
     `SELECT id, file_path FROM items
      WHERE kind = 'font' AND deleted_at IS NULL AND file_path IS NOT NULL
        AND (status = 'pending' OR derived_v < ?)`,
     [CURRENT_DERIVED_V],
   );
-  if (rows.length === 0) return;
+  if (rows.length === 0) return 0;
   getFontIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path })));
+
+  return rows.length;
 }

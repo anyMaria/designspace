@@ -3,6 +3,7 @@
 //! so WebGL textures and `fetch()` work under our COEP policy, and strict path safety.
 
 use crate::state::AppState;
+use designspace_core::media_url::{cache_file_name, parse_media_path, MediaRoot};
 use designspace_core::path_safety::{resolve_existing, PathSafetyError};
 use std::borrow::Cow;
 use std::fs;
@@ -95,14 +96,14 @@ fn read_range(path: &Path, range: Option<&ByteRange>) -> std::io::Result<Vec<u8>
     }
 }
 
-fn base_dir_for<R: Runtime>(app: &AppHandle<R>, root_kind: &str) -> Option<PathBuf> {
+fn base_dir_for<R: Runtime>(app: &AppHandle<R>, root_kind: MediaRoot) -> Option<PathBuf> {
     match root_kind {
-        "original" => {
+        MediaRoot::Original => {
             let state = app.state::<AppState>();
             let guard = state.library.lock().ok()?;
             guard.as_ref().map(|h| h.path.clone())
         }
-        "cache" => {
+        MediaRoot::Cache => {
             let state = app.state::<AppState>();
             let library_id = {
                 let guard = state.library.lock().ok()?;
@@ -117,11 +118,10 @@ fn base_dir_for<R: Runtime>(app: &AppHandle<R>, root_kind: &str) -> Option<PathB
             fs::create_dir_all(&dir).ok()?;
             Some(dir)
         }
-        "models" => {
+        MediaRoot::Models => {
             let dir = app.path().resource_dir().ok()?.join("models");
             Some(dir)
         }
-        _ => None,
     }
 }
 
@@ -129,12 +129,16 @@ fn try_handle<R: Runtime>(
     app: &AppHandle<R>,
     request: &Request<Vec<u8>>,
 ) -> Result<Response<Cow<'static, [u8]>>, StatusCode> {
-    let path = request.uri().path();
-    let trimmed = path.strip_prefix('/').unwrap_or(path);
-    let (root_kind, rel) = trimmed.split_once('/').ok_or(StatusCode::NOT_FOUND)?;
+    let parsed = parse_media_path(request.uri().path()).map_err(|_| StatusCode::NOT_FOUND)?;
+    let root_kind = parsed.root;
 
     let base = base_dir_for(app, root_kind).ok_or(StatusCode::NOT_FOUND)?;
-    let resolved = resolve_existing(&base, rel).map_err(|e| match e {
+    // Cached derivatives are stored as flat files (`t128/<id>` -> `t128_<id>`), see `cache_put`.
+    let rel = match root_kind {
+        MediaRoot::Cache => cache_file_name(&parsed.rel),
+        _ => parsed.rel,
+    };
+    let resolved = resolve_existing(&base, &rel).map_err(|e| match e {
         PathSafetyError::Escapes => StatusCode::FORBIDDEN,
         PathSafetyError::NotFound => StatusCode::NOT_FOUND,
     })?;
@@ -160,7 +164,7 @@ fn try_handle<R: Runtime>(
         .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
         .header("Cross-Origin-Resource-Policy", "cross-origin");
 
-    if root_kind == "cache" {
+    if root_kind == MediaRoot::Cache {
         // Cache keys are content-addressed — safe to cache forever.
         builder = builder.header(header::CACHE_CONTROL, "max-age=31536000, immutable");
     }
@@ -188,7 +192,10 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
     builder.register_asynchronous_uri_scheme_protocol("media", |ctx, request, responder| {
         let app = ctx.app_handle().clone();
         std::thread::spawn(move || {
-            let response = try_handle(&app, &request).unwrap_or_else(error_response);
+            let response = try_handle(&app, &request).unwrap_or_else(|status| {
+                log::warn!("media:// {} for {}", status, request.uri().path());
+                error_response(status)
+            });
             responder.respond(response);
         });
     })

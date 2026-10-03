@@ -454,9 +454,9 @@ Lines are 1.5 px on screen at every zoom level, with opacity 0.7 on hover and 0.
 | `--shadow-card` | `0 6px 18px rgba(6,1,10,0.5)` (items on the canvas) |
 
 **Typography**
-- **UI: Manrope** (variable, 400–700), bundled through Fontsource. Sizes 12 / 13 / 14 (body) / 16 / 20 / 28; line-height 1.4; tabular figures for counts.
-- **Display: Unbounded** (300–500), bundled through Fontsource. Used for the wordmark, board names in the switcher and gallery, and empty-state headings.
-- **Hub labels:** Manrope 12, semibold, uppercase, letter-spacing 0.06em.
+- **UI: Urbanist** (variable, 100–900, SIL OFL; files in `src/design/fonts/urbanist/`), medium (500) for body. Sizes 13 / 14 / 15 (body) / 17 / 21 / 30; line-height 1.4. Urbanist has no tabular figures, so changing numbers get a fixed `min-width` instead. *(Changed in Patch 1 · B5; was Manrope.)*
+- **Display: Urbanist Bold** (700, letter-spacing −0.01em). Used for the wordmark, board names in the switcher and gallery, and empty-state headings. *(Was Unbounded; Patch 1 · B5.)*
+- **Hub labels:** Urbanist 12, semibold, uppercase, letter-spacing 0.06em.
 - Both are swappable tokens (`--font-ui`, `--font-display`). No font is ever loaded from the internet.
 
 **Shape, spacing, icons, motion**
@@ -487,7 +487,7 @@ The minimum hit target is 32 px.
 - **Hover:** a slight lift (stronger shadow, scale 1.01), skipped at far zoom.
 - **Dimmed:** 12 % (search) and 35 % (connection focus).
 - **Hubs:** a 10 px star with a soft glow (pre-rendered texture) and a label pill (surface-2, text-1) underneath. Size grows with √(item count).
-- **Frames:** fill `rgba(255,255,255,0.03)`, hairline border, title above the top-left corner (Manrope 13 semibold).
+- **Frames:** fill `rgba(255,255,255,0.03)`, hairline border, title above the top-left corner (Urbanist 13 semibold).
 - **Notes:** a cream card with dark text by default; the other colors are light tints of sage, blush, amber and lavender, plus a dark plum note with light text.
 
 ### 3.5 Accessibility
@@ -549,7 +549,7 @@ Versions were current on 2026-09-27; confirm them before scaffolding.
 | Fonts | `fontkit` or `opentype.js` for metadata (decided in spike S6: WOFF2 name tables); the `FontFace` API for rendering |
 | Color | `culori` (OKLab/OKLCH, ΔE) |
 | Export | `jspdf` |
-| Icons & type | `lucide-react`; Fontsource packages for Manrope and Unbounded (bundled) |
+| Icons & type | `lucide-react`; Urbanist (bundled font files) |
 | AI | **`@huggingface/transformers` 4.x** (CLIP, WASM backend; WebGPU later). Hugging Face publishes a transformers.js agent skill in `github.com/huggingface/skills`. |
 | IDs | `ulid` |
 | Browser dev backend | `sql.js` + IndexedDB |

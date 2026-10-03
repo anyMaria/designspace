@@ -9,16 +9,16 @@ test('the Add menu creates a frame, double-clicking its title renames it, draggi
     if (msg.type() === 'error') errors.push(msg.text());
   });
 
-  await page.goto('/?seed=demo', { waitUntil: 'networkidle' });
+  // An empty library: new frames land at the viewport centre only when that spot is free (B7).
+  await page.goto('/', { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
 
   const canvas = page.locator('canvas').first();
-  await canvas.click();
   const box = await canvas.boundingBox();
   if (!box) throw new Error('canvas not found');
   const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 
-  await page.getByRole('button', { name: 'Add' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Frame', exact: true }).click();
   await page.waitForTimeout(300);
 

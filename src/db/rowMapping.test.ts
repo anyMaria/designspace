@@ -8,6 +8,33 @@ import {
 } from './rowMapping';
 
 describe('rowToItem', () => {
+  it('maps the Patch 1 columns, with safe defaults', () => {
+    const base = {
+      id: 'i',
+      kind: 'swatch',
+      title: '',
+      status: 'ok',
+      created_at: 'x',
+      updated_at: 'x',
+    };
+    const filled = rowToItem({
+      ...base,
+      swatch_colors: '[{"hex":"#AABBCC","name":"Sky"}]',
+      description: '{"type":"doc"}',
+      description_text: 'hello',
+      thumb_v: 3,
+    });
+    expect(filled.swatchColors).toEqual([{ hex: '#AABBCC', name: 'Sky' }]);
+    expect(filled.description).toEqual({ type: 'doc' });
+    expect(filled.descriptionText).toBe('hello');
+    expect(filled.thumbV).toBe(3);
+
+    const empty = rowToItem(base);
+    expect(empty.swatchColors).toBeNull();
+    expect(empty.descriptionText).toBeNull();
+    expect(empty.thumbV).toBe(0);
+  });
+
   it('maps a full row', () => {
     const item = rowToItem({
       id: 'i1',
@@ -75,6 +102,10 @@ describe('rowToItem', () => {
       deletedAt: null,
       body: null,
       bodyText: null,
+      swatchColors: null,
+      description: null,
+      descriptionText: null,
+      thumbV: 0,
       color: null,
       originBoardId: null,
       durationMs: null,

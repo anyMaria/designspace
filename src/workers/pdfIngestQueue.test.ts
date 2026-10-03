@@ -58,7 +58,7 @@ beforeEach(() => {
   extractPdfDerivatives.mockReset();
   vi.stubGlobal(
     'fetch',
-    vi.fn().mockResolvedValue({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
+    vi.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
   );
 });
 
@@ -165,6 +165,21 @@ describe('setPdfCoverPage', () => {
     expect(platform.db.execute).toHaveBeenCalledWith(
       expect.stringContaining("status = 'ok'"),
       expect.arrayContaining([3]),
+    );
+  });
+
+  it('marks the item unsupported when the original cannot be fetched', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, url: 'media://x' }));
+    const platform = makePlatform();
+    const queue = new PdfIngestQueue(platform);
+
+    queue.enqueue([{ itemId: 'p1', relPath: 'media/p1.bin' }]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(platform.db.execute).toHaveBeenCalledWith(
+      expect.stringContaining("status = 'unsupported'"),
+      [expect.any(String), 'p1'],
     );
   });
 });

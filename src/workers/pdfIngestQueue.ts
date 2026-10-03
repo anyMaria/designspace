@@ -3,6 +3,7 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
 import { extractPdfDerivatives } from '@/lib/pdfRender';
 import { CURRENT_DERIVED_V } from './ingestQueue';
+import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
 import { queueAiAnalysis } from './aiQueue';
 
 export interface PdfQueueItem {
@@ -22,6 +23,7 @@ async function deriveAndPersist(
   const now = new Date().toISOString();
   const url = platform.media.originalUrl(relPath);
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
   const bytes = await res.arrayBuffer();
   const derived = await extractPdfDerivatives(bytes, coverPageOverride);
 
@@ -43,6 +45,8 @@ async function deriveAndPersist(
       itemId,
     ],
   );
+
+  await fitPlacementsToAspect(platform, itemId, derived.width / derived.height);
 
   const current = useLibraryStore.getState().items.get(itemId);
   if (current) {
@@ -146,13 +150,15 @@ interface PendingRow extends DbRow {
 
 /** PDF's counterpart to `ingestQueue.ts`'s `resumePendingIngest` — kept separate to avoid a
  * circular import between the two modules; `App.tsx` calls all three at startup. */
-export async function resumePendingPdfIngest(platform: Platform): Promise<void> {
+export async function resumePendingPdfIngest(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingRow>(
     `SELECT id, file_path FROM items
      WHERE kind = 'pdf' AND deleted_at IS NULL AND file_path IS NOT NULL
        AND (status = 'pending' OR derived_v < ?)`,
     [CURRENT_DERIVED_V],
   );
-  if (rows.length === 0) return;
+  if (rows.length === 0) return 0;
   getPdfIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path })));
+
+  return rows.length;
 }

@@ -3,6 +3,7 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { logger } from '@/lib/logger';
 import { extractVideoDerivatives } from '@/lib/videoFrame';
 import { CURRENT_DERIVED_V } from './ingestQueue';
+import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
 import { queueAiAnalysis } from './aiQueue';
 
 export interface VideoQueueItem {
@@ -53,6 +54,7 @@ export class VideoIngestQueue {
     try {
       const url = this.platform.media.originalUrl(item.relPath);
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
       const derived = await extractVideoDerivatives(bytes, item.mime);
 
@@ -74,6 +76,8 @@ export class VideoIngestQueue {
           item.itemId,
         ],
       );
+
+      await fitPlacementsToAspect(this.platform, item.itemId, derived.width / derived.height);
 
       const current = useLibraryStore.getState().items.get(item.itemId);
       if (current) {
@@ -126,15 +130,17 @@ interface PendingRow extends DbRow {
 /** Video's counterpart to `ingestQueue.ts`'s `resumePendingIngest` — kept separate (rather than
  * one shared function) to avoid a circular import between the two modules; `App.tsx` calls both
  * at startup. */
-export async function resumePendingVideoIngest(platform: Platform): Promise<void> {
+export async function resumePendingVideoIngest(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingRow>(
     `SELECT id, file_path, mime FROM items
      WHERE kind = 'video' AND deleted_at IS NULL AND file_path IS NOT NULL
        AND (status = 'pending' OR derived_v < ?)`,
     [CURRENT_DERIVED_V],
   );
-  if (rows.length === 0) return;
+  if (rows.length === 0) return 0;
   getVideoIngestQueue(platform).enqueue(
     rows.map((r) => ({ itemId: r.id, relPath: r.file_path, mime: r.mime })),
   );
+
+  return rows.length;
 }

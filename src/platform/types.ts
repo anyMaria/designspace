@@ -147,6 +147,13 @@ export interface Platform {
     write(json: string): Promise<void>;
   };
 
+  /** Immersive full screen (Patch 1 · B1). In the browser it uses the Fullscreen API, which only
+   * works from a click or key press. */
+  window: {
+    isFullscreen(): Promise<boolean>;
+    setFullscreen(on: boolean): Promise<void>;
+  };
+
   clipboard: {
     readImage(): Promise<Uint8Array | null>;
     readText(): Promise<string | null>;

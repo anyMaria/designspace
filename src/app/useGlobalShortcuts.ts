@@ -3,6 +3,8 @@ import { useUiStore } from '@/state/uiStore';
 import { useSearchStore } from '@/state/searchStore';
 import { useShortcutsStore } from '@/state/shortcutsStore';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
+import type { Platform } from '@/platform';
+import { toggleFullscreen } from './fullscreen';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -11,7 +13,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 /** The single-key shortcuts from §2.15 that M0's shell already has UI for. The rest (search,
  * add, undo/redo, zoom-to-*…) land with the features that back them. */
-export function useGlobalShortcuts() {
+export function useGlobalShortcuts(platform: Platform) {
   const setTool = useUiStore((s) => s.setTool);
   const togglePanel = useUiStore((s) => s.togglePanel);
   const toggleMinimap = useUiStore((s) => s.toggleMinimap);
@@ -19,6 +21,12 @@ export function useGlobalShortcuts() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      // F11 works anywhere, even in a text field.
+      if (e.key === 'F11') {
+        e.preventDefault();
+        void toggleFullscreen(platform);
+        return;
+      }
       if (isTypingTarget(e.target)) return;
       // Shift+C (Constellations, §2.10) is distinct from bare "c" (the Connections popover) —
       // handled before the modifier early-return below, since Shift isn't one of the modifiers
@@ -67,5 +75,5 @@ export function useGlobalShortcuts() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [setTool, togglePanel, toggleMinimap, setSettingsOpen]);
+  }, [platform, setTool, togglePanel, toggleMinimap, setSettingsOpen]);
 }

@@ -1,20 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
-  Share2,
+  Shuffle,
+  Waypoints,
   MousePointer2,
   Hand,
   Settings as SettingsIcon,
   PanelRight,
   Download,
+  Fullscreen,
+  Minimize,
 } from 'lucide-react';
 import type { Platform, LibraryInfo } from '@/platform';
 import { useUiStore } from '@/state/uiStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
+import { toggleFullscreen } from './fullscreen';
 import { useSoftLimitNotice } from './useSoftLimitNotice';
 import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
+import { CanvasHoverOverlay } from '@/canvas/CanvasHoverOverlay';
 import type { Engine } from '@/canvas/Engine';
 import { useEngineBindings } from '@/canvas/useEngineBindings';
 import { useCanvasShortcuts } from '@/canvas/useCanvasShortcuts';
@@ -32,6 +37,7 @@ import { ImportProgressCard } from '@/features/import/ImportProgressCard';
 import { ToastHost } from '@/features/toasts/ToastHost';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
+import { PaletteEditor } from '@/features/palettes/PaletteEditor';
 import { BulkDetailsPanel } from '@/features/details/BulkDetailsPanel';
 import { TriageView } from '@/features/triage/TriageView';
 import { openInboxTriage } from '@/features/triage/openInboxTriage';
@@ -80,7 +86,7 @@ export interface ShellProps {
 }
 
 export function Shell({ platform, library, libraryBoardId, benchCount }: ShellProps) {
-  useGlobalShortcuts();
+  useGlobalShortcuts(platform);
   useUndoRedoShortcuts();
   useSoftLimitNotice();
   const tool = useUiStore((s) => s.tool);
@@ -91,6 +97,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const panelTab = useUiStore((s) => s.panelTab);
   const setPanelTab = useUiStore((s) => s.setPanelTab);
   const minimapOpen = useUiStore((s) => s.minimapOpen);
+  const fullscreen = useUiStore((s) => s.fullscreen);
   const settingsOpen = useUiStore((s) => s.settingsOpen);
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
   const [engine, setEngine] = useState<Engine | null>(null);
@@ -146,6 +153,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         benchCount={benchCount}
         onEngineReady={setEngine}
       />
+      <CanvasHoverOverlay engine={engine} />
 
       {/* Library map / Board empty state — §2.14 */}
       {placementCount === 0 && !benchCount && (
@@ -209,8 +217,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           </button>
         )}
         <IconButton
-          icon={<Share2 size={20} strokeWidth={1.75} />}
+          icon={<Shuffle size={20} strokeWidth={1.75} />}
           label={en.rediscover}
+          shortcut="R"
+          tooltipPlacement="bottom"
           onClick={() => triggerRediscover(engine)}
         />
       </div>
@@ -227,18 +237,36 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         }}
       >
         <IconButton
+          icon={
+            fullscreen ? (
+              <Minimize size={20} strokeWidth={1.75} />
+            ) : (
+              <Fullscreen size={20} strokeWidth={1.75} />
+            )
+          }
+          label={fullscreen ? en.fullscreen.exit : en.fullscreen.enter}
+          shortcut="F11"
+          tooltipPlacement="bottom"
+          onClick={() => void toggleFullscreen(platform)}
+        />
+        <IconButton
           icon={<Download size={20} strokeWidth={1.75} />}
           label={en.export.action}
+          tooltipPlacement="bottom"
           onClick={() => useExportUiStore.getState().setOpen(true)}
         />
         <IconButton
           icon={<SettingsIcon size={20} strokeWidth={1.75} />}
           label={en.settings.title}
+          shortcut="Ctrl+,"
+          tooltipPlacement="bottom"
           onClick={() => setSettingsOpen(true)}
         />
         <IconButton
           icon={<PanelRight size={20} strokeWidth={1.75} />}
           label={en.panel.list}
+          shortcut="L"
+          tooltipPlacement="bottom"
           active={panelOpen}
           onClick={togglePanel}
         />
@@ -300,6 +328,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             <IconButton
               icon={<Search size={20} strokeWidth={1.75} />}
               label={en.dock.search}
+              shortcut="Ctrl+K"
               onClick={() => useSearchStore.getState().open()}
             />
             {searchFilterActive && (
@@ -320,8 +349,9 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           </span>
           <span style={{ position: 'relative' }}>
             <IconButton
-              icon={<Share2 size={20} strokeWidth={1.75} />}
+              icon={<Waypoints size={20} strokeWidth={1.75} />}
               label={en.dock.connections}
+              shortcut="C"
               active={useConnectionsUiStore((s) => s.isOpen)}
               onClick={() => useConnectionsUiStore.getState().toggle()}
             />
@@ -331,12 +361,14 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           <IconButton
             icon={<MousePointer2 size={20} strokeWidth={1.75} />}
             label={en.dock.selectTool}
+            shortcut="V"
             active={tool === 'select'}
             onClick={() => setTool('select')}
           />
           <IconButton
             icon={<Hand size={20} strokeWidth={1.75} />}
             label={en.dock.handTool}
+            shortcut="H"
             active={tool === 'hand'}
             onClick={() => setTool('hand')}
           />
@@ -397,6 +429,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             )
           ) : selectedItems.length > 1 ? (
             <BulkDetailsPanel platform={platform} items={selectedItems} />
+          ) : selectedItem?.kind === 'swatch' ? (
+            <PaletteEditor platform={platform} item={selectedItem} engine={engine} />
           ) : selectedItem ? (
             <DetailsPanel platform={platform} item={selectedItem} engine={engine} />
           ) : (

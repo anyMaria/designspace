@@ -12,6 +12,7 @@
   --surface-1: #2a1832;
   --surface-2: #33203d;
   --surface-3: #3d2847;
+  --surface-1-92: rgba(42, 24, 50, 0.92); /* surface-1 at 92 %: the hover name pill */
   --hairline: rgba(255, 255, 255, 0.08);
 
   /* Text */
@@ -60,14 +61,14 @@
   --shadow-card: 0 6px 18px rgba(6, 1, 10, 0.5);
 
   /* Typography */
-  --font-ui: 'Manrope Variable', 'Manrope', system-ui, sans-serif;
-  --font-display: 'Unbounded', var(--font-ui);
-  --text-xs: 12px;
-  --text-sm: 13px;
-  --text-md: 14px;
-  --text-lg: 16px;
-  --text-xl: 20px;
-  --text-2xl: 28px;
+  --font-ui: 'Urbanist', system-ui, sans-serif;
+  --font-display: 'Urbanist', system-ui, sans-serif;
+  --text-xs: 13px;
+  --text-sm: 14px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 21px;
+  --text-2xl: 30px;
   --line-height: 1.4;
 
   /* Shape */
@@ -89,6 +90,7 @@
 
   /* Motion */
   --duration-hover: 120ms;
+  --hover-name-max-width: 280px;
   --duration-panel: 200ms;
   --duration-overlay: 320ms;
   --duration-fly-to: 500ms;

@@ -2,6 +2,10 @@
 // shader/uniform sync. This polyfill installs the static fallback and must load before any
 // renderer initializes — see node_modules/pixi.js/skills/pixijs-environments/SKILL.md.
 import 'pixi.js/unsafe-eval';
+import { cardAlpha, connectionRelatedSet } from './cardAlpha';
+import { drawPalette, paletteDrawKey } from './decor/paletteDecor';
+import { paletteCellAt } from '@/lib/palette';
+import { clipSegmentToBoxes, distanceToSegment, edgePoint } from '@/lib/lineAnchors';
 import {
   Application,
   Assets,
@@ -12,6 +16,7 @@ import {
   Sprite,
   Text,
   Texture,
+  type TextStyleOptions,
 } from 'pixi.js';
 import { Camera } from './Camera';
 import { SpatialIndex } from './spatialIndex';
@@ -25,7 +30,7 @@ import {
   resizeWithAspect,
   type ResizeHandle,
 } from './selection';
-import { canvasGeometry, colors, criterionColors, motion } from '@/design/tokens';
+import { canvasGeometry, colors, criterionColors, fonts, motion } from '@/design/tokens';
 import type { BenchRect } from '@/platform/seed/bench';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
@@ -72,6 +77,10 @@ export interface ItemCard {
   videoUrl: string | null;
   /** §2.4 PDF page-count badge — `null` until ingest reports it (or for every non-pdf kind). */
   pageCount: number | null;
+  /** Patch 1 · C3: a swatch's/palette's colours (`#RRGGBB`) and optional name, drawn by
+   * `decor/paletteDecor.ts`; `null` for every other kind. */
+  swatchColors: string[] | null;
+  swatchName: string | null;
 }
 
 interface EngineEvents {
@@ -81,6 +90,8 @@ interface EngineEvents {
   /** `world` is where the double-click landed, in canvas world coordinates — used to place a new
    * note when `id` is `null` (double-click on empty canvas, §2.11). */
   dblclick: (id: string | null, world: { x: number; y: number }) => void;
+  /** A click on a colour cell of an already-selected palette (Patch 1 · C3). */
+  swatchCellClick: (id: string, index: number) => void;
   contextmenu: (id: string | null, screen: { x: number; y: number }) => void;
   hover: (id: string | null) => void;
   /** A connection line was hovered (or un-hovered, `null`) — §2.10's "Hovering a line shows what
@@ -114,8 +125,8 @@ const CRITERION_COLOR: Record<Criterion, number> = {
 const LINE_WIDTH_PX = 1.5;
 const LINE_WIDTH_HOVERED_PX = 2.5;
 const LINE_OPACITY = 0.7;
+const LINE_GAP_PX = 6; // space between a picture's edge and the line that leaves it
 const LINE_OFFSET_PX = 4; // spacing between up to 3 parallel lines for the same pair
-const CONNECTIONS_DIM_ALPHA = 0.35;
 
 /** A `Hub` (from `lib/connections.ts`) plus the display label the caller already resolved via
  * `formatHubLabel` — Engine stays free of term/item lookups, matching how `ScoredCandidate`'s
@@ -135,6 +146,12 @@ const CONNECT_HANDLE_HIT_PX = 12;
 const DOUBLE_TAP_MS = 350;
 
 const HANDLE_SCREEN_PX = 10;
+/** Every canvas label uses the UI font; Pixi rasterises text once, so it must be loaded first
+ * (CanvasView waits for it). */
+function uiTextStyle(overrides: TextStyleOptions): TextStyleOptions {
+  return { fontFamily: fonts.ui, fontWeight: '500', ...overrides };
+}
+
 const DRAG_THRESHOLD_PX = 3;
 
 // Constellations (§2.10/§4.9).
@@ -201,6 +218,10 @@ export class Engine {
   private noteLabels = new Map<string, Text>(); // §2.11 — a note card's plain-text snippet
   // §2.4 — a video card's "▶ mm:ss" duration badge, or a PDF card's "PDF · N p" page-count badge.
   private cornerBadges = new Map<string, Text>();
+  /** Cards that draw themselves (swatches/palettes now, notes in D1): their sprite is never shown,
+   * this container is. Keyed by item id. */
+  private decor = new Map<string, Container>();
+  private decorKey = new Map<string, string>();
 
   // §2.11 frames.
   private frames = new Map<string, Frame>();
@@ -214,12 +235,22 @@ export class Engine {
   private itemIndex = new SpatialIndex();
   private itemVisible = new Set<string>();
   private textureManager: TextureManager<Texture> | null = null;
+  /** Card id → the texture key it currently shows (or is loading). Includes the URL, so a
+   * re-made thumbnail is a new key. */
+  private appliedTexKey = new Map<string, string>();
 
   // Search Dim/Hide (§2.8) — a null set means "no active filter, everything matches".
   private searchMatches: Set<string> | null = null;
   private searchMode: 'dim' | 'hide' = 'dim';
   // List panel group hover (§2.9) — takes priority over search alpha while set.
   private hoverHighlight: Set<string> | null = null;
+  /** Who set `hoverHighlight`: a List/Actions panel row, or a hub star on the map. Hub stars are
+   * re-created every frame so their `pointerout` never fires; see `recheckHubHighlight`. */
+  private hoverHighlightSource: 'panel' | 'hub' | null = null;
+  /** Last pointer position (screen px, relative to the container); null when it left the map. */
+  private lastPointer: { x: number; y: number } | null = null;
+  /** True while a card is being moved or resized: connection dimming pauses. */
+  private dragging = false;
   // Rediscover's pulse (§2.15) — cancels the running ticker callback, if any.
   private pulseStop: (() => void) | null = null;
   // On-hover/selection connections (§2.10) — the "from" item(s) plus scored candidates to draw
@@ -237,6 +268,8 @@ export class Engine {
   private connectDragLine: Graphics | null = null;
   private connecting = false; // hides the static handle while a drag-out is in progress
   private pickingConnectFrom: string | null = null;
+  /** "Pick from a photo" (Patch 1 · C4): the next click on a picture card reports where in it. */
+  private pickingPoint: ((hit: { id: string; u: number; v: number } | null) => void) | null = null;
   private selectedConnectionPair: { fromId: string; toId: string } | null = null;
   private lastLineTapAt: { key: string; at: number } | null = null;
   private suppressNextEmptyDblClick = false;
@@ -284,6 +317,7 @@ export class Engine {
     move: new Set(),
     resize: new Set(),
     dblclick: new Set(),
+    swatchCellClick: new Set(),
     contextmenu: new Set(),
     hover: new Set(),
     connectionLineHover: new Set(),
@@ -334,13 +368,27 @@ export class Engine {
     this.textureManager = new TextureManager<Texture>({
       decode: async (url) => {
         const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
         const blob = await res.blob();
         const bitmap = await createImageBitmap(blob);
         return Texture.from(bitmap);
       },
-      destroyItem: (tex) => tex.destroy(true),
+      destroyItem: (tex, key) => {
+        // A sprite still showing this texture goes back to its flat colour; the next cull reloads.
+        const id = key.split(':')[1] ?? '';
+        if (this.appliedTexKey.get(id) === key) {
+          const sprite = this.sprites.get(id);
+          const card = this.cards.get(id);
+          if (sprite && !sprite.destroyed) {
+            sprite.texture = Texture.WHITE;
+            if (card) sprite.tint = card.dominantColor;
+          }
+          this.appliedTexKey.delete(id);
+        }
+        tex.destroy(true);
+      },
       maxConcurrentDecodes: 6,
-      maxCachedItems: 300,
+      maxCachedItems: 1500,
     });
 
     this.detachInput = attachCanvasInput(container, this.camera, {
@@ -419,6 +467,8 @@ export class Engine {
       if (!next.has(id)) {
         sprite.destroy();
         this.sprites.delete(id);
+        this.appliedTexKey.delete(id);
+        this.removeDecor(id);
         const label = this.noteLabels.get(id);
         if (label) {
           label.destroy();
@@ -466,6 +516,55 @@ export class Engine {
     this.scheduleFrame();
   }
 
+  /** Whether this card draws itself through a decor container instead of its sprite. */
+  private isSelfDrawn(card: ItemCard): boolean {
+    return card.kind === 'swatch';
+  }
+
+  private removeDecor(id: string): void {
+    const d = this.decor.get(id);
+    if (!d) return;
+    d.destroy({ children: true });
+    this.decor.delete(id);
+    this.decorKey.delete(id);
+  }
+
+  /** Creates/moves/redraws/removes the decor of a self-drawn card. Position and z are cheap; the
+   * contents are redrawn only when `paletteDrawKey` changes (colours, size, name, labels on/off). */
+  private syncDecor(card: ItemCard): void {
+    if (!this.itemsLayer) return;
+    if (!this.isSelfDrawn(card)) {
+      this.removeDecor(card.id);
+      return;
+    }
+    const sprite = this.sprites.get(card.id);
+    if (sprite) {
+      sprite.visible = false; // the decor is what's shown
+      sprite.renderable = false;
+    }
+    let decor = this.decor.get(card.id);
+    if (!decor) {
+      decor = new Container();
+      decor.eventMode = 'none';
+      decor.visible = false; // `cullItems` decides
+      this.itemsLayer.addChild(decor);
+      this.decor.set(card.id, decor);
+    }
+    decor.position.set(card.x, card.y);
+    decor.zIndex = card.z;
+    const spec = {
+      w: card.w,
+      h: card.h,
+      colors: card.swatchColors ?? [],
+      name: card.swatchName,
+    };
+    const key = paletteDrawKey(spec, this.camera.zoom);
+    if (this.decorKey.get(card.id) !== key) {
+      drawPalette(decor, spec, this.camera.zoom);
+      this.decorKey.set(card.id, key);
+    }
+  }
+
   /** Creates/updates/removes a note or swatch card's plain-text snippet (§2.11), or a video/PDF/
    * font's "can't play/open/read this" fallback message (§2.4, when `card.noteText` is set) — see
    * the constants above for why it's a sibling `Text`, not a sprite child. A no-op for every other
@@ -477,9 +576,9 @@ export class Engine {
    * vanish. */
   private syncNoteLabel(card: ItemCard): void {
     if (!this.itemsLayer) return;
+    this.syncDecor(card);
     const wantsLabel =
       card.kind === 'note' ||
-      card.kind === 'swatch' ||
       ((card.kind === 'video' ||
         card.kind === 'pdf' ||
         card.kind === 'font' ||
@@ -507,13 +606,13 @@ export class Engine {
     } else {
       const label = new Text({
         text: card.noteText ?? '',
-        style: {
+        style: uiTextStyle({
           fontSize: NOTE_TEXT_FONT_SIZE_WORLD,
           fill,
           wordWrap: true,
           wordWrapWidth: wrapWidth,
           breakWords: true,
-        },
+        }),
       });
       label.position.set(x, y);
       label.zIndex = card.z + 0.5;
@@ -554,7 +653,7 @@ export class Engine {
     } else {
       const badge = new Text({
         text,
-        style: { fontSize: NOTE_TEXT_FONT_SIZE_WORLD, fill: 0xffffff },
+        style: uiTextStyle({ fontSize: NOTE_TEXT_FONT_SIZE_WORLD, fill: 0xffffff }),
         anchor: { x: 1, y: 1 },
       });
       badge.position.set(x, y);
@@ -611,7 +710,7 @@ export class Engine {
     if (!label) {
       label = new Text({
         text: frame.title,
-        style: { fontSize: FRAME_LABEL_FONT_SIZE_WORLD, fill: FRAME_COLOR },
+        style: uiTextStyle({ fontSize: FRAME_LABEL_FONT_SIZE_WORLD, fill: FRAME_COLOR }),
       });
       label.eventMode = 'none'; // hit-tested manually (screen-space rect), not via Pixi events
       this.itemsLayer.addChild(label);
@@ -719,8 +818,9 @@ export class Engine {
   /** List panel group hover (§2.9 "makes its items glow... while the rest dims") — takes
    * priority over the search Dim/Hide alpha while active, so hovering a group previews it even
    * with a search filter on; clearing it (`null`) falls back to whatever the search filter says. */
-  setHoverHighlight(ids: Set<string> | null): void {
+  setHoverHighlight(ids: Set<string> | null, source: 'panel' | 'hub' = 'panel'): void {
     this.hoverHighlight = ids;
+    this.hoverHighlightSource = ids ? source : null;
     this.refreshAlpha();
     this.scheduleFrame();
   }
@@ -749,6 +849,18 @@ export class Engine {
   startConnectPick(fromId: string): void {
     this.pickingConnectFrom = fromId;
     if (this.container) this.container.style.cursor = 'crosshair';
+  }
+
+  /** The next click on an image/video/PDF/link card calls back with the card and the click position
+   * inside it (`u`, `v` in 0–1); a click anywhere else calls back with `null`. */
+  startPointPick(cb: (hit: { id: string; u: number; v: number } | null) => void): void {
+    this.pickingPoint = cb;
+    if (this.container) this.container.style.cursor = 'crosshair';
+  }
+
+  cancelPointPick(): void {
+    this.pickingPoint = null;
+    if (this.container) this.container.style.cursor = '';
   }
 
   cancelConnectPick(): void {
@@ -933,7 +1045,27 @@ export class Engine {
   }
 
   private refreshAlpha(): void {
-    for (const [id, sprite] of this.sprites) sprite.alpha = this.alphaFor(id);
+    const related = connectionRelatedSet(this.connectionSources);
+    for (const id of this.sprites.keys()) this.setCardAlpha(id, this.alphaFor(id, related));
+  }
+
+  /** Every display object that belongs to a card (its picture, note label, corner badge), so a
+   * faded card never keeps dark text on a dark card. */
+  private forEachCardVisual(id: string, fn: (visual: Container) => void): void {
+    const sprite = this.sprites.get(id);
+    if (sprite) fn(sprite);
+    const decor = this.decor.get(id);
+    if (decor) fn(decor);
+    const label = this.noteLabels.get(id);
+    if (label) fn(label);
+    const badge = this.cornerBadges.get(id);
+    if (badge) fn(badge);
+  }
+
+  private setCardAlpha(id: string, alpha: number): void {
+    this.forEachCardVisual(id, (v) => {
+      v.alpha = alpha;
+    });
   }
 
   /** Rediscover's "make it pulse" (§2.15) — a brief alpha oscillation, not a selection outline
@@ -942,43 +1074,44 @@ export class Engine {
   pulseItem(id: string, durationMs = 1400): void {
     this.pulseStop?.();
     this.pulseStop = null;
-    const sprite = this.sprites.get(id);
-    if (!sprite || !this.app) return;
+    if (!this.sprites.has(id) || !this.app) return;
 
     const start = performance.now();
     const baseAlpha = this.alphaFor(id);
     const tick = () => {
       const elapsed = performance.now() - start;
       if (elapsed >= durationMs) {
-        sprite.alpha = this.alphaFor(id);
+        this.setCardAlpha(id, this.alphaFor(id));
         this.app?.ticker.remove(tick);
         if (this.pulseStop === stop) this.pulseStop = null;
         return;
       }
       const phase = (elapsed / 220) * Math.PI;
       const wave = (Math.sin(phase) + 1) / 2; // 0..1
-      sprite.alpha = baseAlpha * (0.4 + 0.6 * wave);
+      this.setCardAlpha(id, baseAlpha * (0.4 + 0.6 * wave));
     };
     const stop = () => {
       this.app?.ticker.remove(tick);
-      sprite.alpha = this.alphaFor(id);
+      this.setCardAlpha(id, this.alphaFor(id));
     };
     this.pulseStop = stop;
     this.app.ticker.add(tick);
   }
 
-  private alphaFor(id: string): number {
-    if (this.hoverHighlight) return this.hoverHighlight.has(id) ? 1 : 0.12;
-    if (this.connectionSources.length > 0) {
-      const related = new Set<string>();
-      for (const { fromId, candidates } of this.connectionSources) {
-        related.add(fromId);
-        for (const c of candidates) related.add(c.id);
-      }
-      return related.has(id) ? 1 : CONNECTIONS_DIM_ALPHA;
-    }
-    const isMatch = !this.searchMatches || this.searchMatches.has(id);
-    return isMatch || this.searchMode === 'hide' ? 1 : 0.12;
+  private alphaFor(
+    id: string,
+    related: Set<string> | null = connectionRelatedSet(this.connectionSources),
+  ): number {
+    return cardAlpha(
+      id,
+      {
+        hoverHighlight: this.hoverHighlight,
+        searchMatches: this.searchMatches,
+        searchMode: this.searchMode,
+        suppressConnectionDim: this.dragging,
+      },
+      related,
+    );
   }
 
   private interactableCards(): ItemCard[] {
@@ -990,6 +1123,10 @@ export class Engine {
   private clearItems(): void {
     for (const sprite of this.sprites.values()) sprite.destroy();
     this.sprites.clear();
+    this.appliedTexKey.clear();
+    for (const d of this.decor.values()) d.destroy({ children: true });
+    this.decor.clear();
+    this.decorKey.clear();
     for (const label of this.noteLabels.values()) label.destroy();
     this.noteLabels.clear();
     for (const badge of this.cornerBadges.values()) badge.destroy();
@@ -1093,6 +1230,9 @@ export class Engine {
     let startWorld = { x: 0, y: 0 };
     let startScreen = { x: 0, y: 0 };
     let moved = false;
+    // The card pressed on, and whether it was already selected before this press: a plain click
+    // on a colour cell of an already-selected palette copies that colour (C3).
+    let pressed: { id: string; wasSelected: boolean } | null = null;
     let resizeHandle: ResizeHandle | null = null;
     let resizeTargetId: string | null = null;
     let moveOrigin = new Map<string, { x: number; y: number }>();
@@ -1113,6 +1253,21 @@ export class Engine {
       startWorld = world;
       startScreen = { x: e.clientX, y: e.clientY };
       moved = false;
+
+      // Picking a colour from a photo overrides normal click behaviour too.
+      if (this.pickingPoint) {
+        const cb = this.pickingPoint;
+        this.cancelPointPick();
+        const hit = hitTest(this.interactableCards(), world);
+        const isPicture = hit && ['image', 'video', 'pdf', 'link'].includes(hit.kind);
+        cb(
+          hit && isPicture
+            ? { id: hit.id, u: (world.x - hit.x) / hit.w, v: (world.y - hit.y) / hit.h }
+            : null,
+        );
+        container.setPointerCapture(e.pointerId);
+        return;
+      }
 
       // Picking a "Connect to…" target overrides normal click behavior entirely.
       if (this.pickingConnectFrom) {
@@ -1193,7 +1348,7 @@ export class Engine {
       if (this.selection.size === 1) {
         const id = [...this.selection][0];
         const card = this.cards.get(id);
-        if (card) {
+        if (card && card.kind !== 'swatch') {
           const handle = resizeHandleAt(card, world, HANDLE_SCREEN_PX / this.camera.zoom);
           if (handle) {
             mode = 'resize';
@@ -1206,6 +1361,7 @@ export class Engine {
       }
 
       const hit = hitTest(this.interactableCards(), world);
+      pressed = hit ? { id: hit.id, wasSelected: this.selection.has(hit.id) } : null;
       if (hit) {
         if (this.selectedFrameId) this.setSelectedFrameId(null);
         if (!this.selection.has(hit.id)) {
@@ -1250,7 +1406,11 @@ export class Engine {
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      const crect = container.getBoundingClientRect();
+      this.lastPointer = { x: e.clientX - crect.left, y: e.clientY - crect.top };
       if (mode === 'idle') {
+        // The pointer is on the map, so it can't be on a List row any more.
+        if (this.hoverHighlightSource === 'panel') this.setHoverHighlight(null);
         const world = toWorld(e);
         const hit = hitTest(this.interactableCards(), world);
         if (hit?.id !== this.hoveredId) {
@@ -1264,7 +1424,13 @@ export class Engine {
       const dx = e.clientX - startScreen.x;
       const dy = e.clientY - startScreen.y;
       const justStartedMoving = !moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX;
-      if (justStartedMoving) moved = true;
+      if (justStartedMoving) {
+        moved = true;
+        if (mode === 'move' || mode === 'resize') {
+          this.dragging = true; // no connection dimming while dragging
+          this.refreshAlpha();
+        }
+      }
       if (!moved) return;
       if (justStartedMoving && mode === 'marquee') container.setPointerCapture(e.pointerId);
       const world = toWorld(e);
@@ -1348,6 +1514,10 @@ export class Engine {
     };
 
     const onPointerUp = (e: PointerEvent) => {
+      if (this.dragging) {
+        this.dragging = false;
+        this.refreshAlpha();
+      }
       if (mode === 'marquee' && moved) {
         const world = toWorld(e);
         const rect = normalizeRect(startWorld, world);
@@ -1355,6 +1525,12 @@ export class Engine {
         this.setSelection(hits.map((h) => h.id));
         this.emit('select', this.getSelection());
         this.clearMarquee();
+      } else if (mode === 'move' && !moved && pressed?.wasSelected) {
+        const card = this.cards.get(pressed.id);
+        if (card?.kind === 'swatch' && card.swatchColors && card.swatchColors.length >= 1) {
+          const cell = paletteCellAt(card.swatchColors.length, card, toWorld(e));
+          if (cell !== null) this.emit('swatchCellClick', card.id, cell);
+        }
       } else if (mode === 'move' && moved) {
         const updates = [...this.selection].map((id) => {
           const c = this.cards.get(id);
@@ -1430,7 +1606,24 @@ export class Engine {
     };
 
     container.addEventListener('pointerdown', onPointerDown);
+    const onPointerLeave = () => {
+      this.lastPointer = null;
+      if (this.hoverHighlightSource === 'hub') this.setHoverHighlight(null, 'hub');
+      if (this.hoveredConnectionLine) {
+        this.hoveredConnectionLine = null;
+        this.emit('connectionLineHover', null);
+        this.scheduleFrame();
+      }
+      if (this.hoveredId !== null) {
+        this.hoveredId = null;
+        this.emit('hover', null);
+        this.drawConnectHandle();
+        this.updateVideoPreview();
+      }
+    };
+
     container.addEventListener('pointermove', onPointerMove);
+    container.addEventListener('pointerleave', onPointerLeave);
     container.addEventListener('pointerup', onPointerUp);
     container.addEventListener('dblclick', onDblClick);
     container.addEventListener('contextmenu', onContextMenu);
@@ -1438,6 +1631,7 @@ export class Engine {
     return () => {
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
+      container.removeEventListener('pointerleave', onPointerLeave);
       container.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('dblclick', onDblClick);
       container.removeEventListener('contextmenu', onContextMenu);
@@ -1562,7 +1756,8 @@ export class Engine {
       this.handles.push(outline);
     }
 
-    if (selected.length === 1) {
+    if (selected.length === 1 && selected[0].kind !== 'swatch') {
+      // Swatches and palettes size themselves, so they get no resize handles.
       const card = selected[0];
       const corners: [number, number][] = [
         [card.x, card.y],
@@ -1622,20 +1817,23 @@ export class Engine {
     if (!this.overlayLayer || !this.app) return;
     for (const g of this.connectionLineGraphics) g.destroy();
     this.connectionLineGraphics = [];
-    if (this.connectionSources.length === 0) return;
+    if (this.connectionSources.length === 0) {
+      this.recheckHoveredLine(null);
+      return;
+    }
 
     const { width: vw, height: vh } = this.app.screen;
-    const centerScreen = (card: ItemCard) => {
-      const cx = card.x + card.w / 2;
-      const cy = card.y + card.h / 2;
-      return this.camera.worldToScreen(cx, cy, vw, vh);
+    const boxScreen = (card: ItemCard) => {
+      const tl = this.camera.worldToScreen(card.x, card.y, vw, vh);
+      return { x: tl.x, y: tl.y, w: card.w * this.camera.zoom, h: card.h * this.camera.zoom };
     };
 
     const seenPairs = new Set<string>();
+    let hoveredSegment: { a: { x: number; y: number }; b: { x: number; y: number } } | null = null;
     for (const { fromId, candidates } of this.connectionSources) {
       const fromCard = this.cards.get(fromId);
       if (!fromCard) continue;
-      const fromScreen = centerScreen(fromCard);
+      const fromBox = boxScreen(fromCard);
 
       for (const candidate of candidates) {
         const pairKey = [fromId, candidate.id].sort().join('|');
@@ -1644,7 +1842,12 @@ export class Engine {
 
         const toCard = this.cards.get(candidate.id);
         if (!toCard) continue;
-        const toScreen = centerScreen(toCard);
+        // Lines stop at the edge of each picture, on the side facing the other one (B4);
+        // pictures so close that the clipped line would point backwards get no line.
+        const clipped = clipSegmentToBoxes(fromBox, boxScreen(toCard), LINE_GAP_PX);
+        if (!clipped) continue;
+        const fromScreen = clipped.from;
+        const toScreen = clipped.to;
 
         const criteria = (Object.keys(candidate.shared) as Criterion[])
           .filter((c) => (candidate.shared[c]?.length ?? 0) > 0)
@@ -1661,6 +1864,7 @@ export class Engine {
           this.hoveredConnectionLine?.fromId === fromId &&
           this.hoveredConnectionLine?.toId === candidate.id;
         const isSelectedPair = this.isSelectedConnectionPair(fromId, candidate.id);
+        if (isHoveredPair) hoveredSegment = { a: fromScreen, b: toScreen };
 
         criteria.forEach((criterion, i) => {
           const offset = (i - (criteria.length - 1) / 2) * LINE_OFFSET_PX;
@@ -1705,6 +1909,31 @@ export class Engine {
         });
       }
     }
+    this.recheckHoveredLine(hoveredSegment);
+  }
+
+  /** Lines are re-created every frame, so a hovered line's `pointerout` can be lost. Drop the
+   * hover when the pointer is no longer near the line's new position (the slack covers the
+   * up-to-3 parallel offset lines). */
+  private recheckHoveredLine(
+    segment: { a: { x: number; y: number }; b: { x: number; y: number } } | null,
+  ): void {
+    if (!this.hoveredConnectionLine) return;
+    const p = this.lastPointer;
+    const near =
+      !!p && !!segment && distanceToSegment(p, segment.a, segment.b) <= 6 + LINE_OFFSET_PX;
+    if (near) return;
+    this.hoveredConnectionLine = null;
+    this.emit('connectionLineHover', null);
+  }
+
+  /** Stars are re-created every frame, so their `pointerout` never fires when they move away or
+   * disappear: clear a hub highlight unless the pointer is still on one of the stars just drawn. */
+  private recheckHubHighlight(stars: { x: number; y: number; r: number }[]): void {
+    if (this.hoverHighlightSource !== 'hub') return;
+    const p = this.lastPointer;
+    const stillOver = !!p && stars.some((st) => Math.hypot(p.x - st.x, p.y - st.y) <= st.r);
+    if (!stillOver) this.setHoverHighlight(null, 'hub');
   }
 
   /** §2.10/§4.9 Show all: a labeled star per hub at the centroid of its member items' current
@@ -1716,13 +1945,23 @@ export class Engine {
     if (!this.overlayLayer || !this.app) return;
     for (const g of this.hubDisplayObjects) g.destroy();
     this.hubDisplayObjects = [];
-    if (this.showAllHubs.length === 0) return;
+    const stars: { x: number; y: number; r: number }[] = [];
+    if (this.showAllHubs.length === 0) {
+      this.recheckHubHighlight(stars);
+      return;
+    }
 
     const { width: vw, height: vh } = this.app.screen;
     const screenCenterOf = (id: string) => {
       const card = this.cards.get(id);
       if (!card) return null;
       return this.camera.worldToScreen(card.x + card.w / 2, card.y + card.h / 2, vw, vh);
+    };
+    const screenBoxOf = (id: string) => {
+      const card = this.cards.get(id);
+      if (!card) return null;
+      const tl = this.camera.worldToScreen(card.x, card.y, vw, vh);
+      return { x: tl.x, y: tl.y, w: card.w * this.camera.zoom, h: card.h * this.camera.zoom };
     };
 
     for (const hub of this.showAllHubs) {
@@ -1740,9 +1979,21 @@ export class Engine {
         // A manual hub's "value" IS the connected item's own id (see `computeHubs`), so each
         // edge here is exactly one manual connection: member <-> hub.value.
         const isSelected = isManual && this.isSelectedConnectionPair(member.id, hub.value);
+        // The edge leaves the picture at its edge (B4) and stops short of the star.
+        const box = screenBoxOf(member.id);
+        const dirLen = Math.hypot(hx - member.pos.x, hy - member.pos.y);
+        if (!box || dirLen === 0) continue;
+        const start = edgePoint(box, { x: hx, y: hy }, LINE_GAP_PX);
+        const ux = (hx - member.pos.x) / dirLen;
+        const uy = (hy - member.pos.y) / dirLen;
+        const end = {
+          x: hx - ux * (HUB_STAR_RADIUS_PX + 2),
+          y: hy - uy * (HUB_STAR_RADIUS_PX + 2),
+        };
+        if ((end.x - start.x) * ux + (end.y - start.y) * uy <= 0) continue; // nothing left to draw
         const edge = new Graphics()
-          .moveTo(member.pos.x, member.pos.y)
-          .lineTo(hx, hy)
+          .moveTo(start.x, start.y)
+          .lineTo(end.x, end.y)
           .stroke({
             color,
             width: isSelected ? LINE_WIDTH_HOVERED_PX : HUB_LINE_WIDTH_PX,
@@ -1763,14 +2014,15 @@ export class Engine {
       star.eventMode = 'static';
       star.cursor = 'pointer';
       const memberSet = new Set(hub.itemIds);
-      star.on('pointerover', () => this.setHoverHighlight(memberSet));
-      star.on('pointerout', () => this.setHoverHighlight(null));
+      star.on('pointerover', () => this.setHoverHighlight(memberSet, 'hub'));
+      star.on('pointerout', () => this.setHoverHighlight(null, 'hub'));
       this.overlayLayer.addChild(star);
       this.hubDisplayObjects.push(star);
+      stars.push({ x: hx, y: hy, r: HUB_STAR_RADIUS_PX });
 
       const label = new Text({
         text: hub.label,
-        style: { fontSize: HUB_LABEL_FONT_SIZE, fill: 0xffffff },
+        style: uiTextStyle({ fontSize: HUB_LABEL_FONT_SIZE, fill: 0xffffff }),
       });
       label.anchor.set(0.5, 0);
       label.x = hx;
@@ -1778,6 +2030,7 @@ export class Engine {
       this.overlayLayer.addChild(label);
       this.hubDisplayObjects.push(label);
     }
+    this.recheckHubHighlight(stars);
   }
 
   /** Constellations' own hub rendering (§2.10: "Hubs are glowing, labeled stars"), distinct from
@@ -1788,7 +2041,11 @@ export class Engine {
     if (!this.overlayLayer || !this.app) return;
     for (const g of this.constellationOverlay) g.destroy();
     this.constellationOverlay = [];
-    if (!this.constellationsOn) return;
+    const stars: { x: number; y: number; r: number }[] = [];
+    if (!this.constellationsOn) {
+      this.recheckHubHighlight(stars);
+      return;
+    }
 
     const { width: vw, height: vh } = this.app.screen;
 
@@ -1814,14 +2071,19 @@ export class Engine {
       star.eventMode = 'static';
       star.cursor = 'grab';
       const memberSet = new Set(hub.itemIds);
-      star.on('pointerover', () => this.setHoverHighlight(memberSet));
-      star.on('pointerout', () => this.setHoverHighlight(null));
+      star.on('pointerover', () => this.setHoverHighlight(memberSet, 'hub'));
+      star.on('pointerout', () => this.setHoverHighlight(null, 'hub'));
       this.overlayLayer.addChild(star);
       this.constellationOverlay.push(star);
+      stars.push({ x: pos.x, y: pos.y, r: CONSTELLATION_HUB_STAR_RADIUS_PX });
 
       const label = new Text({
         text: hub.label,
-        style: { fontSize: HUB_LABEL_FONT_SIZE + 1, fill: 0xffffff, fontWeight: '600' },
+        style: uiTextStyle({
+          fontSize: HUB_LABEL_FONT_SIZE + 1,
+          fill: 0xffffff,
+          fontWeight: '600',
+        }),
       });
       label.anchor.set(0.5, 0);
       label.x = pos.x;
@@ -1847,11 +2109,11 @@ export class Engine {
 
       const label = new Text({
         text: en.connections.unclassified,
-        style: {
+        style: uiTextStyle({
           fontSize: CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE,
           fill: 0xffffff,
           fontStyle: 'italic',
-        },
+        }),
       });
       label.alpha = 0.6;
       label.anchor.set(0.5, 0.5);
@@ -1860,6 +2122,7 @@ export class Engine {
       this.overlayLayer.addChild(label);
       this.constellationOverlay.push(label);
     }
+    this.recheckHubHighlight(stars);
   }
 
   // ----------------------------------------------------------------------------- Camera / fly-to
@@ -1970,6 +2233,8 @@ export class Engine {
         if (label) label.visible = false;
         const badge = this.cornerBadges.get(id);
         if (badge) badge.visible = false;
+        const decor = this.decor.get(id);
+        if (decor) decor.visible = false;
       }
     }
     const hiddenBySearch = (id: string) =>
@@ -1979,13 +2244,22 @@ export class Engine {
       const card = this.cards.get(id);
       if (!sprite || !card) continue;
       const hidden = hiddenBySearch(id);
-      sprite.visible = !hidden;
-      sprite.renderable = !hidden;
+      const selfDrawn = this.isSelfDrawn(card);
+      sprite.visible = !hidden && !selfDrawn;
+      sprite.renderable = !hidden && !selfDrawn;
       const label = this.noteLabels.get(id);
       if (label) label.visible = !hidden;
       const badge = this.cornerBadges.get(id);
       if (badge) badge.visible = !hidden;
-      if (!hidden && !this.itemVisible.has(id)) this.requestLod(card, sprite);
+      if (selfDrawn) {
+        this.syncDecor(card); // zoom may have crossed the hex-label threshold
+        const decor = this.decor.get(id);
+        if (decor) decor.visible = !hidden;
+        continue;
+      }
+      // Every pass, not just on first sight: pictures that finish later must appear, and zooming
+      // in must swap in the sharper thumbnail.
+      if (!hidden) this.requestLod(card, sprite);
     }
     this.itemVisible = nextVisible;
   }
@@ -2063,9 +2337,12 @@ export class Engine {
       if (!rectsIntersect(rect, card) || hiddenBySearch(id)) continue;
       const sprite = this.sprites.get(id);
       if (sprite) {
-        sprite.visible = true;
-        sprite.renderable = true;
+        // A self-drawn card shows its decor, never a flat rectangle under it.
+        sprite.visible = !this.isSelfDrawn(card);
+        sprite.renderable = !this.isSelfDrawn(card);
       }
+      const decor = this.decor.get(id);
+      if (decor) decor.visible = true;
       const label = this.noteLabels.get(id);
       if (label) label.visible = true;
       const badge = this.cornerBadges.get(id);
@@ -2081,13 +2358,14 @@ export class Engine {
       const sprite = this.sprites.get(id);
       const url = card.thumbUrl512;
       if (!sprite || !url) continue;
-      const key = `t512:${id}`;
+      const key = `t512:${id}:${url}`;
       if (sprite.texture === this.textureManager.get(key)) continue;
       jobs.push(
         this.textureManager.request(key, url).then((texture) => {
           if (texture && !sprite.destroyed) {
             sprite.texture = texture;
             sprite.tint = 0xffffff;
+            this.appliedTexKey.set(id, key);
           }
         }),
       );
@@ -2117,19 +2395,32 @@ export class Engine {
     return g;
   }
 
-  private requestLod(card: ItemCard, sprite: Sprite): void {
-    const longSideWorld = Math.max(card.w, card.h);
-    const longSideScreen = longSideWorld * this.camera.zoom;
-    if (longSideScreen < canvasGeometry.farZoomThresholdPx) return; // flat color is correct as-is
-
+  /** Which texture a card should show right now, or null to keep whatever it shows (far zoom
+   * draws the flat colour; no thumbnail yet means the placeholder tint stays). The key contains
+   * the URL, so a re-made thumbnail (new URL) is a new key and gets loaded. */
+  private desiredTexture(card: ItemCard): { key: string; url: string } | null {
+    const longSideScreen = Math.max(card.w, card.h) * this.camera.zoom;
+    if (longSideScreen < canvasGeometry.farZoomThresholdPx) return null;
     const wantsT512 = longSideScreen > canvasGeometry.lod.t128Max;
-    const url = wantsT512 ? card.thumbUrl512 : card.thumbUrl128;
-    const key = wantsT512 ? `t512:${card.id}` : `t128:${card.id}`;
-    if (!url || !this.textureManager) return;
-    if (sprite.texture === this.textureManager.get(key)) return;
+    const url = wantsT512
+      ? (card.thumbUrl512 ?? card.thumbUrl128)
+      : (card.thumbUrl128 ?? card.thumbUrl512);
+    if (!url) return null;
+    return { key: `${wantsT512 ? 't512' : 't128'}:${card.id}:${url}`, url };
+  }
 
-    void this.textureManager.request(key, url).then((texture) => {
-      if (!texture || sprite.destroyed) return;
+  private requestLod(card: ItemCard, sprite: Sprite): void {
+    if (!this.textureManager) return;
+    const want = this.desiredTexture(card);
+    if (!want) return;
+    if (this.appliedTexKey.get(card.id) === want.key) {
+      this.textureManager.touch(want.key); // keep on-screen textures out of LRU eviction
+      return;
+    }
+    this.appliedTexKey.set(card.id, want.key); // also marks "in flight": no duplicate requests
+    void this.textureManager.request(want.key, want.url).then((texture) => {
+      if (sprite.destroyed || this.appliedTexKey.get(card.id) !== want.key) return; // superseded
+      if (!texture) return; // failed: keep the placeholder; a new URL (re-ingest) retries
       sprite.texture = texture;
       sprite.tint = 0xffffff;
     });
@@ -2162,7 +2453,10 @@ export class Engine {
       });
       if (this.videoPreviewId !== id) return; // hover moved on while this was loading
       const sprite = this.sprites.get(id);
-      if (sprite && !sprite.destroyed) sprite.texture = texture;
+      if (sprite && !sprite.destroyed) {
+        this.appliedTexKey.delete(id); // so stopVideoPreview → requestLod restores the poster
+        sprite.texture = texture;
+      }
     } catch {
       // Playback failed (e.g. a codec this browser can't decode) — leave the poster thumbnail
       // showing rather than surfacing an error for what's just a preview.

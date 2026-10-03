@@ -6,7 +6,7 @@ import { newId } from '@/lib/ids';
 import type { Command } from './types';
 import type { Frame } from '@/state/types';
 
-const DEFAULT_FRAME_SIZE = { w: 480, h: 360 };
+export const DEFAULT_FRAME_SIZE = { w: 480, h: 360 };
 
 /** §2.11 "Frames on any space" — a labeled grouping rectangle. Created via the Add menu, default-
  * sized and centered on the drop point, titled "Frame" (renamed in place afterward — see

@@ -13,6 +13,12 @@ export interface PaletteEntry {
   weight: number;
 }
 
+/** One colour of a swatch or palette (Patch 1 · C). */
+export interface SwatchColor {
+  hex: string;
+  name?: string;
+}
+
 export interface Item {
   id: string;
   kind: ItemKind;
@@ -47,6 +53,12 @@ export interface Item {
    * same as `null`. */
   body?: unknown;
   bodyText?: string | null;
+  /** Patch 1 (migration 002): a swatch/palette's colours, a note-format long description with its
+   * plain text for search, and the thumbnail version (bumped when t128/t512 are rewritten). */
+  swatchColors?: SwatchColor[] | null;
+  description?: unknown;
+  descriptionText?: string | null;
+  thumbV?: number;
   color?: string | null;
   originBoardId?: string | null;
   /** §2.4/§5.2 video fields (M5). `durationMs` is the whole clip; `posterMs` is the cover-frame

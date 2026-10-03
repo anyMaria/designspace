@@ -108,6 +108,8 @@ export const canvasGeometry = {
 /** Motion durations in ms — mirrors the CSS custom properties in tokens.css. */
 export const motion = {
   hover: 120,
+  /** How long the pointer rests on a card before its name pill appears (B3). */
+  hoverName: 350,
   panel: 200,
   overlay: 320,
   flyTo: 500,
@@ -120,4 +122,20 @@ export const zoomRange = {
   max: 8,
   /** Multiplier per Ctrl+=/Ctrl+− press or zoom-menu click. */
   step: 1.3,
+} as const;
+
+/** The UI font, mirrored for PixiJS and canvas drawing (tokens.css has `--font-ui`). */
+export const fonts = { ui: 'Urbanist' } as const;
+
+/** Palette and swatch cards on the map, in world units (Patch 1 · C1). */
+export const paletteGeometry = {
+  cell: 96,
+  gap: 8,
+  pad: 8,
+  cellRadius: 12,
+  cardRadius: 20,
+  singleSize: 160,
+  singleRadius: 16,
+  /** Hex labels inside cells only show when a cell is at least this many screen px wide. */
+  labelMinCellPx: 72,
 } as const;

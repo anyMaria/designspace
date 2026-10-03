@@ -87,6 +87,9 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
   const scrollRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(288);
 
+  // A group highlight must never outlive the list (its mouse-leave won't fire on unmount).
+  useEffect(() => () => engine?.setHoverHighlight(null), [engine]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -290,7 +293,11 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
           <p style={{ color: 'var(--text-3)' }}>{emptyMessage}</p>
         </div>
       ) : (
-        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+        <div
+          ref={scrollRef}
+          onScroll={() => engine?.setHoverHighlight(null)}
+          style={{ flex: 1, overflowY: 'auto', position: 'relative' }}
+        >
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const row = rows[virtualRow.index];

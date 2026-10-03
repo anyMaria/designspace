@@ -6,7 +6,7 @@ import type { NoteColor } from '@/design/tokens';
 import type { Command } from './types';
 import type { Item, Placement } from '@/state/types';
 
-const NOTE_SIZE = 220; // world units, a square sticky note — §2.11
+export const NOTE_SIZE = 220; // world units, a square sticky note — §2.11
 
 /** "Double-click the empty canvas" / "pasted text becomes a note" (§2.11). `boardId` is the
  * *current* space — a note created while on a board gets `origin_board_id` set to it (board-only,

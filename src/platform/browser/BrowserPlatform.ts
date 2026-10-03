@@ -218,6 +218,17 @@ export class BrowserPlatform implements Platform {
     },
   };
 
+  window = {
+    isFullscreen: (): Promise<boolean> => Promise.resolve(document.fullscreenElement !== null),
+    setFullscreen: async (on: boolean): Promise<void> => {
+      if (on && document.fullscreenElement === null) {
+        await document.documentElement.requestFullscreen();
+      } else if (!on && document.fullscreenElement !== null) {
+        await document.exitFullscreen();
+      }
+    },
+  };
+
   clipboard = {
     readImage: async (): Promise<Uint8Array | null> => {
       try {

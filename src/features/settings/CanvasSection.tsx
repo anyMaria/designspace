@@ -11,6 +11,10 @@ export function CanvasSection() {
   const setDotGridDensity = useUiStore((s) => s.setDotGridDensity);
   const minimapOpen = useUiStore((s) => s.minimapOpen);
   const toggleMinimap = useUiStore((s) => s.toggleMinimap);
+  const startFullscreen = useUiStore((s) => s.startFullscreen);
+  const setStartFullscreen = useUiStore((s) => s.setStartFullscreen);
+  const showNames = useUiStore((s) => s.showNamesOnHover);
+  const setShowNames = useUiStore((s) => s.setShowNamesOnHover);
   const reduceMotion = useUiStore((s) => s.reduceMotion);
   const setReduceMotion = useUiStore((s) => s.setReduceMotion);
 
@@ -44,6 +48,24 @@ export function CanvasSection() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>{en.settings.canvas.minimap}</span>
         <Toggle checked={minimapOpen} onChange={toggleMinimap} label={en.settings.canvas.minimap} />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>{en.fullscreen.setting}</span>
+        <Toggle
+          checked={startFullscreen}
+          onChange={() => setStartFullscreen(!startFullscreen)}
+          label={en.fullscreen.setting}
+        />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>{en.settings.canvas.showNames}</span>
+        <Toggle
+          checked={showNames}
+          onChange={() => setShowNames(!showNames)}
+          label={en.settings.canvas.showNames}
+        />
       </div>
 
       <Field label={en.settings.canvas.reduceMotion}>
