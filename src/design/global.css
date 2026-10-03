@@ -1,7 +1,4 @@
-@import '@fontsource-variable/manrope';
-@import '@fontsource/unbounded/300.css';
-@import '@fontsource/unbounded/400.css';
-@import '@fontsource/unbounded/500.css';
+@import './fonts.css';
 @import './tokens.css';
 @import './components/components.css';
 
@@ -27,7 +24,7 @@ body {
   font-family: var(--font-ui);
   font-size: var(--text-md);
   line-height: var(--line-height);
-  font-feature-settings: 'tnum' 1;
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -37,7 +34,8 @@ h2,
 h3,
 .font-display {
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 button,

@@ -25,7 +25,7 @@ export function ZoomMenu({ engine }: { engine: Engine | null }) {
       <button
         type="button"
         className="ds-icon-button"
-        style={{ width: 'auto', padding: '0 var(--space-3)', fontVariantNumeric: 'tabular-nums' }}
+        style={{ width: 'auto', padding: '0 var(--space-3)', minWidth: '6ch', textAlign: 'center' }}
         aria-label={en.zoomMenu.label}
         onClick={() => setOpen((o) => !o)}
       >

@@ -123,3 +123,6 @@ export const zoomRange = {
   /** Multiplier per Ctrl+=/Ctrl+− press or zoom-menu click. */
   step: 1.3,
 } as const;
+
+/** The UI font, mirrored for PixiJS and canvas drawing (tokens.css has `--font-ui`). */
+export const fonts = { ui: 'Urbanist' } as const;

@@ -345,7 +345,7 @@ Size: M. Version at the end: **0.3.0**.
 4. Lines stay in the overlay layer (above cards); clipping is what keeps them off the pictures.
 **Tests:** side by side → right edge to left edge; above/below → bottom to top; diagonal; overlapping → `null`; a zero-size box (a hub) → its centre plus the gap. Screenshot and compare with `docs/patch-1/mock-lines.png`.
 
-### B5 · Urbanist typography `[ ]`
+### B5 · Urbanist typography `[x]`
 **Files:** new `src/design/fonts.css`; `src/design/global.css`, `tokens.css`, `tokens.ts`; `src/canvas/Engine.ts`, `src/canvas/CanvasView.tsx`; `src/lib/fontRender.ts`; `src/canvas/ZoomMenu.tsx`, `src/features/import/ImportProgressCard.tsx`, `src/features/search/SearchBar.tsx`; `package.json`/`pnpm-lock.yaml`; `README.md`; `docs/IMPLEMENTATION_PLAN.md` §3.2.
 
 The font files are already in the repo: `src/design/fonts/urbanist/Urbanist-VariableFont_wght.ttf`,

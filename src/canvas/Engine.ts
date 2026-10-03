@@ -14,6 +14,7 @@ import {
   Sprite,
   Text,
   Texture,
+  type TextStyleOptions,
 } from 'pixi.js';
 import { Camera } from './Camera';
 import { SpatialIndex } from './spatialIndex';
@@ -27,7 +28,7 @@ import {
   resizeWithAspect,
   type ResizeHandle,
 } from './selection';
-import { canvasGeometry, colors, criterionColors, motion } from '@/design/tokens';
+import { canvasGeometry, colors, criterionColors, fonts, motion } from '@/design/tokens';
 import type { BenchRect } from '@/platform/seed/bench';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
@@ -137,6 +138,12 @@ const CONNECT_HANDLE_HIT_PX = 12;
 const DOUBLE_TAP_MS = 350;
 
 const HANDLE_SCREEN_PX = 10;
+/** Every canvas label uses the UI font; Pixi rasterises text once, so it must be loaded first
+ * (CanvasView waits for it). */
+function uiTextStyle(overrides: TextStyleOptions): TextStyleOptions {
+  return { fontFamily: fonts.ui, fontWeight: '500', ...overrides };
+}
+
 const DRAG_THRESHOLD_PX = 3;
 
 // Constellations (§2.10/§4.9).
@@ -534,13 +541,13 @@ export class Engine {
     } else {
       const label = new Text({
         text: card.noteText ?? '',
-        style: {
+        style: uiTextStyle({
           fontSize: NOTE_TEXT_FONT_SIZE_WORLD,
           fill,
           wordWrap: true,
           wordWrapWidth: wrapWidth,
           breakWords: true,
-        },
+        }),
       });
       label.position.set(x, y);
       label.zIndex = card.z + 0.5;
@@ -581,7 +588,7 @@ export class Engine {
     } else {
       const badge = new Text({
         text,
-        style: { fontSize: NOTE_TEXT_FONT_SIZE_WORLD, fill: 0xffffff },
+        style: uiTextStyle({ fontSize: NOTE_TEXT_FONT_SIZE_WORLD, fill: 0xffffff }),
         anchor: { x: 1, y: 1 },
       });
       badge.position.set(x, y);
@@ -638,7 +645,7 @@ export class Engine {
     if (!label) {
       label = new Text({
         text: frame.title,
-        style: { fontSize: FRAME_LABEL_FONT_SIZE_WORLD, fill: FRAME_COLOR },
+        style: uiTextStyle({ fontSize: FRAME_LABEL_FONT_SIZE_WORLD, fill: FRAME_COLOR }),
       });
       label.eventMode = 'none'; // hit-tested manually (screen-space rect), not via Pixi events
       this.itemsLayer.addChild(label);
@@ -1907,7 +1914,7 @@ export class Engine {
 
       const label = new Text({
         text: hub.label,
-        style: { fontSize: HUB_LABEL_FONT_SIZE, fill: 0xffffff },
+        style: uiTextStyle({ fontSize: HUB_LABEL_FONT_SIZE, fill: 0xffffff }),
       });
       label.anchor.set(0.5, 0);
       label.x = hx;
@@ -1964,7 +1971,11 @@ export class Engine {
 
       const label = new Text({
         text: hub.label,
-        style: { fontSize: HUB_LABEL_FONT_SIZE + 1, fill: 0xffffff, fontWeight: '600' },
+        style: uiTextStyle({
+          fontSize: HUB_LABEL_FONT_SIZE + 1,
+          fill: 0xffffff,
+          fontWeight: '600',
+        }),
       });
       label.anchor.set(0.5, 0);
       label.x = pos.x;
@@ -1990,11 +2001,11 @@ export class Engine {
 
       const label = new Text({
         text: en.connections.unclassified,
-        style: {
+        style: uiTextStyle({
           fontSize: CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE,
           fill: 0xffffff,
           fontStyle: 'italic',
-        },
+        }),
       });
       label.alpha = 0.6;
       label.anchor.set(0.5, 0.5);

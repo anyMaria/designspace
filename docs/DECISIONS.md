@@ -2822,3 +2822,18 @@ All nine tasks (A1–A9) are in. What changed, and what could not be checked wit
 **Not verifiable in the cloud (Owner checks on Windows):** the protocol fix itself (the browser build
 serves `blob:` URLs and never goes through Rust), pinch on a real trackpad, the Files… dialog's default
 filter, and the one-off re-derive of an existing library.
+
+## Patch 1 · Phase B (in progress)
+
+- **B1 full screen:** `platform.window.{isFullscreen,setFullscreen}`; the window-state plugin no longer
+  restores full screen (the "Open in full screen" setting decides). Toggling asks the window for its
+  real state first, since the OS can leave full screen on its own. On the browser build the setting is
+  ignored at boot (the Fullscreen API needs a user gesture).
+- **B2:** `IconButton` has no native `title` any more; the styled `Tooltip` (with `shortcut`) replaces it.
+- **B3:** the hover name pill stays hidden for the card and camera state it was timed for; any change
+  of either hides it at once, and the 350 ms timer shows it again. Duration is `motion.hoverName`.
+- **B4:** lines clip to each card's screen box (6 px gap); Show all edges leave the picture's edge and
+  stop 2 px short of the star.
+- **B5 Urbanist:** replaces Manrope and Unbounded. Urbanist has no tabular figures (checked with
+  fontkit), so zoom %, the import counter and the search count have fixed `min-width`s. Canvas text
+  goes through `uiTextStyle`, and `CanvasView` waits for the font before mounting the engine.

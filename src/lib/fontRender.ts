@@ -1,5 +1,5 @@
 import * as fontkit from 'fontkit';
-import { colors } from '@/design/tokens';
+import { colors, fonts } from '@/design/tokens';
 
 /** Metadata + specimen-card rendering for font items (§2.4, §4.9). Unlike video/PDF, a font's
  * card is a fixed dark design ("large 'Aa' in the font, the family name, one sample line") rather
@@ -97,7 +97,7 @@ function drawSpecimen(
   ctx.font = `${Math.round(160 * scale)}px "${localFamily}"`;
   ctx.fillText('Aa', 24 * scale, 180 * scale);
 
-  ctx.font = `${Math.round(24 * scale)}px sans-serif`;
+  ctx.font = `600 ${Math.round(24 * scale)}px ${fonts.ui}`;
   ctx.fillStyle = toHexColor(colors.text1);
   ctx.fillText(meta.family, 24 * scale, 230 * scale, w - 48 * scale);
 
@@ -147,6 +147,8 @@ export async function extractFontDerivatives(
   const meta = readMeta(font);
   const face = await registerFontFace(bytes, localFamily);
   try {
+    // The specimen's family-name line is drawn in the UI font; make sure it is ready.
+    await document.fonts.load(`600 24px ${fonts.ui}`).catch(() => []);
     const [t128, t512] = await Promise.all([
       canvasToWebp(drawSpecimen(localFamily, meta, THUMB_W, THUMB_H)),
       canvasToWebp(drawSpecimen(localFamily, meta, SPECIMEN_W, SPECIMEN_H)),
