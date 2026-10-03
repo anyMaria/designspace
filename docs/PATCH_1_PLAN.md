@@ -534,7 +534,7 @@ Look: `docs/patch-1/mock-bubble.png`. Size: M. Version at the end: **0.6.0**.
 - Style: surface-1, radius 20, float shadow, padding 18 (mockup).
 **Test:** e2e `patch1-description.spec.ts`: hover demo item 0 (`cx + 160, cy + 173`, see A8), click `getByTestId('thought-bubble')`, type text, press Esc; hover again: `data-has-description` is `"true"`; reload; the text is still there; searching a word from it finds the item.
 
-### E4 · Description in Details and the menus `[ ]`
+### E4 · Description in Details and the menus `[x]`
 - Details panel (media kinds): a "Description" field showing the first 4 lines (or "Add a description…") and an "Open" button (flies to the item if needed, then opens the panel).
 - Right-click on a media item: "Add description" / "Edit description".
 - Hashtags in descriptions appear in the Actions tab (D4 step 2).

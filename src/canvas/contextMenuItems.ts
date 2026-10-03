@@ -1,4 +1,5 @@
 import type { Item } from '@/state/types';
+import { isMediaKind } from '@/lib/itemKinds';
 import { noteColorNames, type NoteColor } from '@/design/tokens';
 
 export type ContextMenuItemId =
@@ -16,6 +17,8 @@ export type ContextMenuItemId =
   | 'create-board'
   | 'remove-from-board'
   | 'edit-note'
+  | 'description-add'
+  | 'description-edit'
   | `note-color-${NoteColor}`
   | 'move-to-trash';
 
@@ -40,6 +43,10 @@ export function contextMenuItemIds(items: Item[], ctx: { onBoard: boolean }): Co
   // Swatches and palettes carry a derived `palette` too, but extracting from them is pointless.
   if (items.some((i) => i.kind !== 'swatch' && (i.palette?.length ?? 0) > 0))
     ids.push('extract-palette');
+  // One media item: add or edit its long description (Patch 1 · E4).
+  const only = items.length === 1 ? items[0] : null;
+  if (only && isMediaKind(only.kind))
+    ids.push(only.descriptionText?.trim() ? 'description-edit' : 'description-add');
   const allSwatches = items.length > 0 && items.every((i) => i.kind === 'swatch');
   if (allSwatches && items.length >= 2) ids.push('combine-palette');
   if (allSwatches && items.length === 1) ids.push('edit-palette', 'copy-colors');

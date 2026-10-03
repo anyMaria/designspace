@@ -2899,3 +2899,24 @@ window-state plugin no longer restoring full screen.
   lands, in descriptions (`lib/actions.ts`). Click goes to the item (switching space when needed),
   hover highlights it. Search already finds hashtags (checked in `patch1-actions.spec.ts`). Ticking
   actions off is not in Patch 1 (Q6).
+
+## Patch 1 · CI fixes after Phase D, and Phase E: descriptions and the thought bubble (v0.6.0)
+
+- **CI after Phase D:** the browser tests failed on the GitHub runner only (all green locally): two
+  specs hung on a debug `page.screenshot` that nothing asserted (removed), the suggestions-tray spec
+  clicked while the "Created board" toast covered the button (now waits for the toast to go), and the
+  PDF Focus view logged pdf.js's expected `RenderingCancelledException` when the document was
+  destroyed mid-render (now ignored in the viewer, a real fix, not a test change). The next CI run was green.
+- **E1:** `items.description` (TipTap JSON) and `description_text` (for search) via one undoable command;
+  the search index has a `description` field.
+- **E2:** the thought bubble (`canvas/ThoughtBubbleOverlay.tsx`, a sibling of the hover-name overlay
+  rather than inside it, to keep each overlay small) sits 6 px right of and 26 px above a media card's
+  top-right corner, or inside the corner when that would leave the window. It shows while the card or
+  the bubble is hovered, for 400 ms after, and while that item's panel is open.
+- **E3:** the panel is anchored beside the card (as tall as the card, 240 px minimum, 320–480 px wide,
+  on the left when there is no room on the right) and hidden, not closed, while the item is off
+  screen. One undoable save per editing session (blur or close, only when the text changed).
+- **E4:** Details shows the first 4 lines and an Open button; right-click offers Add/Edit description
+  for a single media item. Hashtags in descriptions appear in the Actions tab (`lib/actions.ts`).
+- The e2e persistence check loads `/` after writing, not `/?seed=demo`: the demo flag re-seeds a fresh
+  library on every load, so the description would (correctly) be gone.

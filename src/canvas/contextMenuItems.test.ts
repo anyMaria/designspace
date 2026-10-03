@@ -94,3 +94,14 @@ describe('contextMenuItemIds', () => {
     expect(contextMenuItemIds([item({})], { onBoard: true })).toContain('remove-from-board');
   });
 });
+
+describe('description entries', () => {
+  it('a single media item offers Add or Edit description; notes and multi-selections do not', () => {
+    expect(contextMenuItemIds([item({})], ctx)).toContain('description-add');
+    expect(contextMenuItemIds([item({ descriptionText: 'x' })], ctx)).toContain('description-edit');
+    expect(contextMenuItemIds([item({}), item({ id: 'b' })], ctx)).not.toContain('description-add');
+    expect(contextMenuItemIds([item({ kind: 'swatch', filePath: null })], ctx)).not.toContain(
+      'description-add',
+    );
+  });
+});

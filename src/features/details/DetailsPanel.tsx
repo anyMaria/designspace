@@ -20,6 +20,8 @@ import { ChipInput, Swatch, Toggle, Button, IconButton } from '@/design/componen
 import { formatBytes } from '@/lib/formatBytes';
 import { formatDuration } from '@/lib/formatDuration';
 import { findSimilarItemIds } from '@/lib/ai/findSimilar';
+import { isMediaKind } from '@/lib/itemKinds';
+import { useDescriptionStore } from '@/state/descriptionStore';
 import { en } from '@/i18n/en';
 import { SuggestionsSection } from '@/features/ai/SuggestionsSection';
 
@@ -190,6 +192,35 @@ export function DetailsPanel({
         defaultValue={item.title}
         onBlur={(e) => setField('title', e.target.value)}
       />
+
+      {isMediaKind(item.kind) && (
+        <Field label={en.description.field}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            <p
+              style={{
+                margin: 0,
+                display: '-webkit-box',
+                WebkitLineClamp: 4,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                whiteSpace: 'pre-wrap',
+                color: item.descriptionText?.trim() ? 'var(--text-1)' : 'var(--text-3)',
+              }}
+            >
+              {item.descriptionText?.trim() || en.description.empty}
+            </p>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                engine?.zoomToIds([item.id]);
+                useDescriptionStore.getState().open(item.id);
+              }}
+            >
+              {en.description.open}
+            </Button>
+          </div>
+        </Field>
+      )}
 
       <Field label={en.vocabulary.facets.type}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>

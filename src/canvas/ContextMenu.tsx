@@ -6,6 +6,7 @@ import { useHistoryStore } from '@/commands/history';
 import { useToastStore } from '@/state/toastStore';
 import { noteColorNames, type NoteColor } from '@/design/tokens';
 import { useNoteEditStore } from '@/state/noteEditStore';
+import { useDescriptionStore } from '@/state/descriptionStore';
 import {
   createSetItemFieldCommand,
   createStackOrderCommand,
@@ -194,6 +195,12 @@ export function ContextMenu({
       .catch((err: unknown) => logger.warn('Copy all colors failed', err));
   }
 
+  function openDescription(): void {
+    onClose();
+    engine?.zoomToIds([state.itemId]);
+    useDescriptionStore.getState().open(state.itemId);
+  }
+
   function editNote(): void {
     onClose();
     useNoteEditStore.getState().open(state.itemId);
@@ -236,6 +243,16 @@ export function ContextMenu({
   ) as Record<`note-color-${NoteColor}`, Entry>;
   const entries: Record<ContextMenuItemId, Entry> = {
     ...colorEntries,
+    'description-add': {
+      id: 'description-add',
+      label: en.description.add,
+      onSelect: openDescription,
+    },
+    'description-edit': {
+      id: 'description-edit',
+      label: en.description.edit,
+      onSelect: openDescription,
+    },
     'edit-note': { id: 'edit-note', label: en.notes.edit, onSelect: editNote },
     'copy-image': {
       id: 'copy-image',
