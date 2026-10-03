@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
-  Share2,
+  Shuffle,
+  Waypoints,
   MousePointer2,
   Hand,
   Settings as SettingsIcon,
@@ -213,8 +214,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           </button>
         )}
         <IconButton
-          icon={<Share2 size={20} strokeWidth={1.75} />}
+          icon={<Shuffle size={20} strokeWidth={1.75} />}
           label={en.rediscover}
+          shortcut="R"
+          tooltipPlacement="bottom"
           onClick={() => triggerRediscover(engine)}
         />
       </div>
@@ -239,21 +242,28 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             )
           }
           label={fullscreen ? en.fullscreen.exit : en.fullscreen.enter}
+          shortcut="F11"
+          tooltipPlacement="bottom"
           onClick={() => void toggleFullscreen(platform)}
         />
         <IconButton
           icon={<Download size={20} strokeWidth={1.75} />}
           label={en.export.action}
+          tooltipPlacement="bottom"
           onClick={() => useExportUiStore.getState().setOpen(true)}
         />
         <IconButton
           icon={<SettingsIcon size={20} strokeWidth={1.75} />}
           label={en.settings.title}
+          shortcut="Ctrl+,"
+          tooltipPlacement="bottom"
           onClick={() => setSettingsOpen(true)}
         />
         <IconButton
           icon={<PanelRight size={20} strokeWidth={1.75} />}
           label={en.panel.list}
+          shortcut="L"
+          tooltipPlacement="bottom"
           active={panelOpen}
           onClick={togglePanel}
         />
@@ -315,6 +325,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             <IconButton
               icon={<Search size={20} strokeWidth={1.75} />}
               label={en.dock.search}
+              shortcut="Ctrl+K"
               onClick={() => useSearchStore.getState().open()}
             />
             {searchFilterActive && (
@@ -335,8 +346,9 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           </span>
           <span style={{ position: 'relative' }}>
             <IconButton
-              icon={<Share2 size={20} strokeWidth={1.75} />}
+              icon={<Waypoints size={20} strokeWidth={1.75} />}
               label={en.dock.connections}
+              shortcut="C"
               active={useConnectionsUiStore((s) => s.isOpen)}
               onClick={() => useConnectionsUiStore.getState().toggle()}
             />
@@ -346,12 +358,14 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           <IconButton
             icon={<MousePointer2 size={20} strokeWidth={1.75} />}
             label={en.dock.selectTool}
+            shortcut="V"
             active={tool === 'select'}
             onClick={() => setTool('select')}
           />
           <IconButton
             icon={<Hand size={20} strokeWidth={1.75} />}
             label={en.dock.handTool}
+            shortcut="H"
             active={tool === 'hand'}
             onClick={() => setTool('hand')}
           />

@@ -317,7 +317,7 @@ Size: M. Version at the end: **0.3.0**.
 7. Settings → Canvas: toggle "Open in full screen". Shortcut list: add F11.
 **Owner checks:** the app opens in full screen; F11 and the button leave and enter it; the setting turns it off.
 
-### B2 · Clearer icons, tooltips with shortcuts `[ ]`
+### B2 · Clearer icons, tooltips with shortcuts `[x]`
 **Files:** `src/app/Shell.tsx`, `src/design/components/IconButton.tsx`, `Tooltip.tsx`, `DesignPage.tsx`.
 **Do**
 1. Dock Connections: `Waypoints` (Q1). Top-left Rediscover: `Shuffle` (Q2). Both from `lucide-react` (already installed, checked present in 1.48.0).
