@@ -7,7 +7,7 @@ import { colorFamily } from '@/lib/color';
 import type { Command } from './types';
 import type { Item, Placement } from '@/state/types';
 
-const SWATCH_SIZE = 160; // world units — §2.11's spec table: "160 × 160"
+export const SWATCH_SIZE = 160; // world units — §2.11's spec table: "160 × 160"
 const DEFAULT_SWATCH_COLOR = '#8c8c8c';
 const MIN_EXTRACTED = 5;
 const MAX_EXTRACTED = 8;

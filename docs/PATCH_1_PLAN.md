@@ -369,7 +369,7 @@ The font files are already in the repo: `src/design/fonts/urbanist/Urbanist-Vari
 copy-image only for exactly one image; show-in-explorer only when every item has a `filePath`; tidy-up only for 2+; connect-to only for exactly 1; back-to-inbox only when all are media kinds (image/video/pdf/font/link); extract-palette only when at least one item has a `palette`; create-board, remove-from-board (on a board) and move-to-trash always. Later phases add their own ids here. `ContextMenu.tsx` maps ids to the existing actions.
 **Tests:** one case per rule.
 
-### B7 · New notes, swatches and frames land in free space `[ ]`
+### B7 · New notes, swatches and frames land in free space `[x]`
 **Files:** `src/features/import/importItems.ts` (export `makeIsOccupied` and `currentPlacementSnapshot`), `src/features/import/AddMenu.tsx`.
 **Do:** in `handleAddNote/Swatch/Frame`, compute `findFreeSpot(viewportCentre, size, makeIsOccupied(currentPlacementSnapshot()))` (from `src/lib/packing.ts`) and create the item centred on that spot. Sizes: note 280×212 (D1's new default), swatch 160×160, frame = its current default. Double-click on empty canvas still creates the note exactly where you clicked.
 

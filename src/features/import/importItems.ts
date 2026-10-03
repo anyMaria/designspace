@@ -45,11 +45,17 @@ export interface DropPoint {
 
 export type FlyTo = (rect: Rect) => void;
 
-function makeIsOccupied(existing: Rect[]): (rect: Rect) => boolean {
+export function makeIsOccupied(existing: Rect[]): (rect: Rect) => boolean {
   return (rect) => existing.some((p) => rectsIntersect(rect, p));
 }
 
-function currentPlacementSnapshot(): { x: number; y: number; w: number; h: number; z: number }[] {
+export function currentPlacementSnapshot(): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+}[] {
   return [...useLibraryStore.getState().placements.values()].map((p) => ({
     x: p.x,
     y: p.y,
@@ -57,6 +63,16 @@ function currentPlacementSnapshot(): { x: number; y: number; w: number; h: numbe
     h: p.h,
     z: p.z,
   }));
+}
+
+/** The centre of a free spot of `size` as near as possible to `from`, so notes, swatches and frames
+ * added from the + menu don't pile up at the viewport centre (Patch 1 · B7). */
+export function freeCentreFor(
+  from: { x: number; y: number },
+  size: { w: number; h: number },
+): { x: number; y: number } {
+  const topLeft = findFreeSpot(from, size, makeIsOccupied(currentPlacementSnapshot()));
+  return { x: topLeft.x + size.w / 2, y: topLeft.y + size.h / 2 };
 }
 
 function nextZ(existing: { z: number }[]): number {

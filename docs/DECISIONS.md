@@ -2823,7 +2823,7 @@ All nine tasks (A1–A9) are in. What changed, and what could not be checked wit
 serves `blob:` URLs and never goes through Rust), pinch on a real trackpad, the Files… dialog's default
 filter, and the one-off re-derive of an existing library.
 
-## Patch 1 · Phase B (in progress)
+## Patch 1 · Phase B: feel and clarity (v0.3.0)
 
 - **B1 full screen:** `platform.window.{isFullscreen,setFullscreen}`; the window-state plugin no longer
   restores full screen (the "Open in full screen" setting decides). Toggling asks the window for its
@@ -2837,3 +2837,11 @@ filter, and the one-off re-derive of an existing library.
 - **B5 Urbanist:** replaces Manrope and Unbounded. Urbanist has no tabular figures (checked with
   fontkit), so zoom %, the import counter and the search count have fixed `min-width`s. Canvas text
   goes through `uiTextStyle`, and `CanvasView` waits for the font before mounting the engine.
+- **B6:** the menu's rules live in the pure `canvas/contextMenuItems.ts`; `ContextMenu.tsx` maps ids to
+  the existing actions. Later phases add their own ids there.
+- **B7:** `freeCentreFor` (importItems.ts) places new notes, swatches and frames in the nearest free
+  spot to the viewport centre. The note stays 220×220 until Phase D1 changes its default (the plan's
+  280×212 belongs to D1). Double-click on empty canvas still creates the note where you clicked.
+
+**Not verifiable in the cloud (Owner checks on Windows):** real full screen and F11 in WebView2, and the
+window-state plugin no longer restoring full screen.

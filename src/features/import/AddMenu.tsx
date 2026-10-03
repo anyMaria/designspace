@@ -5,15 +5,15 @@ import type { Platform, FileFilter } from '@/platform/types';
 import type { Engine } from '@/canvas/Engine';
 import type { Rect } from '@/lib/geometry';
 import { en } from '@/i18n/en';
-import { importFiles, importPaths } from './importItems';
+import { freeCentreFor, importFiles, importPaths } from './importItems';
 import { detectMediaKind } from '@/lib/fileKinds';
 import { useToastStore } from '@/state/toastStore';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { useBoardStore } from '@/state/boardStore';
 import { useHistoryStore } from '@/commands/history';
-import { createCreateNoteCommand } from '@/commands/noteCommands';
-import { createCreateSwatchCommand } from '@/commands/swatchCommands';
-import { createCreateFrameCommand } from '@/commands/frameCommands';
+import { NOTE_SIZE, createCreateNoteCommand } from '@/commands/noteCommands';
+import { SWATCH_SIZE, createCreateSwatchCommand } from '@/commands/swatchCommands';
+import { DEFAULT_FRAME_SIZE, createCreateFrameCommand } from '@/commands/frameCommands';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
 import { LinkDialog } from './LinkDialog';
@@ -106,7 +106,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setOpen(false);
     const space = currentSpace();
     if (!space) return;
-    const point = dropPoint();
+    const point = freeCentreFor(dropPoint(), { w: NOTE_SIZE, h: NOTE_SIZE });
     const { command, item } = createCreateNoteCommand(
       platform,
       space.boardId,
@@ -126,7 +126,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setOpen(false);
     const space = currentSpace();
     if (!space) return;
-    const point = dropPoint();
+    const point = freeCentreFor(dropPoint(), { w: SWATCH_SIZE, h: SWATCH_SIZE });
     const { command } = createCreateSwatchCommand(
       platform,
       space.boardId,
@@ -146,7 +146,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setOpen(false);
     const space = currentSpace();
     if (!space) return;
-    const point = dropPoint();
+    const point = freeCentreFor(dropPoint(), DEFAULT_FRAME_SIZE);
     const { command } = createCreateFrameCommand(platform, space.boardId, point.x, point.y);
     void useHistoryStore.getState().execute(command);
   }
