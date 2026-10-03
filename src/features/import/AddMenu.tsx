@@ -19,6 +19,8 @@ import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDia
 import { LinkDialog } from './LinkDialog';
 import { importLink } from './importLink';
 import { useSettingsStore } from '@/state/settingsStore';
+import { useUiStore } from '@/state/uiStore';
+import { useLibraryStore } from '@/state/libraryStore';
 import {
   ALL_SUPPORTED_EXTENSIONS,
   FONT_EXTENSIONS,
@@ -127,14 +129,22 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     const space = currentSpace();
     if (!space) return;
     const point = freeCentreFor(dropPoint(), { w: SWATCH_SIZE, h: SWATCH_SIZE });
-    const { command } = createCreateSwatchCommand(
+    const { command, item } = createCreateSwatchCommand(
       platform,
       space.boardId,
       space.isLibraryBoard,
       point.x,
       point.y,
     );
-    void useHistoryStore.getState().execute(command);
+    // Select it right away so the palette editor shows (no hex copy: that is for clicking).
+    void useHistoryStore
+      .getState()
+      .execute(command)
+      .then(() => {
+        useLibraryStore.getState().setSelection([item.id]);
+        engine?.setSelection([item.id]);
+        useUiStore.setState({ panelOpen: true, panelTab: 'details' });
+      });
   }
 
   function handleAddLink(): void {

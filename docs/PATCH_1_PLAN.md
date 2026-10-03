@@ -436,7 +436,7 @@ Look: `docs/patch-1/mock-palettes.png`. Size: L. Version at the end: **0.4.0**.
 5. Copy one colour: when a **selected** palette is clicked on a cell (pointer-up without moving), emit `swatchCellClick(id, index)`; `useEngineBindings` copies that hex and shows `en.swatches.copied(hex)`. Selecting a single swatch still copies its hex, as today.
 **Done when:** screenshot matches `mock-palettes.png` (left and middle).
 
-### C4 · The palette editor `[ ]`
+### C4 · The palette editor `[x]`
 **Files:** new `src/features/palettes/PaletteEditor.tsx`, `ColorWheel.tsx`, `colorWheelMath.ts` (+ test), `src/features/details/DetailsPanel.tsx`, `src/canvas/useFocusViewBinding.ts` (or a new small binding), `src/i18n/en.ts`.
 Lives in the right panel's Details tab when one swatch/palette is selected (Q7). For swatches, Details shows **only** the editor (no Type/Vibe/Movement/Tags/Artist/Source/Why).
 1. Name field (= the item title, `createSetItemFieldCommand(..., 'title', …)`).

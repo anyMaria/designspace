@@ -24,8 +24,8 @@ test('the Add menu creates a swatch and clicking it copies its HEX', async ({ pa
   await page.mouse.click(center.x, center.y);
   await expect(page.getByText('Copied #8c8c8c')).toBeVisible();
 
-  // The Details panel shows the Color field for the selected swatch.
-  await expect(page.getByLabel('Color', { exact: true })).toHaveValue('#8c8c8c');
+  // The Details panel shows the palette editor (Hex field) for the selected swatch.
+  await expect(page.getByLabel('Hex', { exact: true })).toHaveValue('#8C8C8C');
 
   expect(errors, errors.join('\n')).toEqual([]);
 });

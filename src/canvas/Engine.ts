@@ -268,6 +268,8 @@ export class Engine {
   private connectDragLine: Graphics | null = null;
   private connecting = false; // hides the static handle while a drag-out is in progress
   private pickingConnectFrom: string | null = null;
+  /** "Pick from a photo" (Patch 1 · C4): the next click on a picture card reports where in it. */
+  private pickingPoint: ((hit: { id: string; u: number; v: number } | null) => void) | null = null;
   private selectedConnectionPair: { fromId: string; toId: string } | null = null;
   private lastLineTapAt: { key: string; at: number } | null = null;
   private suppressNextEmptyDblClick = false;
@@ -849,6 +851,18 @@ export class Engine {
     if (this.container) this.container.style.cursor = 'crosshair';
   }
 
+  /** The next click on an image/video/PDF/link card calls back with the card and the click position
+   * inside it (`u`, `v` in 0–1); a click anywhere else calls back with `null`. */
+  startPointPick(cb: (hit: { id: string; u: number; v: number } | null) => void): void {
+    this.pickingPoint = cb;
+    if (this.container) this.container.style.cursor = 'crosshair';
+  }
+
+  cancelPointPick(): void {
+    this.pickingPoint = null;
+    if (this.container) this.container.style.cursor = '';
+  }
+
   cancelConnectPick(): void {
     this.pickingConnectFrom = null;
     if (this.container) this.container.style.cursor = '';
@@ -1240,6 +1254,21 @@ export class Engine {
       startScreen = { x: e.clientX, y: e.clientY };
       moved = false;
 
+      // Picking a colour from a photo overrides normal click behaviour too.
+      if (this.pickingPoint) {
+        const cb = this.pickingPoint;
+        this.cancelPointPick();
+        const hit = hitTest(this.interactableCards(), world);
+        const isPicture = hit && ['image', 'video', 'pdf', 'link'].includes(hit.kind);
+        cb(
+          hit && isPicture
+            ? { id: hit.id, u: (world.x - hit.x) / hit.w, v: (world.y - hit.y) / hit.h }
+            : null,
+        );
+        container.setPointerCapture(e.pointerId);
+        return;
+      }
+
       // Picking a "Connect to…" target overrides normal click behavior entirely.
       if (this.pickingConnectFrom) {
         const fromId = this.pickingConnectFrom;
@@ -1498,7 +1527,7 @@ export class Engine {
         this.clearMarquee();
       } else if (mode === 'move' && !moved && pressed?.wasSelected) {
         const card = this.cards.get(pressed.id);
-        if (card?.kind === 'swatch' && card.swatchColors && card.swatchColors.length > 1) {
+        if (card?.kind === 'swatch' && card.swatchColors && card.swatchColors.length >= 1) {
           const cell = paletteCellAt(card.swatchColors.length, card, toWorld(e));
           if (cell !== null) this.emit('swatchCellClick', card.id, cell);
         }

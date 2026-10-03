@@ -37,6 +37,7 @@ import { ImportProgressCard } from '@/features/import/ImportProgressCard';
 import { ToastHost } from '@/features/toasts/ToastHost';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
+import { PaletteEditor } from '@/features/palettes/PaletteEditor';
 import { BulkDetailsPanel } from '@/features/details/BulkDetailsPanel';
 import { TriageView } from '@/features/triage/TriageView';
 import { openInboxTriage } from '@/features/triage/openInboxTriage';
@@ -428,6 +429,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             )
           ) : selectedItems.length > 1 ? (
             <BulkDetailsPanel platform={platform} items={selectedItems} />
+          ) : selectedItem?.kind === 'swatch' ? (
+            <PaletteEditor platform={platform} item={selectedItem} engine={engine} />
           ) : selectedItem ? (
             <DetailsPanel platform={platform} item={selectedItem} engine={engine} />
           ) : (
