@@ -954,6 +954,7 @@ dependencies = [
 name = "designspace-core"
 version = "0.1.0"
 dependencies = [
+ "percent-encoding",
  "sha2 0.11.0",
  "tempfile",
  "thiserror 2.0.21",

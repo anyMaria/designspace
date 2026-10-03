@@ -4,5 +4,6 @@
 
 pub mod hash;
 pub mod media_naming;
+pub mod media_url;
 pub mod path_safety;
 pub mod slug;
