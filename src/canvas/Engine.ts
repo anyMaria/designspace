@@ -4,6 +4,7 @@
 import 'pixi.js/unsafe-eval';
 import { cardAlpha, connectionRelatedSet } from './cardAlpha';
 import { drawPalette, paletteDrawKey } from './decor/paletteDecor';
+import { drawNotePaper, notePaperKey } from './decor/noteDecor';
 import { paletteCellAt } from '@/lib/palette';
 import { clipSegmentToBoxes, distanceToSegment, edgePoint } from '@/lib/lineAnchors';
 import {
@@ -30,7 +31,16 @@ import {
   resizeWithAspect,
   type ResizeHandle,
 } from './selection';
-import { canvasGeometry, colors, criterionColors, fonts, motion } from '@/design/tokens';
+import {
+  canvasGeometry,
+  colors,
+  criterionColors,
+  fonts,
+  motion,
+  noteGeometry,
+  noteStyles,
+  type NoteColor,
+} from '@/design/tokens';
 import type { BenchRect } from '@/platform/seed/bench';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
@@ -81,6 +91,8 @@ export interface ItemCard {
    * `decor/paletteDecor.ts`; `null` for every other kind. */
   swatchColors: string[] | null;
   swatchName: string | null;
+  /** Patch 1 · D1: a note's paper colour (drives `decor/noteDecor.ts`); `null` for other kinds. */
+  noteColor: NoteColor | null;
 }
 
 interface EngineEvents {
@@ -148,6 +160,15 @@ const DOUBLE_TAP_MS = 350;
 const HANDLE_SCREEN_PX = 10;
 /** Every canvas label uses the UI font; Pixi rasterises text once, so it must be loaded first
  * (CanvasView waits for it). */
+/** `<b>`, `<i>` and `<dshash>` (a hashtag) in a note's tagged text (Patch 1 · D1). */
+function noteTagStyles(hashtag: number): TextStyleOptions['tagStyles'] {
+  return {
+    b: { fontWeight: '700' },
+    i: { fontStyle: 'italic' },
+    dshash: { fill: hashtag, fontWeight: '700' },
+  };
+}
+
 function uiTextStyle(overrides: TextStyleOptions): TextStyleOptions {
   return { fontFamily: fonts.ui, fontWeight: '500', ...overrides };
 }
@@ -222,6 +243,8 @@ export class Engine {
    * this container is. Keyed by item id. */
   private decor = new Map<string, Container>();
   private decorKey = new Map<string, string>();
+  /** A note's text is clipped to its paper by this mask (a child of its decor container). */
+  private noteMasks = new Map<string, Graphics>();
 
   // §2.11 frames.
   private frames = new Map<string, Frame>();
@@ -400,6 +423,7 @@ export class Engine {
     this.unsubscribeCamera = this.camera.subscribe(() => {
       this.scheduleFrame();
       this.updateVideoPreview();
+      this.scheduleTextResolution();
     });
     app.renderer.on('resize', () => this.scheduleFrame());
     this.scheduleFrame();
@@ -516,17 +540,46 @@ export class Engine {
     this.scheduleFrame();
   }
 
+  private textResolutionTimer: number | null = null;
+  private textResolutionStep = 1;
+
+  /** Text sharpness when zoomed in (Patch 1 · D1.6): Pixi rasterises `Text` once at a fixed
+   * resolution, so after the camera settles (150 ms) re-rasterise the world-space labels at
+   * devicePixelRatio × 1, 2 or 4 (zoom ≤ 1, ≤ 2, more). */
+  private scheduleTextResolution(): void {
+    if (this.textResolutionTimer !== null) window.clearTimeout(this.textResolutionTimer);
+    this.textResolutionTimer = window.setTimeout(() => {
+      this.textResolutionTimer = null;
+      const zoom = this.camera.zoom;
+      const step = zoom <= 1 ? 1 : zoom <= 2 ? 2 : 4;
+      if (step === this.textResolutionStep) return;
+      this.textResolutionStep = step;
+      this.applyTextResolution();
+    }, 150);
+  }
+
+  private applyTextResolution(): void {
+    const resolution = (window.devicePixelRatio || 1) * this.textResolutionStep;
+    for (const label of this.noteLabels.values()) label.resolution = resolution;
+    for (const badge of this.cornerBadges.values()) badge.resolution = resolution;
+    for (const label of this.frameLabels.values()) label.resolution = resolution;
+    this.scheduleFrame();
+  }
+
   /** Whether this card draws itself through a decor container instead of its sprite. */
   private isSelfDrawn(card: ItemCard): boolean {
-    return card.kind === 'swatch';
+    return card.kind === 'swatch' || card.kind === 'note';
   }
 
   private removeDecor(id: string): void {
     const d = this.decor.get(id);
     if (!d) return;
+    const label = this.noteLabels.get(id);
+    if (label) label.mask = null; // the mask dies with the decor
     d.destroy({ children: true });
     this.decor.delete(id);
     this.decorKey.delete(id);
+    this.noteMasks.delete(id);
   }
 
   /** Creates/moves/redraws/removes the decor of a self-drawn card. Position and z are cheap; the
@@ -552,6 +605,17 @@ export class Engine {
     }
     decor.position.set(card.x, card.y);
     decor.zIndex = card.z;
+    if (card.kind === 'note') {
+      const color = card.noteColor ?? 'cream';
+      const key = notePaperKey(card, color);
+      if (this.decorKey.get(card.id) !== key) {
+        this.noteMasks.set(card.id, drawNotePaper(decor, card, color));
+        this.decorKey.set(card.id, key);
+        const label = this.noteLabels.get(card.id);
+        if (label) label.mask = this.noteMasks.get(card.id) ?? null;
+      }
+      return;
+    }
     const spec = {
       w: card.w,
       h: card.h,
@@ -592,34 +656,43 @@ export class Engine {
       }
       return;
     }
-    const wrapWidth = Math.max(card.w - NOTE_TEXT_PADDING_WORLD * 2, 1);
-    const x = card.x + NOTE_TEXT_PADDING_WORLD;
-    const y = card.y + NOTE_TEXT_PADDING_WORLD;
-    const fill = card.kind === 'note' ? noteTextColor : readableTextColor(card.dominantColor);
+    const isNote = card.kind === 'note';
+    const pad = isNote ? noteGeometry.pad : NOTE_TEXT_PADDING_WORLD;
+    const wrapWidth = Math.max(card.w - pad * 2, 1);
+    const x = card.x + pad;
+    const y = card.y + pad;
+    const style = isNote ? noteStyles[card.noteColor ?? 'cream'] : null;
+    const fill = style ? style.text : readableTextColor(card.dominantColor);
     const existing = this.noteLabels.get(card.id);
     if (existing) {
       existing.text = card.noteText ?? '';
       existing.style.wordWrapWidth = wrapWidth;
       existing.style.fill = fill;
+      if (style) existing.style.tagStyles = noteTagStyles(style.hashtag);
       existing.position.set(x, y);
       existing.zIndex = card.z + 0.5;
     } else {
       const label = new Text({
         text: card.noteText ?? '',
         style: uiTextStyle({
-          fontSize: NOTE_TEXT_FONT_SIZE_WORLD,
+          fontSize: isNote ? noteGeometry.fontSize : NOTE_TEXT_FONT_SIZE_WORLD,
+          ...(isNote ? { lineHeight: noteGeometry.lineHeight } : {}),
           fill,
           wordWrap: true,
           wordWrapWidth: wrapWidth,
           breakWords: true,
+          ...(style ? { tagStyles: noteTagStyles(style.hashtag) } : {}),
         }),
       });
       label.position.set(x, y);
       label.zIndex = card.z + 0.5;
       label.eventMode = 'none'; // selection/drag hit-testing is geometry-based, not Pixi events
+      label.resolution = (window.devicePixelRatio || 1) * this.textResolutionStep;
       this.itemsLayer.addChild(label);
       this.noteLabels.set(card.id, label);
     }
+    const label = this.noteLabels.get(card.id);
+    if (label) label.mask = isNote ? (this.noteMasks.get(card.id) ?? null) : null;
     this.syncCornerBadge(card);
   }
 
@@ -2488,6 +2561,7 @@ export class Engine {
     this.detachInput?.();
     this.detachSelectionInput?.();
     this.unsubscribeCamera?.();
+    if (this.textResolutionTimer !== null) window.clearTimeout(this.textResolutionTimer);
     this.stopVideoPreview();
     this.clearScene();
     this.clearMarquee();

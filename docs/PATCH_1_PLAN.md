@@ -465,7 +465,7 @@ select three old swatches → Combine into palette; Ctrl+Z after each step.
 
 Look: `docs/patch-1/mock-notes.png`. Size: M. Version at the end: **0.5.0**.
 
-### D1 · Notes look like ruled paper on the map `[ ]`
+### D1 · Notes look like ruled paper on the map `[x]`
 **Files:** new `src/canvas/decor/noteDecor.ts`, new `src/lib/noteTagged.ts` (+ test), `src/design/tokens.ts`/`.css`, `src/canvas/Engine.ts`, `src/canvas/itemCards.ts`, `src/commands/noteCommands.ts`.
 **Do**
 1. Tokens: `noteGeometry = { pad: 16, fontSize: 18, lineHeight: 30, radius: 10, fold: 22, defaultW: 280, defaultH: 212 }` (212 = 2×16 + 6 lines of 30). New default note size 280×212 in `noteCommands.ts` (existing notes keep their size).

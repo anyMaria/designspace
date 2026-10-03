@@ -3,7 +3,7 @@ import type { Item, Placement } from '@/state/types';
 import type { Platform } from '@/platform/types';
 import type { ItemCard } from './Engine';
 import { noteColors, type NoteColor } from '@/design/tokens';
-import { noteBodyToPlainText } from '@/lib/noteText';
+import { noteBodyToTaggedText } from '@/lib/noteTagged';
 import { en } from '@/i18n/en';
 
 const FALLBACK_COLOR = 0x33203d; // --surface-2, used until a palette exists
@@ -45,13 +45,14 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       dominantColor,
       thumbUrl128: null,
       thumbUrl512: null,
-      noteText: noteBodyToPlainText(item.body),
+      noteText: noteBodyToTaggedText(item.body),
       frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
       pageCount: null,
       swatchColors: null,
       swatchName: null,
+      noteColor: colorName,
     };
   }
 
@@ -75,6 +76,7 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       pageCount: null,
       swatchColors: colors,
       swatchName: item.title.trim() || null,
+      noteColor: null,
     };
   }
 
@@ -106,6 +108,7 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       pageCount: null,
       swatchColors: null,
       swatchName: null,
+      noteColor: null,
     };
   }
 
@@ -144,5 +147,6 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     pageCount: item.kind === 'pdf' ? (item.pageCount ?? null) : null,
     swatchColors: null,
     swatchName: null,
+    noteColor: null,
   };
 }

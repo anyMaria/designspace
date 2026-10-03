@@ -11,7 +11,8 @@ import { useToastStore } from '@/state/toastStore';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { useBoardStore } from '@/state/boardStore';
 import { useHistoryStore } from '@/commands/history';
-import { NOTE_SIZE, createCreateNoteCommand } from '@/commands/noteCommands';
+import { createCreateNoteCommand } from '@/commands/noteCommands';
+import { noteGeometry } from '@/design/tokens';
 import { SWATCH_SIZE, createCreateSwatchCommand } from '@/commands/swatchCommands';
 import { DEFAULT_FRAME_SIZE, createCreateFrameCommand } from '@/commands/frameCommands';
 import { useNoteEditStore } from '@/state/noteEditStore';
@@ -108,7 +109,10 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setOpen(false);
     const space = currentSpace();
     if (!space) return;
-    const point = freeCentreFor(dropPoint(), { w: NOTE_SIZE, h: NOTE_SIZE });
+    const point = freeCentreFor(dropPoint(), {
+      w: noteGeometry.defaultW,
+      h: noteGeometry.defaultH,
+    });
     const { command, item } = createCreateNoteCommand(
       platform,
       space.boardId,

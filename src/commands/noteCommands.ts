@@ -2,11 +2,11 @@ import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { newId } from '@/lib/ids';
 import { emptyNoteBody, noteBodyToPlainText } from '@/lib/noteText';
-import type { NoteColor } from '@/design/tokens';
+import { noteGeometry, type NoteColor } from '@/design/tokens';
 import type { Command } from './types';
 import type { Item, Placement } from '@/state/types';
 
-export const NOTE_SIZE = 220; // world units, a square sticky note — §2.11
+// New notes use the ruled-paper size (Patch 1 · D1); existing notes keep their own size.
 
 /** "Double-click the empty canvas" / "pasted text becomes a note" (§2.11). `boardId` is the
  * *current* space — a note created while on a board gets `origin_board_id` set to it (board-only,
@@ -65,10 +65,10 @@ export function createCreateNoteCommand(
   const placement: Placement = {
     boardId,
     itemId: item.id,
-    x: worldX - NOTE_SIZE / 2,
-    y: worldY - NOTE_SIZE / 2,
-    w: NOTE_SIZE,
-    h: NOTE_SIZE,
+    x: worldX - noteGeometry.defaultW / 2,
+    y: worldY - noteGeometry.defaultH / 2,
+    w: noteGeometry.defaultW,
+    h: noteGeometry.defaultH,
     z: 0,
     frameId: null,
     addedAt: now,
