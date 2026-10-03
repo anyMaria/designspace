@@ -540,4 +540,7 @@ export const en = {
     add: 'Add',
     empty: "This folder doesn't have any files Designspace can add yet.",
   },
+  patch1: {
+    refreshingPreviews: (n: number) => `Refreshing previews for ${n} items…`,
+  },
 } as const;

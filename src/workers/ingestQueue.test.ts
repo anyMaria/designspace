@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { IngestQueue, type WorkerLike } from './ingestQueue';
+import { IngestQueue, resumePendingIngest, type WorkerLike } from './ingestQueue';
 import { useLibraryStore } from '@/state/libraryStore';
 import type { Platform } from '@/platform/types';
 import type { IngestResponse } from './ingest.worker';
@@ -201,5 +201,34 @@ describe('IngestQueue', () => {
       expect.any(String),
       'a',
     ]);
+  });
+});
+
+describe('resumePendingIngest', () => {
+  it('re-queues a failed link by its cover path (links share the image worker)', async () => {
+    const workers: FakeWorker[] = [];
+    vi.stubGlobal(
+      'Worker',
+      class {
+        constructor() {
+          const w = new FakeWorker();
+          workers.push(w);
+          return w;
+        }
+      },
+    );
+    const select = vi
+      .fn()
+      .mockResolvedValue([{ id: 'l1', file_path: 'media/2026/10/cover.jpg', mime: 'image/jpeg' }]);
+    const platform = makePlatform({ db: { select } as unknown as Platform['db'] });
+
+    const queued = await resumePendingIngest(platform);
+
+    expect(queued).toBe(1);
+    const sql = select.mock.calls[0]?.[0] as string;
+    expect(sql).toContain("kind = 'link' AND cover_path IS NOT NULL");
+    expect(sql).toContain('COALESCE(file_path, cover_path)');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(workers.flatMap((w) => w.posted)).toHaveLength(1);
   });
 });

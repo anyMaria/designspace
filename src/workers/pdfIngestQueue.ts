@@ -150,13 +150,15 @@ interface PendingRow extends DbRow {
 
 /** PDF's counterpart to `ingestQueue.ts`'s `resumePendingIngest` — kept separate to avoid a
  * circular import between the two modules; `App.tsx` calls all three at startup. */
-export async function resumePendingPdfIngest(platform: Platform): Promise<void> {
+export async function resumePendingPdfIngest(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingRow>(
     `SELECT id, file_path FROM items
      WHERE kind = 'pdf' AND deleted_at IS NULL AND file_path IS NOT NULL
        AND (status = 'pending' OR derived_v < ?)`,
     [CURRENT_DERIVED_V],
   );
-  if (rows.length === 0) return;
+  if (rows.length === 0) return 0;
   getPdfIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path })));
+
+  return rows.length;
 }

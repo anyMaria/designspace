@@ -216,7 +216,7 @@ new `crates/designspace-core/src/media_url.rs`, `src-tauri/src/media_protocol.rs
 
 **Tests:** `fitRect` (landscape 2:1 → 320×160, dy 80; portrait 1:2 → 160×320, dx 80; square → unchanged); `fitPlacementsToAspect` with a mocked platform (pattern: `src/commands/itemCommands.test.ts`): only 320×320 rows change; a resized placement is left alone. Extend `patch1-thumbnails.spec.ts`: after the circle colour appears, `pixelAt(page, cx, cy + 128)` (128 px below the centre: inside a squashed 320×320 card, outside a correct 320×160 one) must be dark (every channel < 70).
 
-### A5 · Repair the existing library on the first launch after the update `[ ]`
+### A5 · Repair the existing library on the first launch after the update `[x]`
 **Why:** on the owner's PC everything was stored as failed; it must all be re-made once.
 
 **Files:** `src/workers/ingestQueue.ts`, `src/app/App.tsx`.

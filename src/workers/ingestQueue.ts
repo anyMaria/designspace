@@ -20,8 +20,10 @@ export interface QueueItem {
 }
 
 const POOL_SIZE = 2;
-/** Bump to re-queue every item (§4.7 "resumable"). */
-export const CURRENT_DERIVED_V = 1;
+/** Bump to re-queue every item (§4.7 "resumable").
+ * Patch 1: re-derive everything once. Thumbnails never loaded on Windows before the media:// fix
+ * (A1) and placements need their real shape (A4). */
+export const CURRENT_DERIVED_V = 2;
 
 function defaultWorkerFactory(): WorkerLike {
   return new Worker(new URL('./ingest.worker.ts', import.meta.url), { type: 'module' });
@@ -180,15 +182,18 @@ interface PendingRow extends DbRow {
 
 /** Re-queues items left mid-ingest by a previous run, or whose derivatives predate an algorithm
  * change — §4.7 "Resumable". Call once at startup after the library is open. */
-export async function resumePendingIngest(platform: Platform): Promise<void> {
+export async function resumePendingIngest(platform: Platform): Promise<number> {
+  // Links with a cover go through the image worker too (their cover is an ingested image).
   const rows = await platform.db.select<PendingRow>(
-    `SELECT id, file_path, mime FROM items
-     WHERE kind = 'image' AND deleted_at IS NULL AND file_path IS NOT NULL
+    `SELECT id, COALESCE(file_path, cover_path) AS file_path, mime FROM items
+     WHERE deleted_at IS NULL
+       AND ((kind = 'image' AND file_path IS NOT NULL) OR (kind = 'link' AND cover_path IS NOT NULL))
        AND (status = 'pending' OR derived_v < ?)`,
     [CURRENT_DERIVED_V],
   );
-  if (rows.length === 0) return;
+  if (rows.length === 0) return 0;
   getIngestQueue(platform).enqueue(
     rows.map((r) => ({ itemId: r.id, relPath: r.file_path, mime: r.mime })),
   );
+  return rows.length;
 }

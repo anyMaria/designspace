@@ -21,6 +21,7 @@ import { loadMachineSettings, startMachineSettingsPersistence } from '@/state/lo
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
 import { maybeBackupAtStartup } from '@/features/backups/autoBackup';
 import { logger } from '@/lib/logger';
+import { useToastStore } from '@/state/toastStore';
 import { en } from '@/i18n/en';
 import { useReducedMotionSync } from '@/lib/useReducedMotionSync';
 import { DesignPage } from '@/design/DesignPage';
@@ -38,6 +39,27 @@ type BootState =
       benchCount: number | null;
     }
   | { phase: 'error'; message: string };
+
+const REFRESH_TOAST_THRESHOLD = 20;
+
+/** Re-queues unfinished or outdated derivatives for every kind, and says so when it's a lot of
+ * work (the one-off Patch 1 repair re-makes every preview). */
+async function resumeAllIngest(platform: Platform): Promise<void> {
+  try {
+    const counts = await Promise.all([
+      resumePendingIngest(platform),
+      resumePendingVideoIngest(platform),
+      resumePendingPdfIngest(platform),
+      resumePendingFontIngest(platform),
+      resumePendingLinkIngest(platform),
+    ]);
+    const total = counts.reduce((a, b) => a + b, 0);
+    if (total > REFRESH_TOAST_THRESHOLD)
+      useToastStore.getState().show(en.patch1.refreshingPreviews(total));
+  } catch (err) {
+    logger.error('Resuming ingest failed', err);
+  }
+}
 
 export function App() {
   const [boot, setBoot] = useState<BootState>({ phase: 'loading' });
@@ -69,11 +91,7 @@ export function App() {
             loadEmbeddings(platform),
           ]);
           useBoardStore.getState().setCurrentBoardId(libraryBoardId);
-          void resumePendingIngest(platform);
-          void resumePendingVideoIngest(platform);
-          void resumePendingPdfIngest(platform);
-          void resumePendingFontIngest(platform);
-          void resumePendingLinkIngest(platform);
+          void resumeAllIngest(platform);
           void resumePendingAiAnalysis(platform);
           void purgeExpiredTrash(platform);
           if (!cancelled)
@@ -98,11 +116,7 @@ export function App() {
           loadEmbeddings(platform),
         ]);
         useBoardStore.getState().setCurrentBoardId(libraryBoardId);
-        void resumePendingIngest(platform);
-        void resumePendingVideoIngest(platform);
-        void resumePendingPdfIngest(platform);
-        void resumePendingFontIngest(platform);
-        void resumePendingLinkIngest(platform);
+        void resumeAllIngest(platform);
         void resumePendingAiAnalysis(platform);
         void purgeExpiredTrash(platform);
         void maybeBackupAtStartup(platform);

@@ -130,15 +130,17 @@ interface PendingRow extends DbRow {
 /** Video's counterpart to `ingestQueue.ts`'s `resumePendingIngest` — kept separate (rather than
  * one shared function) to avoid a circular import between the two modules; `App.tsx` calls both
  * at startup. */
-export async function resumePendingVideoIngest(platform: Platform): Promise<void> {
+export async function resumePendingVideoIngest(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingRow>(
     `SELECT id, file_path, mime FROM items
      WHERE kind = 'video' AND deleted_at IS NULL AND file_path IS NOT NULL
        AND (status = 'pending' OR derived_v < ?)`,
     [CURRENT_DERIVED_V],
   );
-  if (rows.length === 0) return;
+  if (rows.length === 0) return 0;
   getVideoIngestQueue(platform).enqueue(
     rows.map((r) => ({ itemId: r.id, relPath: r.file_path, mime: r.mime })),
   );
+
+  return rows.length;
 }

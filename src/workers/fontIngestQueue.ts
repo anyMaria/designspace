@@ -110,13 +110,15 @@ interface PendingRow extends DbRow {
 
 /** Font's counterpart to `ingestQueue.ts`'s `resumePendingIngest` — kept separate to avoid a
  * circular import between the two modules; `App.tsx` calls all four at startup. */
-export async function resumePendingFontIngest(platform: Platform): Promise<void> {
+export async function resumePendingFontIngest(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingRow>(
     `SELECT id, file_path FROM items
      WHERE kind = 'font' AND deleted_at IS NULL AND file_path IS NOT NULL
        AND (status = 'pending' OR derived_v < ?)`,
     [CURRENT_DERIVED_V],
   );
-  if (rows.length === 0) return;
+  if (rows.length === 0) return 0;
   getFontIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path })));
+
+  return rows.length;
 }
