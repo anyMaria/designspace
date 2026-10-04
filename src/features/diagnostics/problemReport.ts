@@ -1,7 +1,7 @@
 import type { DbRow, Platform } from '@/platform/types';
 import { useAiStatusStore } from '@/state/aiStatusStore';
 import { formatBytes } from '@/lib/formatBytes';
-import { runMediaCheck } from './MediaCheck';
+import { runMediaCheck } from './runMediaCheck';
 
 /** Plain text for "Copy a problem report" (Patch 2 · A12): what this PC sees, to paste into a
  * conversation. No item titles or file names; the log tail is whatever the log itself contains. */
