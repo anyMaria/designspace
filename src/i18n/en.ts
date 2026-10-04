@@ -357,6 +357,8 @@ export const en = {
     alreadyInLibrary: 'Already in your library',
     unsupportedFile: (ext: string) => `Designspace can't add .${ext} files yet.`,
     addedOne: 'Added 1 item',
+    addedStyles: (n: number, family: string) =>
+      `Added ${n} style${n === 1 ? '' : 's'} to ${family}`,
     addedMany: (n: number) => `Added ${n} items`,
     nothingToRediscover: "Nothing to rediscover yet — everything's been viewed recently.",
   },

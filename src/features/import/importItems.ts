@@ -16,6 +16,17 @@ import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { extensionOf, detectMediaKind } from '@/lib/fileKinds';
 import { newId } from '@/lib/ids';
 import { en } from '@/i18n/en';
+import { parseFont, readMeta, type FontMeta } from '@/lib/fontRender';
+import { familyKey } from '@/lib/fontFamily';
+import { useFontFilesStore } from '@/state/fontFilesStore';
+import {
+  createAddFontFilesCommand,
+  insertFontFileStatement,
+  makeFontFile,
+  sortNewFontFiles,
+  type NewFontFile,
+} from '@/commands/fontCommands';
+import { groupFontImports } from './groupFontImports';
 import { logger } from '@/lib/logger';
 
 /** Import entry points (§2.3): Files…/Folder… (Tauri paths), drag-and-drop and paste (File
@@ -175,9 +186,15 @@ async function findByHash(
   platform: Platform,
   hash: string,
 ): Promise<{ id: string; deletedAt: string | null } | null> {
+  // A font family keeps its extra files in `font_files`, so look there too (Patch 2 · F3).
   const rows = await platform.db.select<DbRow>(
-    `SELECT id, deleted_at FROM items WHERE file_hash = ?
-     ORDER BY deleted_at IS NULL DESC, created_at DESC LIMIT 1`,
+    `SELECT id, deleted_at FROM (
+       SELECT id, deleted_at, created_at FROM items WHERE file_hash = ?1
+       UNION ALL
+       SELECT ff.item_id, i.deleted_at, ff.created_at
+         FROM font_files ff JOIN items i ON i.id = ff.item_id
+        WHERE ff.file_hash = ?1 AND ff.deleted_at IS NULL
+     ) ORDER BY deleted_at IS NULL DESC, created_at DESC LIMIT 1`,
     [hash],
   );
   const row = rows[0];
@@ -233,15 +250,40 @@ export interface PlacementTarget {
   z: number;
 }
 
+/** A new font family: its card title, the key that finds it again, and all its files (the main
+ * file, the one on the item row, is first). */
+export interface NewFontFamily {
+  title: string;
+  key: string;
+  files: NewFontFile[];
+}
+
 export async function createRow(
   platform: Platform,
   primary: PlacementTarget,
   row: NewRow,
   extra?: PlacementTarget,
+  family?: NewFontFamily,
 ): Promise<string> {
   const id = newId();
   const now = new Date().toISOString();
-  const title = row.fileName.replace(/\.[^.]+$/, '');
+  const title = family?.title ?? row.fileName.replace(/\.[^.]+$/, '');
+  const fontFiles =
+    row.kind === 'font'
+      ? sortNewFontFiles(
+          family?.files ?? [
+            {
+              filePath: row.relPath,
+              fileName: row.fileName,
+              fileHash: row.hash,
+              fileSize: row.size,
+              mime: row.mime,
+              meta: null,
+            },
+          ],
+        ).map((f, i) => makeFontFile(id, f, i, now))
+      : [];
+  const metaByPath = new Map((family?.files ?? []).map((f) => [f.filePath, f.meta]));
 
   const statements: DbStatement[] = [
     {
@@ -292,7 +334,16 @@ export async function createRow(
       ],
     });
   }
+  if (row.kind === 'font') {
+    statements.push({
+      sql: 'UPDATE items SET font_family_key = ? WHERE id = ?',
+      params: [family?.key ?? null, id],
+    });
+    for (const f of fontFiles)
+      statements.push(insertFontFileStatement(f, metaByPath.get(f.filePath) ?? null));
+  }
   await platform.db.batch(statements);
+  for (const f of fontFiles) useFontFilesStore.getState().upsert(f);
 
   const item: Item = {
     id,
@@ -319,6 +370,7 @@ export async function createRow(
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
+    fontFamilyKey: row.kind === 'font' ? (family?.key ?? null) : null,
   };
   // Only `primary`'s placement goes into the live store — it's the one matching whatever space
   // is actually open right now. `extra` (the Library-map half of a board drop) is DB-only: it'll
@@ -344,7 +396,7 @@ export async function createRow(
   } else if (row.kind === 'pdf') {
     getPdfIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath }]);
   } else if (row.kind === 'font') {
-    getFontIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath }]);
+    getFontIngestQueue(platform).enqueue([{ itemId: id }]);
   } else {
     getIngestQueue(platform).enqueue([{ itemId: id, relPath: row.relPath, mime: row.mime }]);
   }
@@ -359,6 +411,118 @@ export async function finishBatch(platform: Platform, addedIds: string[]): Promi
   useToastStore
     .getState()
     .show(addedIds.length > 1 ? en.toasts.addedMany(addedIds.length) : en.toasts.addedOne);
+}
+
+/** A font file copied in during this batch, waiting to be grouped into families. */
+interface CopiedFont {
+  index: number;
+  fileName: string;
+  relPath: string;
+  hash: string;
+  size: number;
+  mime: string;
+  /** The bytes, when the import already has them (drop/paste); else fetched from the library. */
+  bytes?: ArrayBuffer;
+}
+
+async function readFontMeta(platform: Platform, f: CopiedFont): Promise<FontMeta | null> {
+  try {
+    const bytes =
+      f.bytes ?? (await (await fetch(platform.media.originalUrl(f.relPath))).arrayBuffer());
+    return readMeta(parseFont(bytes));
+  } catch (err) {
+    logger.warn(`Could not read the font ${f.fileName}`, err);
+    return null;
+  }
+}
+
+async function existingFamilies(platform: Platform): Promise<Map<string, string>> {
+  const rows = await platform.db.select<DbRow>(
+    `SELECT id, font_family_key FROM items
+     WHERE kind = 'font' AND deleted_at IS NULL AND font_collection IS NULL
+       AND font_family_key IS NOT NULL ORDER BY created_at DESC`,
+  );
+  const map = new Map<string, string>();
+  for (const r of rows) map.set(r.font_family_key as string, r.id as string);
+  return map;
+}
+
+/** Groups the fonts of one import into families (Patch 2 · F3): a new family is one card (the first
+ * file of the group is its main file), and files of a family that already exists are added to it
+ * with a command after the batch lands. Returns the new card ids and the pending additions. */
+async function createFontFamilies(
+  platform: Platform,
+  fonts: CopiedFont[],
+  targetFor: (index: number) => { primary: PlacementTarget; extra?: PlacementTarget },
+): Promise<{ addedIds: string[]; additions: Map<string, NewFontFile[]> }> {
+  const metas = await Promise.all(fonts.map((f) => readFontMeta(platform, f)));
+  const newFile = (f: CopiedFont, meta: FontMeta | null): NewFontFile => ({
+    filePath: f.relPath,
+    fileName: f.fileName,
+    fileHash: f.hash,
+    fileSize: f.size,
+    mime: f.mime,
+    meta,
+  });
+  const placements = groupFontImports(
+    fonts.map((f, k) => ({
+      index: f.index,
+      key: metas[k] ? familyKey(metas[k]) : '',
+      vendorId: metas[k]?.vendorId ?? null,
+    })),
+    await existingFamilies(platform),
+  );
+
+  const groups = new Map<number, number[]>();
+  const additions = new Map<string, NewFontFile[]>();
+  placements.forEach((p, k) => {
+    if (p.kind === 'existing') {
+      const list = additions.get(p.itemId) ?? [];
+      list.push(newFile(fonts[k], metas[k]));
+      additions.set(p.itemId, list);
+    } else {
+      groups.set(p.groupIndex, [...(groups.get(p.groupIndex) ?? []), k]);
+    }
+  });
+
+  const addedIds: string[] = [];
+  for (const members of groups.values()) {
+    const main = fonts[members[0]];
+    const mainMeta = metas[members[0]];
+    const target = targetFor(main.index);
+    const id = await createRow(
+      platform,
+      target.primary,
+      {
+        kind: 'font',
+        relPath: main.relPath,
+        fileName: main.fileName,
+        hash: main.hash,
+        size: main.size,
+        mime: main.mime,
+      },
+      target.extra,
+      {
+        title: mainMeta?.family ?? main.fileName.replace(/\.[^.]+$/, ''),
+        key: mainMeta ? familyKey(mainMeta) : '',
+        files: members.map((k) => newFile(fonts[k], metas[k])),
+      },
+    );
+    addedIds.push(id);
+  }
+  return { addedIds, additions };
+}
+
+/** After the batch: fonts of an existing family are added as styles (one undo step each). */
+async function addFontsToFamilies(
+  platform: Platform,
+  additions: Map<string, NewFontFile[]>,
+): Promise<void> {
+  for (const [itemId, files] of additions) {
+    await useHistoryStore.getState().execute(createAddFontFilesCommand(platform, itemId, files));
+    const name = useLibraryStore.getState().items.get(itemId)?.title ?? '';
+    useToastStore.getState().show(en.toasts.addedStyles(files.length, name));
+  }
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
@@ -392,6 +556,14 @@ export async function importFiles(
   let z = plan.primaryZStart;
   let extraZ = plan.extraZStart;
   const addedIds: string[] = [];
+  const fonts: CopiedFont[] = [];
+  const seenFontHashes = new Set<string>();
+  const targetFor = (index: number) => ({
+    primary: { boardId: plan.primaryBoardId, rect: plan.primaryRects[index], z: z++ },
+    extra: plan.extraBoardId
+      ? { boardId: plan.extraBoardId, rect: plan.extraRects[index], z: extraZ++ }
+      : undefined,
+  });
 
   for (let i = 0; i < supported.length; i++) {
     if (useImportStore.getState().cancelRequested) break;
@@ -402,24 +574,39 @@ export async function importFiles(
       const dup = await findByHash(platform, hash);
       if (dup) {
         announceDuplicate(platform, dup.id, dup.deletedAt, flyTo);
+      } else if (seenFontHashes.has(hash)) {
+        // The same font twice in one batch: the first is enough.
       } else {
         const result = await platform.media.importFile(file);
-        const id = await createRow(
-          platform,
-          { boardId: plan.primaryBoardId, rect: plan.primaryRects[i], z: z++ },
-          {
-            kind: detectMediaKind(file.name) ?? 'image',
-            relPath: result.relPath,
+        const kind = detectMediaKind(file.name) ?? 'image';
+        if (kind === 'font') {
+          seenFontHashes.add(hash);
+          fonts.push({
+            index: i,
             fileName: file.name,
+            relPath: result.relPath,
             hash: result.hash,
             size: result.size,
             mime: result.mime,
-          },
-          plan.extraBoardId
-            ? { boardId: plan.extraBoardId, rect: plan.extraRects[i], z: extraZ++ }
-            : undefined,
-        );
-        addedIds.push(id);
+            bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+          });
+        } else {
+          const target = targetFor(i);
+          const id = await createRow(
+            platform,
+            target.primary,
+            {
+              kind,
+              relPath: result.relPath,
+              fileName: file.name,
+              hash: result.hash,
+              size: result.size,
+              mime: result.mime,
+            },
+            target.extra,
+          );
+          addedIds.push(id);
+        }
       }
     } catch (err) {
       logger.error(`Import failed for ${file.name}`, err);
@@ -427,7 +614,19 @@ export async function importFiles(
     useImportStore.getState().progress(i + 1);
   }
 
+  let additions = new Map<string, NewFontFile[]>();
+  if (fonts.length > 0) {
+    try {
+      const made = await createFontFamilies(platform, fonts, targetFor);
+      addedIds.push(...made.addedIds);
+      additions = made.additions;
+    } catch (err) {
+      logger.error('Importing fonts failed', err);
+    }
+  }
+
   await finishBatch(platform, addedIds);
+  await addFontsToFamilies(platform, additions);
 }
 
 /** Files…/Folder… on Tauri: the native dialog only returns paths, and Rust already hashes,
@@ -446,6 +645,15 @@ export async function importPaths(
   let z = plan.primaryZStart;
   let extraZ = plan.extraZStart;
   const addedIds: string[] = [];
+  const fonts: CopiedFont[] = [];
+  const seenFontHashes = new Set<string>();
+  let additions = new Map<string, NewFontFile[]>();
+  const targetFor = (index: number) => ({
+    primary: { boardId: plan.primaryBoardId, rect: plan.primaryRects[index], z: z++ },
+    extra: plan.extraBoardId
+      ? { boardId: plan.extraBoardId, rect: plan.extraRects[index], z: extraZ++ }
+      : undefined,
+  });
 
   try {
     const results = await platform.media.importPaths(paths);
@@ -453,32 +661,50 @@ export async function importPaths(
       if (useImportStore.getState().cancelRequested) break;
       const result = results[i];
       const fileName = paths[i].split(/[/\\]/).pop() ?? paths[i];
+      const kind = detectMediaKind(fileName) ?? 'image';
       if (result.duplicateOf) {
         const dup = await findByHash(platform, result.hash);
         announceDuplicate(platform, result.duplicateOf, dup?.deletedAt ?? null, flyTo);
+      } else if (kind === 'font') {
+        if (!seenFontHashes.has(result.hash)) {
+          seenFontHashes.add(result.hash);
+          fonts.push({
+            index: i,
+            fileName,
+            relPath: result.relPath,
+            hash: result.hash,
+            size: result.size,
+            mime: result.mime,
+          });
+        }
       } else {
+        const target = targetFor(i);
         const id = await createRow(
           platform,
-          { boardId: plan.primaryBoardId, rect: plan.primaryRects[i], z: z++ },
+          target.primary,
           {
-            kind: detectMediaKind(fileName) ?? 'image',
+            kind,
             relPath: result.relPath,
             fileName,
             hash: result.hash,
             size: result.size,
             mime: result.mime,
           },
-          plan.extraBoardId
-            ? { boardId: plan.extraBoardId, rect: plan.extraRects[i], z: extraZ++ }
-            : undefined,
+          target.extra,
         );
         addedIds.push(id);
       }
       useImportStore.getState().progress(i + 1);
+    }
+    if (fonts.length > 0) {
+      const made = await createFontFamilies(platform, fonts, targetFor);
+      addedIds.push(...made.addedIds);
+      additions = made.additions;
     }
   } catch (err) {
     logger.error('Folder/Files import failed', err);
   }
 
   await finishBatch(platform, addedIds);
+  await addFontsToFamilies(platform, additions);
 }

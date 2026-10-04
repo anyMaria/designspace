@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useFontFilesStore } from '@/state/fontFilesStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useBoardStore } from '@/state/boardStore';
 import { useImportStore } from '@/state/importStore';
@@ -226,9 +227,9 @@ describe('importFiles', () => {
     const items = [...useLibraryStore.getState().items.values()];
     expect(items).toHaveLength(1);
     expect(items[0].kind).toBe('font');
-    expect(enqueueFont).toHaveBeenCalledWith([
-      { itemId: items[0].id, relPath: 'media/2026/01/face-a.woff2' },
-    ]);
+    expect(enqueueFont).toHaveBeenCalledWith([{ itemId: items[0].id }]);
+    // An unreadable font still gets a card (the queue marks it unsupported) and one file row.
+    expect(useFontFilesStore.getState().files.get(items[0].id)).toHaveLength(1);
     expect(enqueueImage).not.toHaveBeenCalled();
     expect(enqueuePdf).not.toHaveBeenCalled();
   });

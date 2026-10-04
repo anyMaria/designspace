@@ -49,8 +49,13 @@ fn guess_mime(name: &str, bytes: &[u8]) -> String {
 
 fn find_duplicate(conn: &Connection, hash: &str) -> rusqlite::Result<Option<(String, String)>> {
     conn.query_row(
-        "SELECT id, file_path FROM items WHERE file_hash = ?1
-         ORDER BY deleted_at IS NULL DESC, created_at DESC LIMIT 1",
+        "SELECT id, file_path FROM (
+             SELECT id, file_path, deleted_at, created_at FROM items WHERE file_hash = ?1
+             UNION ALL
+             SELECT ff.item_id, ff.file_path, i.deleted_at, ff.created_at
+               FROM font_files ff JOIN items i ON i.id = ff.item_id
+              WHERE ff.file_hash = ?1 AND ff.deleted_at IS NULL
+         ) ORDER BY deleted_at IS NULL DESC, created_at DESC LIMIT 1",
         params![hash],
         |row| Ok((row.get(0)?, row.get(1)?)),
     )
@@ -399,6 +404,14 @@ mod tests {
                 file_path TEXT,
                 created_at TEXT,
                 deleted_at TEXT
+            );
+            CREATE TABLE font_files (
+                id TEXT PRIMARY KEY,
+                item_id TEXT,
+                file_path TEXT,
+                file_hash TEXT,
+                created_at TEXT,
+                deleted_at TEXT
             );",
         )
         .unwrap();
@@ -433,6 +446,30 @@ mod tests {
 
         let second = import_bytes(&conn, dir.path(), "b.jpg", b"same bytes").unwrap();
         assert_eq!(second.duplicate_of.as_deref(), Some("item1"));
+        assert_eq!(second.rel_path, first.rel_path);
+    }
+
+    #[test]
+    fn a_hash_stored_only_in_font_files_is_a_duplicate() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = Connection::open_in_memory().unwrap();
+        items_table(&conn);
+
+        let first = import_bytes(&conn, dir.path(), "a.ttf", b"font bytes").unwrap();
+        // A family item whose main file is another one; this file lives only in font_files.
+        conn.execute(
+            "INSERT INTO items (id, file_hash, file_path, created_at) VALUES ('fam', 'other', 'media/x.ttf', '2026-01-01')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO font_files (id, item_id, file_path, file_hash, created_at) VALUES ('ff1', 'fam', ?2, ?1, '2026-01-01')",
+            params![first.hash, first.rel_path],
+        )
+        .unwrap();
+
+        let second = import_bytes(&conn, dir.path(), "b.ttf", b"font bytes").unwrap();
+        assert_eq!(second.duplicate_of.as_deref(), Some("fam"));
         assert_eq!(second.rel_path, first.rel_path);
     }
 

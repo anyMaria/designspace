@@ -3,13 +3,14 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { useSettingsStore } from '@/state/settingsStore';
 import { logger } from '@/lib/logger';
 import { extractFontDerivatives, SPECIMEN_ASPECT } from '@/lib/fontRender';
-import { CURRENT_DERIVED_V } from './ingestQueue';
+import { FONT_DERIVED_V } from './ingestQueue';
+import { rowToFontFile } from '@/db/rowMapping';
+import { cardFile, fontCardOf, isFontCollection } from '@/lib/fontFamily';
 import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
 import { queueAiAnalysis } from './aiQueue';
 
 export interface FontQueueItem {
   itemId: string;
-  relPath: string;
 }
 
 /** Font's counterpart to `IngestQueue`/`VideoIngestQueue`/`PdfIngestQueue` (§4.7/§4.9) — parsing
@@ -51,14 +52,25 @@ export class FontIngestQueue {
   private async process(item: FontQueueItem): Promise<void> {
     const now = new Date().toISOString();
     try {
-      const url = this.platform.media.originalUrl(item.relPath);
+      const current = useLibraryStore.getState().items.get(item.itemId);
+      if (current && isFontCollection(current)) return;
+      // The family's files come from the database (a family has one card, several files).
+      const rows = await this.platform.db.select<DbRow>(
+        'SELECT * FROM font_files WHERE item_id = ? AND deleted_at IS NULL ORDER BY sort',
+        [item.itemId],
+      );
+      const files = rows.map(rowToFontFile);
+      const card = fontCardOf({ fontCard: current?.fontCard ?? null }, files);
+      const file = cardFile(card, files);
+      if (!file) throw new Error('A font family without files');
+      const url = this.platform.media.originalUrl(file.filePath);
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
       const { t128, t512, ...meta } = await extractFontDerivatives(
         bytes,
         item.itemId,
-        useSettingsStore.getState().fontPreviewText,
+        card.text ?? useSettingsStore.getState().fontPreviewText,
       );
 
       await this.platform.cache.put(`t128/${item.itemId}`, new Uint8Array(t128));
@@ -66,19 +78,19 @@ export class FontIngestQueue {
       queueAiAnalysis(this.platform, item.itemId);
       await this.platform.db.execute(
         `UPDATE items SET font_meta = ?, status = 'ok', thumb_v = thumb_v + 1, derived_v = ?, updated_at = ? WHERE id = ?`,
-        [JSON.stringify(meta), CURRENT_DERIVED_V, now, item.itemId],
+        [JSON.stringify(meta), FONT_DERIVED_V, now, item.itemId],
       );
 
       await fitPlacementsToAspect(this.platform, item.itemId, SPECIMEN_ASPECT);
 
-      const current = useLibraryStore.getState().items.get(item.itemId);
-      if (current) {
+      const latest = useLibraryStore.getState().items.get(item.itemId);
+      if (latest) {
         useLibraryStore.getState().upsertItem({
-          ...current,
+          ...latest,
           fontMeta: meta,
-          thumbV: (current.thumbV ?? 0) + 1,
+          thumbV: (latest.thumbV ?? 0) + 1,
           status: 'ok',
-          derivedV: CURRENT_DERIVED_V,
+          derivedV: FONT_DERIVED_V,
           updatedAt: now,
         });
       }
@@ -88,11 +100,9 @@ export class FontIngestQueue {
         "UPDATE items SET status = 'unsupported', updated_at = ? WHERE id = ?",
         [now, item.itemId],
       );
-      const current = useLibraryStore.getState().items.get(item.itemId);
-      if (current) {
-        useLibraryStore
-          .getState()
-          .upsertItem({ ...current, status: 'unsupported', updatedAt: now });
+      const failed = useLibraryStore.getState().items.get(item.itemId);
+      if (failed) {
+        useLibraryStore.getState().upsertItem({ ...failed, status: 'unsupported', updatedAt: now });
       }
     }
   }
@@ -111,32 +121,32 @@ export function getFontIngestQueue(platform: Platform): FontIngestQueue {
 
 interface PendingRow extends DbRow {
   id: string;
-  file_path: string;
 }
 
 /** Font's counterpart to `ingestQueue.ts`'s `resumePendingIngest` — kept separate to avoid a
- * circular import between the two modules; `App.tsx` calls all four at startup. */
+ * circular import between the two modules; `App.tsx` calls all four at startup. Collections have
+ * no file (`file_path IS NULL`) and are skipped. */
 export async function resumePendingFontIngest(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingRow>(
-    `SELECT id, file_path FROM items
+    `SELECT id FROM items
      WHERE kind = 'font' AND deleted_at IS NULL AND file_path IS NOT NULL
        AND (status = 'pending' OR derived_v < ?)`,
-    [CURRENT_DERIVED_V],
+    [FONT_DERIVED_V],
   );
   if (rows.length === 0) return 0;
-  getFontIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path })));
+  getFontIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id })));
 
   return rows.length;
 }
 
-/** Queues every font item again so each card re-draws its sample line with the current preview
+/** Queues every font family again so each card re-draws its sample line with the current preview
  * text. Each finished item bumps its `thumb_v` (F1), so the cards update one by one. */
 export async function rerenderFontSpecimens(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingRow>(
-    `SELECT id, file_path FROM items
+    `SELECT id FROM items
      WHERE kind = 'font' AND deleted_at IS NULL AND file_path IS NOT NULL`,
   );
   if (rows.length === 0) return 0;
-  getFontIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path })));
+  getFontIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id })));
   return rows.length;
 }

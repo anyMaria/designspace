@@ -1232,7 +1232,7 @@ derived (like a re-render), not a Command; the pre-migration backup from `ensure
 kept. A `migratedDb(5)` integration test of the batch statements: terms unioned, connection re-pointed without a duplicate
 (either direction), placement moved or dropped per space, merged rows gone, `font_files` all on the kept item.
 
-### F3 · Importing fonts groups them into families `[ ]`
+### F3 · Importing fonts groups them into families `[x]`
 **Files:** `src/features/import/importItems.ts`, new `src/features/import/groupFontImports.ts` (+ test),
 new `src/commands/fontCommands.ts` (+ test), `src-tauri/src/media.rs` (`find_duplicate` + its test fixture),
 `src/features/trash/trashActions.ts` (+ test), `src/workers/fontIngestQueue.ts`.

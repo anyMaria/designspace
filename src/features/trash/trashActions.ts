@@ -28,7 +28,19 @@ export async function deleteForever(platform: Platform, ids: string[]): Promise<
     `SELECT id, file_path FROM items WHERE id IN (${ids.map(() => '?').join(',')})`,
     ids,
   );
-  const relPaths = rows.map((r) => r.file_path as string | null).filter((p): p is string => !!p);
+  // A font family keeps every one of its files in `font_files` (Patch 2 · F3): purge them all,
+  // including the ones an undo of "add fonts to family" left marked deleted.
+  const fontRows = await platform.db.select<DbRow>(
+    `SELECT file_path FROM font_files WHERE item_id IN (${ids.map(() => '?').join(',')})`,
+    ids,
+  );
+  const relPaths = [
+    ...new Set(
+      [...rows, ...fontRows]
+        .map((r) => r.file_path as string | null)
+        .filter((p): p is string => !!p),
+    ),
+  ];
 
   if (relPaths.length > 0) {
     try {
@@ -38,7 +50,7 @@ export async function deleteForever(platform: Platform, ids: string[]): Promise<
     }
   }
   try {
-    await platform.cache.delete(ids.flatMap((id) => [`t128/${id}`, `t512/${id}`]));
+    await platform.cache.delete(ids.flatMap((id) => [`t128/${id}`, `t512/${id}`, `trow/${id}`]));
   } catch (err) {
     logger.error('Purging cached derivatives failed', err);
   }
