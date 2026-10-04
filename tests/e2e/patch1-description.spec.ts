@@ -1,18 +1,27 @@
 import { test, expect } from '@playwright/test';
 
 // Patch 1 · E: hover a photo, open the thought bubble, write a description, find it again.
+// Uses a one-picture library: the demo library keeps re-making previews for a long time, and the
+// browser build only saves its database (to IndexedDB, debounced) when writes pause, so a reload
+// right after would race with that. (The desktop app writes straight to SQLite.)
 test('a description written in the bubble panel persists and is searchable', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto('/?seed=demo', { waitUntil: 'networkidle' });
-  await page.waitForTimeout(2000);
-  await page.keyboard.press('l'); // close the right panel
+  await page.goto('/');
   const box = await page.locator('canvas').first().boundingBox();
   if (!box) throw new Error('canvas has no bounding box');
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
 
-  // Demo item 0 spans world 0,0–320,400 (camera starts with world 0,0 centred).
-  await page.mouse.move(cx + 160, cy + 173);
+  await page
+    .locator('input[type=file]')
+    .first()
+    .setInputFiles('tests/e2e/fixtures/wide-circle.png');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('l'); // close the right panel
+  await page.waitForTimeout(2500); // let the picture finish ingesting
+
+  // The single imported card is centred on the viewport centre.
+  await page.mouse.move(cx, cy);
   const bubble = page.getByTestId('thought-bubble');
   await expect(bubble).toBeVisible();
   await expect(bubble).toHaveAttribute('data-has-description', 'false');
@@ -25,18 +34,15 @@ test('a description written in the bubble panel persists and is searchable', asy
   await expect(panel).toBeHidden();
 
   await page.mouse.move(5, 5);
-  await page.mouse.move(cx + 160, cy + 173);
+  await page.mouse.move(cx, cy);
   await expect(page.getByTestId('thought-bubble')).toHaveAttribute('data-has-description', 'true');
 
-  // The browser build saves its database to IndexedDB after a short debounce (the desktop app
-  // writes straight to SQLite): give a slow runner time to finish before leaving the page.
-  await page.waitForTimeout(3000);
-
-  // It survives a reload and is found by a word that is only in the description.
-  await page.goto('/', { waitUntil: 'networkidle' }); // no ?seed: the stored library, not a fresh demo
+  // Writes have stopped: give the debounced save a moment, then reload.
+  await page.waitForTimeout(2000);
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Add', exact: true })).toBeVisible();
   await page.waitForTimeout(1500);
   await page.keyboard.press('Control+k');
   await page.getByPlaceholder('Search your library…').fill('zephyrine');
-  await page.waitForTimeout(500);
-  await expect(page.getByText(/^1 of \d+$/)).toBeVisible();
+  await expect(page.getByText(/^1 of 1$/)).toBeVisible({ timeout: 15_000 });
 });
