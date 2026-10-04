@@ -52,6 +52,8 @@ test('zoom menu, minimap and item context menu all work against the seeded demo 
 
   // One Esc rule (Patch 2 · C1): Esc closes Settings first and leaves the selection alone; the next
   // Esc clears the selection.
+  await page.keyboard.press('Escape'); // close the menu before going on (its backdrop covers the page)
+  await expect(menu).toBeHidden();
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.waitForTimeout(300);
   const full = await canvas.boundingBox();
