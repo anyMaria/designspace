@@ -34,11 +34,23 @@ jobs:
         uses: actions/cache@v4
         with:
           path: src-tauri/resources/models
-          key: ai-models-${{ hashFiles('scripts/fetch-models.mjs') }}
+          key: ai-models-v2-${{ hashFiles('scripts/fetch-models.mjs') }}
 
       - name: Fetch the bundled AI model
         if: steps.models-cache.outputs.cache-hit != 'true'
         run: node scripts/fetch-models.mjs
+
+      - name: Check the bundled AI model files
+        shell: pwsh
+        run: |
+          $dir = 'src-tauri/resources/models/Xenova/clip-vit-base-patch32'
+          $required = 'config.json','preprocessor_config.json','tokenizer.json','tokenizer_config.json',
+                      'onnx/vision_model_quantized.onnx','onnx/text_model_quantized.onnx'
+          $missing = $required | Where-Object { -not (Test-Path (Join-Path $dir $_)) }
+          if ($missing) { Write-Error "Missing model files: $($missing -join ', ')"; exit 1 }
+          $extra = Get-ChildItem "$dir/onnx" -Filter *.onnx | Where-Object { $_.Name -notlike '*_quantized.onnx' }
+          if ($extra) { Write-Error "Unexpected full-size model files: $($extra.Name -join ', ')"; exit 1 }
+          Get-ChildItem -Recurse $dir | Select-Object FullName, Length | Format-Table -AutoSize
 
       - name: Build the installer
         run: pnpm tauri build

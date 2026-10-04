@@ -296,7 +296,7 @@ new `tests/e2e/patch2-reopen.spec.ts`.
 **Done when:** `cargo build -p designspace` (or `cargo clippy --workspace`) accepts the capability file.
 **Owner checks:** click a swatch, paste into Notepad: you get the hex. Right-click a photo → Copy image, paste in Paint.
 
-### A5 · Ship the right AI model files and let the model find them `[ ]`
+### A5 · Ship the right AI model files and let the model find them `[x]`
 **Why:** §0 #3 (wrong precision in the installer; tokenizer can't see local files behind an `http://` URL).
 
 **Files:** `scripts/fetch-models.mjs`, `src/lib/ai/clipEmbeddingProvider.ts`, `src/lib/ai/env.ts` (+ `env.test.ts`),

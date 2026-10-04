@@ -13,6 +13,7 @@ export interface AiEnvConfig {
 }
 
 const WASM_PATHS = '/ort/';
+export const BUNDLED_MODELS_PREFIX = '/bundled-models';
 
 /** Runs on the main thread — `convertFileSrc` isn't reachable from a plain Worker. */
 export async function computeAiEnvConfig(platformKind: 'tauri' | 'browser'): Promise<AiEnvConfig> {
@@ -32,6 +33,7 @@ export interface TransformersEnvLike {
   localModelPath: string;
   useBrowserCache: boolean;
   useFSCache: boolean;
+  fetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   backends: { onnx: { wasm?: { wasmPaths?: string; numThreads?: number } } };
 }
 
@@ -40,7 +42,17 @@ export interface TransformersEnvLike {
 export function configureTransformersEnv(env: TransformersEnvLike, config: AiEnvConfig): void {
   env.allowRemoteModels = false;
   env.allowLocalModels = true;
-  env.localModelPath = config.localModelPath ?? '';
+  if (config.localModelPath) {
+    // transformers.js skips its local-file lookups when localModelPath is an http:// URL (the
+    // tokenizer then finds no files). Give it a plain path and translate it here.
+    const base = config.localModelPath.replace(/\/$/, '');
+    const realFetch = globalThis.fetch.bind(globalThis);
+    env.localModelPath = BUNDLED_MODELS_PREFIX;
+    env.fetch = (input, init) =>
+      realFetch(String(input).replace(/^\/bundled-models(?=\/)/, base), init);
+  } else {
+    env.localModelPath = '';
+  }
   env.useBrowserCache = false;
   env.useFSCache = false;
   env.backends.onnx.wasm ??= {};
