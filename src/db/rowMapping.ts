@@ -1,10 +1,12 @@
 import type { DbRow, LinkMeta } from '@/platform/types';
-import type { FontMeta } from '@/lib/fontRender';
+import type { FontMeta, FontVariationAxis } from '@/lib/fontRender';
 import type {
   Board,
   BoardCamera,
   BoardKind,
   Facet,
+  FontCardOptions,
+  FontFile,
   Frame,
   Item,
   ItemKind,
@@ -79,6 +81,9 @@ export function rowToItem(row: DbRow): Item {
     url: asNullableString(row.url),
     coverPath: asNullableString(row.cover_path),
     linkMeta: asJson<LinkMeta>(row.link_meta),
+    fontFamilyKey: asNullableString(row.font_family_key),
+    fontCard: asJson<FontCardOptions>(row.font_card),
+    fontCollection: asJson<{ ids: string[] }>(row.font_collection),
   };
 }
 
@@ -95,6 +100,7 @@ export function rowToPlacement(row: DbRow): Placement {
     frameId: asNullableString(row.frame_id),
     cropX: row.crop_x == null ? null : Number(row.crop_x),
     cropY: row.crop_y == null ? null : Number(row.crop_y),
+    parentId: asNullableString(row.parent_id),
     addedAt: asString(row.added_at),
   };
 }
@@ -161,5 +167,27 @@ export function rowToManualConnection(row: DbRow): ManualConnection {
     toId: asString(row.to_id),
     label: asNullableString(row.label),
     createdAt: asString(row.created_at),
+  };
+}
+
+/** Maps one row from `SELECT * FROM font_files`. */
+export function rowToFontFile(row: DbRow): FontFile {
+  return {
+    id: asString(row.id),
+    itemId: asString(row.item_id),
+    filePath: asString(row.file_path),
+    fileName: asString(row.file_name),
+    fileHash: asString(row.file_hash),
+    fileSize: asNullableNumber(row.file_size),
+    mime: asNullableString(row.mime),
+    styleName: asString(row.style_name ?? ''),
+    weight: Number(row.weight ?? 400),
+    italic: Number(row.italic ?? 0) === 1,
+    axes: asJson<FontVariationAxis[]>(row.axes),
+    instances: asJson<Record<string, Record<string, number>>>(row.instances),
+    sort: Number(row.sort ?? 0),
+    status: asString(row.status ?? 'pending'),
+    createdAt: asString(row.created_at),
+    deletedAt: asNullableString(row.deleted_at),
   };
 }

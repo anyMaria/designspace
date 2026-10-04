@@ -3,6 +3,7 @@ import migration001 from './migrations/001_init.sql?raw';
 import migration002 from './migrations/002_patch1.sql?raw';
 import migration003 from './migrations/003_crop.sql?raw';
 import migration004 from './migrations/004_vocabulary.sql?raw';
+import migration005 from './migrations/005_fonts.sql?raw';
 
 export interface Migration {
   version: number;
@@ -17,6 +18,7 @@ export const migrations: Migration[] = [
   { version: 2, name: 'patch1', sql: migration002 },
   { version: 3, name: 'crop', sql: migration003 },
   { version: 4, name: 'vocabulary', sql: migration004 },
+  { version: 5, name: 'fonts', sql: migration005 },
 ];
 
 export const LATEST_SCHEMA_VERSION = Math.max(...migrations.map((m) => m.version));

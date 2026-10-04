@@ -3058,3 +3058,26 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   runs the real migrations on in-memory SQLite for tests (reused in F).
 - **Found by e2e:** since the connect handle moved outside the card (C2), the card now stays hovered over the strip
   between its edge and the handle (`overConnectHandleZone`), or the handle vanished before it could be grabbed.
+
+## Patch 2 · Phase E: the Color studio (v0.13.0)
+
+- **E1–E6:** a full-screen Color studio (`src/features/colorStudio/`) with four tabs: Wheel, From an image, Generate
+  and Contrast. Colour maths is pure in `src/lib/colorStudio.ts` (harmony rules on the RYB wheel, generator, WCAG
+  contrast, `nearestPassing`, colour-blind simulation, `hardToTellApart`, mood picks). Up to 10 spots; proposals history
+  is capped at 50.
+- **Liked colours are a library setting, not a Command** (`likedColors` in `settingsStore`, saved with the other
+  settings). Hearting a colour is a preference, not an edit of the owner's collection, so it is not an undo step and is
+  not part of Save/Undo. They survive closing the studio and reloading.
+- **Saving** is one undoable step: a new palette (`createCreatePaletteCommand`) or, when editing, a composite of
+  colours + name (`src/commands/composite.ts`). The picture on the From an image tab is only imported when the owner
+  ticks "Also add this image to my library".
+- **Space and overlays:** while the studio is open `overlayGate` blocks the canvas shortcuts and Space-pan, and Space
+  means "new colors" (`studioKeys.ts`). Typing in a field keeps its own keys.
+- **Reading a picture:** Rust `media_read_image` returns the bytes of an image the owner picked (allowed extensions
+  only); the browser build has no equivalent and reports `notSupported`, so open/paste/drop work through `File`.
+- **E7 (ways in):** + Add → Palette… (replaces Swatch), double-click a palette or swatch, right-click a photo →
+  Make a palette (replaces Extract palette, and now works on one photo, using its sampled colours), and a Make a palette
+  button in a photo's Details. The Details panel of a palette is now a compact view (name, click-to-copy cells, Open in
+  Color studio, Copy all). `createExtractPaletteCommand`, the old wheel/slider editor and `ColorWheel` were removed.
+  `Engine.startPointPick` and `lib/pickColor.ts` are now unused by the UI but kept (tested, tiny).
+- **Cloud limits:** the clipboard-paste path and the real image decode of large files are only checked on Windows.

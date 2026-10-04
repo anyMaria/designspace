@@ -35,6 +35,14 @@ export interface FontMeta {
   license: string | null;
   glyphCount: number;
   variableAxes: FontVariationAxis[];
+  /** Patch 2 · F1 (`family` above is the family without the style, "Urbanist"): the style ("Bold Italic"), the
+   * weight class (100–900), whether it is italic, the named instances of a variable font, and the
+   * foundry id used to tell apart two unrelated families that share a name. */
+  styleName: string;
+  weight: number;
+  italic: boolean;
+  instances: Record<string, Record<string, number>> | null;
+  vendorId: string | null;
 }
 
 export interface FontDerivatives extends FontMeta {
@@ -46,7 +54,7 @@ function toHexColor(packed: number): string {
   return `#${packed.toString(16).padStart(6, '0')}`;
 }
 
-function parseFont(bytes: ArrayBuffer): fontkit.Font {
+export function parseFont(bytes: ArrayBuffer): fontkit.Font {
   // @types/fontkit's `create()` is typed against fontkit's Node API (`Buffer`), which the
   // browser build doesn't actually need (verified in the S6 spike, docs/DECISIONS.md) — cast
   // through `unknown` rather than pull in a `buffer` polyfill just to satisfy a stale type.
@@ -54,7 +62,22 @@ function parseFont(bytes: ArrayBuffer): fontkit.Font {
   return 'fonts' in parsed ? parsed.fonts[0] : parsed;
 }
 
-function readMeta(font: fontkit.Font): FontMeta {
+/** `namedVariations` is missing from @types/fontkit: read it as unknown and narrow. */
+function namedInstances(font: fontkit.Font): Record<string, Record<string, number>> | null {
+  const raw = (font as unknown as { namedVariations?: unknown }).namedVariations;
+  if (!raw || typeof raw !== 'object') return null;
+  const out: Record<string, Record<string, number>> = {};
+  for (const [name, axes] of Object.entries(raw as Record<string, unknown>)) {
+    if (!axes || typeof axes !== 'object') continue;
+    const values: Record<string, number> = {};
+    for (const [tag, v] of Object.entries(axes as Record<string, unknown>))
+      if (typeof v === 'number') values[tag] = v;
+    out[name] = values;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+export function readMeta(font: fontkit.Font): FontMeta {
   const variableAxes = Object.entries(font.variationAxes)
     .filter((entry): entry is [string, NonNullable<(typeof entry)[1]>] => entry[1] != null)
     .map(([tag, axis]) => ({
@@ -64,8 +87,21 @@ function readMeta(font: fontkit.Font): FontMeta {
       max: axis.max,
       default: axis.default,
     }));
+  const preferredFamily = font.getName('preferredFamily', 'en') || font.familyName || 'Untitled';
+  const styleName = font.getName('preferredSubfamily', 'en') || font.subfamilyName || '';
+  const os2 = (font as unknown as { 'OS/2'?: Partial<fontkit.Font['OS/2']> })['OS/2'];
+  const vendorRaw = (os2 as { achVendID?: unknown } | undefined)?.achVendID;
+  const vendorId = typeof vendorRaw === 'string' ? vendorRaw.replace(/[\0\s]/g, '') || null : null;
   return {
-    family: font.familyName || 'Untitled',
+    family: preferredFamily,
+    styleName,
+    weight: os2?.usWeightClass ?? 400,
+    italic:
+      !!os2?.fsSelection?.italic ||
+      (font.italicAngle ?? 0) !== 0 ||
+      /italic|oblique/i.test(styleName),
+    instances: namedInstances(font),
+    vendorId,
     subfamily: font.subfamilyName || '',
     fullName: font.fullName || font.familyName || 'Untitled',
     designer: font.getName('designer', 'en') || null,

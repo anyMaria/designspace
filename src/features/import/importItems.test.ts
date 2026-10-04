@@ -310,6 +310,7 @@ describe('freeCentreFor', () => {
             frameId: null,
             cropX: null,
             cropY: null,
+            parentId: null,
             addedAt: '',
           },
         ],

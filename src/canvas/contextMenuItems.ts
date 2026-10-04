@@ -14,7 +14,7 @@ export type ContextMenuItemId =
   | 'tidy-up'
   | 'connect-to'
   | 'back-to-inbox'
-  | 'extract-palette'
+  | 'make-palette'
   | 'combine-palette'
   | 'edit-palette'
   | 'copy-colors'
@@ -52,9 +52,9 @@ export function contextMenuItemIds(
   if (items.length >= 2) ids.push('tidy-up');
   if (items.length === 1) ids.push('connect-to');
   if (items.length > 0 && items.every((i) => MEDIA_KINDS.has(i.kind))) ids.push('back-to-inbox');
-  // Swatches and palettes carry a derived `palette` too, but extracting from them is pointless.
-  if (items.some((i) => i.kind !== 'swatch' && (i.palette?.length ?? 0) > 0))
-    ids.push('extract-palette');
+  // One photo with sampled colours: open it in the Color studio (Patch 2 · E7).
+  if (items.length === 1 && items[0]?.kind === 'image' && (items[0].palette?.length ?? 0) > 0)
+    ids.push('make-palette');
   // One media item: add or edit its long description (Patch 1 · E4).
   const only = items.length === 1 ? items[0] : null;
   if (only && isMediaKind(only.kind))

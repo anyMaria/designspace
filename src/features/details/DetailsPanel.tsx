@@ -17,6 +17,7 @@ import {
   createSetItemTypeCommand,
 } from '@/commands/itemTermCommands';
 import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
+import { openFromPhoto } from '@/features/colorStudio/openStudio';
 import { TermCombobox, Swatch, Toggle, Button, IconButton } from '@/design/components';
 import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
 import { formatBytes } from '@/lib/formatBytes';
@@ -326,6 +327,15 @@ export function DetailsPanel({
               <Swatch key={p.hex} hex={p.hex} />
             ))}
           </div>
+          {item.kind === 'image' && (
+            <Button
+              variant="secondary"
+              style={{ marginTop: 'var(--space-2)' }}
+              onClick={() => openFromPhoto(item)}
+            >
+              {en.colorStudio.makePalette}
+            </Button>
+          )}
         </Field>
       )}
 

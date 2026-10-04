@@ -13,14 +13,12 @@ import { useBoardStore } from '@/state/boardStore';
 import { useHistoryStore } from '@/commands/history';
 import { createCreateNoteCommand } from '@/commands/noteCommands';
 import { noteGeometry } from '@/design/tokens';
-import { SWATCH_SIZE, createCreateSwatchCommand } from '@/commands/swatchCommands';
+import { openNewPalette } from '@/features/colorStudio/openStudio';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
 import { LinkDialog } from './LinkDialog';
 import { importLink } from './importLink';
 import { useSettingsStore } from '@/state/settingsStore';
-import { useUiStore } from '@/state/uiStore';
-import { useLibraryStore } from '@/state/libraryStore';
 import {
   ALL_SUPPORTED_EXTENSIONS,
   FONT_EXTENSIONS,
@@ -130,27 +128,9 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
       .then(() => useNoteEditStore.getState().open(item.id));
   }
 
-  function handleAddSwatch(): void {
+  function handleAddPalette(): void {
     setOpen(false);
-    const space = currentSpace();
-    if (!space) return;
-    const point = freeCentreFor(dropPoint(), { w: SWATCH_SIZE, h: SWATCH_SIZE });
-    const { command, item } = createCreateSwatchCommand(
-      platform,
-      space.boardId,
-      space.isLibraryBoard,
-      point.x,
-      point.y,
-    );
-    // Select it right away so the palette editor shows (no hex copy: that is for clicking).
-    void useHistoryStore
-      .getState()
-      .execute(command)
-      .then(() => {
-        useLibraryStore.getState().setSelection([item.id]);
-        engine?.setSelection([item.id]);
-        useUiStore.setState({ panelOpen: true, panelTab: 'details' });
-      });
+    openNewPalette();
   }
 
   function handleAddLink(): void {
@@ -232,7 +212,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
                   { id: 'paste', label: en.addMenu.paste, onSelect: () => void handlePaste() },
                   { id: 'link', label: en.addMenu.link, onSelect: handleAddLink },
                   { id: 'note', label: en.addMenu.note, onSelect: handleAddNote },
-                  { id: 'swatch', label: en.addMenu.swatch, onSelect: handleAddSwatch },
+                  { id: 'palette', label: en.addMenu.palette, onSelect: handleAddPalette },
                 ]}
               />
             </Popover>

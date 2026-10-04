@@ -28,6 +28,7 @@ function makePlacement(boardId: string, itemId: string): Placement {
     frameId: null,
     cropX: null,
     cropY: null,
+    parentId: null,
     addedAt: '2026-01-01T00:00:00.000Z',
   };
 }

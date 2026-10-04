@@ -311,6 +311,7 @@ export function createAddToBoardCommand(
     frameId: null,
     cropX: null,
     cropY: null,
+    parentId: null,
     addedAt: new Date().toISOString(),
   };
 

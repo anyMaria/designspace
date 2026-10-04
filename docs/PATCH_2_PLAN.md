@@ -965,7 +965,7 @@ Mockups: `docs/patch-2/studio-generate.png` (shell + Generate) and `studio-tabs.
 **Words used below:** a **spot** is one colour of the palette being built (the columns at the bottom). The **selected spot**
 is the one the tabs edit. A **locked** spot never changes. **Liked** colours live on the shelf on the right.
 
-### E1 · Colour maths `[ ]`
+### E1 · Colour maths `[x]`
 **Files:** new `src/lib/colorStudio.ts` (+ `colorStudio.test.ts`).
 
 **Do:** copy `docs/patch-2/reference/colorStudio.ts.txt` **as is** (24 test cases, all passing at the time of writing; culori 4.0.2 only). It exports:
@@ -978,7 +978,7 @@ artist's RYB wheel like Adobe Color, so red's complement is green), `rybToHue`/`
 (both return colours **with the pixel they came from**, so eyedroppers can be placed).
 Note in `contrastInfo`: never round the ratio before comparing; display it rounded **down** to 2 decimals.
 
-### E2 · The studio shell, the palette strip and saving `[ ]`
+### E2 · The studio shell, the palette strip and saving `[x]`
 **Files:** new `src/features/colorStudio/{colorStudioStore.ts (+ test), ColorStudio.tsx, PaletteStrip.tsx, LikedShelf.tsx, studioKeys.ts}`,
 new `src/app/overlayGate.ts` (+ test), `src/canvas/input.ts`, `src/canvas/useCanvasShortcuts.ts`, `src/app/useGlobalShortcuts.ts`,
 new `src/commands/composite.ts` (+ test), `src/state/loadSettings.ts`, `src/state/settingsStore.ts`, `src/app/Shell.tsx`,
@@ -1038,7 +1038,7 @@ new `src/commands/composite.ts` (+ test), `src/state/loadSettings.ts`, `src/stat
 **Tests:** `colorStudioStore.test.ts` (setHexes keeps locked spots; add stops at 10; remove keeps one; move; dirty);
 `composite.test.ts` (order of do/undo); `overlayGate.test.ts`. e2e comes in E7 once there are ways in.
 
-### E3 · The Wheel tab `[ ]`
+### E3 · The Wheel tab `[x]`
 **Files:** new `src/features/colorStudio/WheelTab.tsx`, `src/features/palettes/ColorWheel.tsx` (reuse), `colorWheelMath.ts`.
 
 **Do**
@@ -1055,7 +1055,7 @@ new `src/commands/composite.ts` (+ test), `src/state/loadSettings.ts`, `src/stat
 **Tests:** a pure helper `applyRule(spots, baseIndex, rule)` (in the store file) unit-tested: locked spots untouched, base
 unchanged.
 
-### E4 · The From an image tab `[ ]`
+### E4 · The From an image tab `[x]`
 **Files:** new `src/features/colorStudio/ImageTab.tsx`, new `src/features/colorStudio/imagePixels.ts` (+ test),
 `src-tauri/src/media.rs`, `lib.rs`, `build.rs`, `capabilities/default.json`, `src/platform/types.ts` + both platforms.
 
@@ -1081,7 +1081,7 @@ unchanged.
 **Tests:** `imagePixels.test.ts` for the pure scale maths (`fitWithin(w, h, 512)`); the Rust command's extension check
 (unit test on a pure `is_allowed_image(path)` helper).
 
-### E5 · The Generate tab `[ ]`
+### E5 · The Generate tab `[x]`
 **Files:** new `src/features/colorStudio/GenerateTab.tsx`, `colorStudioStore.ts`.
 
 **Do**
@@ -1094,7 +1094,7 @@ unchanged.
   is highlighted with "Now"; clicking a row goes to it.
 **Tests:** store tests: generate keeps locked spots; history caps at 50; going back then generating drops the forward entries.
 
-### E6 · The Contrast tab and the colour-blind preview `[ ]`
+### E6 · The Contrast tab and the colour-blind preview `[x]`
 **Files:** new `src/features/colorStudio/ContrastTab.tsx`.
 
 **Do**
@@ -1114,7 +1114,7 @@ unchanged.
 **Tests:** a pure `hardToTellApart(hexes, threshold)` helper (in `colorStudio.ts` or next to the tab) with two near-identical
 greys → flagged.
 
-### E7 · Ways in, and retiring the old editor `[ ]`
+### E7 · Ways in, and retiring the old editor `[x]`
 **Files:** `src/features/import/AddMenu.tsx`, `src/canvas/useFocusViewBinding.ts` (double-click), `src/canvas/contextMenuItems.ts`
 (+ test), `src/canvas/ContextMenu.tsx`, `src/features/details/DetailsPanel.tsx`, `src/features/palettes/PaletteEditor.tsx`,
 `src/app/Shell.tsx`, `en.ts`, new e2e `tests/e2e/patch2-color-studio.spec.ts`, `tests/e2e/patch1-palette.spec.ts`.
@@ -1165,7 +1165,7 @@ the `kind` CHECK can't change without a table rebuild, see §2.1). Its families 
 where they belong to a collection, their placement has `parent_id = <collection id>` and their rect is computed from the
 collection's. `placements.frame_id` can't be reused (it references `frames`).
 
-### F1 · Richer font metadata and the `font_files` table `[ ]`
+### F1 · Richer font metadata and the `font_files` table `[x]`
 **Files:** `src/lib/fontRender.ts` (+ tests), new `src/db/migrations/005_fonts.sql`, `src/db/migrator.ts`,
 `src/state/types.ts`, `src/db/rowMapping.ts` (+ test), new `src/state/fontFilesStore.ts`, the library loader
 (`src/state/loadLibrary.ts`), new `src/lib/fontFamily.ts` (+ test).

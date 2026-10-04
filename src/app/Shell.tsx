@@ -423,7 +423,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           ) : selectedItem?.kind === 'note' ? (
             <NoteDetails platform={platform} item={selectedItem} />
           ) : selectedItem?.kind === 'swatch' ? (
-            <PaletteEditor platform={platform} item={selectedItem} engine={engine} />
+            <PaletteEditor platform={platform} item={selectedItem} />
           ) : selectedItem ? (
             <DetailsPanel platform={platform} item={selectedItem} engine={engine} />
           ) : (

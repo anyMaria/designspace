@@ -73,6 +73,7 @@ export function createCreateNoteCommand(
     frameId: null,
     cropX: null,
     cropY: null,
+    parentId: null,
     addedAt: now,
   };
 

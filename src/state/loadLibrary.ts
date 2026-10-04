@@ -1,15 +1,18 @@
 import type { Platform } from '@/platform/types';
 import type { DbRow } from '@/platform/types';
-import { rowToItem, rowToPlacement } from '@/db/rowMapping';
+import { rowToFontFile, rowToItem, rowToPlacement } from '@/db/rowMapping';
+import { useFontFilesStore } from './fontFilesStore';
 import { useLibraryStore } from './libraryStore';
 
 /** Loads non-deleted items and the current space's placements into the store — §4.11 startup
  * ("load non-deleted items... the current space's placements"). */
 export async function loadLibraryItems(platform: Platform, libraryBoardId: string): Promise<void> {
-  const [itemRows, placementRows] = await Promise.all([
+  const [itemRows, placementRows, fontRows] = await Promise.all([
     platform.db.select<DbRow>('SELECT * FROM items WHERE deleted_at IS NULL'),
     platform.db.select<DbRow>('SELECT * FROM placements WHERE board_id = ?', [libraryBoardId]),
+    platform.db.select<DbRow>('SELECT * FROM font_files WHERE deleted_at IS NULL'),
   ]);
+  useFontFilesStore.getState().loadAll(fontRows.map(rowToFontFile));
   useLibraryStore.getState().loadAll(itemRows.map(rowToItem), placementRows.map(rowToPlacement));
 }
 

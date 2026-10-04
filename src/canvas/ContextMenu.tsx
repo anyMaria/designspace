@@ -25,10 +25,9 @@ import {
   createBoardFromItemsCommand,
   createRemoveFromBoardCommand,
 } from '@/commands/boardCommands';
-import { createExtractPaletteCommand } from '@/commands/swatchCommands';
+import { openEditPalette, openFromPhoto } from '@/features/colorStudio/openStudio';
 import { createCombineIntoPaletteCommand } from '@/commands/paletteCommands';
 import { swatchColorsOf } from '@/lib/palette';
-import { useUiStore } from '@/state/uiStore';
 import { useBoardStore } from '@/state/boardStore';
 import { switchSpace } from '@/features/boards/switchSpace';
 import { useListStore } from '@/state/listStore';
@@ -162,25 +161,10 @@ export function ContextMenu({
       });
   }
 
-  function extractPalette(): void {
+  function makePalette(): void {
     onClose();
-    if (!currentBoardId) return;
-    const isLibraryBoard = currentBoard?.kind === 'library';
-    const origin = engine?.viewportCenter() ?? { x: 0, y: 0 };
-    const { command, items } = createExtractPaletteCommand(
-      platform,
-      ids,
-      currentBoardId,
-      isLibraryBoard,
-      origin,
-    );
-    void useHistoryStore
-      .getState()
-      .execute(command)
-      .then(() => {
-        const n = items[0]?.swatchColors?.length ?? 0;
-        if (n > 0) useToastStore.getState().show(en.palettes.extracted(n));
-      });
+    const item = selectedItems[0];
+    if (item) openFromPhoto(item);
   }
 
   function combinePalette(): void {
@@ -203,7 +187,8 @@ export function ContextMenu({
 
   function editPalette(): void {
     onClose();
-    useUiStore.setState({ panelOpen: true, panelTab: 'details' });
+    const item = selectedItems[0];
+    if (item) openEditPalette(item);
   }
 
   function copyColors(): void {
@@ -352,10 +337,10 @@ export function ContextMenu({
       label: en.contextMenu.backToInbox,
       onSelect: backToInbox,
     },
-    'extract-palette': {
-      id: 'extract-palette',
-      label: en.swatches.extractPalette,
-      onSelect: extractPalette,
+    'make-palette': {
+      id: 'make-palette',
+      label: en.colorStudio.makePalette,
+      onSelect: makePalette,
     },
     'combine-palette': {
       id: 'combine-palette',

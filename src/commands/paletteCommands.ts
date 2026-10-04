@@ -10,13 +10,9 @@ import {
   swatchColorsOf,
   type SwatchColor,
 } from '@/lib/palette';
-import { en } from '@/i18n/en';
 import type { Command } from './types';
 import type { Item, Placement } from '@/state/types';
 
-const MIN_EXTRACTED = 5;
-const MAX_EXTRACTED = 8;
-const EXTRACT_GAP = 48; // world units between the source selection and its extracted palette
 const ROW_TOLERANCE = 40; // swatches whose y differs by less than this share a "row" when combining
 
 function colorColumns(colors: SwatchColor[]) {
@@ -107,6 +103,7 @@ function placementFor(item: Item, boardId: string, x: number, y: number, n: numb
     frameId: null,
     cropX: null,
     cropY: null,
+    parentId: null,
     addedAt: item.createdAt,
   };
 }
@@ -255,51 +252,4 @@ export function createCombineIntoPaletteCommand(
     },
   };
   return { command, item };
-}
-
-/** "Extract palette": the dominant colours ingest already computed per item (`item.palette`),
- * merged by hex across the sources (summing weight), top 5–8 by weight, become **one** palette
- * placed 48 units right of the selection's bounds. */
-export function createExtractPaletteCommand(
-  platform: Platform,
-  sourceItemIds: string[],
-  boardId: string,
-  isLibraryBoard: boolean,
-  origin: { x: number; y: number },
-): { command: Command; items: Item[] } {
-  const { items, placements } = useLibraryStore.getState();
-  const weightByHex = new Map<string, number>();
-  for (const id of sourceItemIds) {
-    for (const entry of items.get(id)?.palette ?? []) {
-      weightByHex.set(entry.hex, (weightByHex.get(entry.hex) ?? 0) + entry.weight);
-    }
-  }
-  const ranked = [...weightByHex.entries()].sort((a, b) => b[1] - a[1]);
-  const chosen = ranked.slice(0, Math.max(MIN_EXTRACTED, Math.min(MAX_EXTRACTED, ranked.length)));
-  const colors: SwatchColor[] = chosen.map(([hex]) => ({ hex }));
-  if (colors.length === 0)
-    return { command: { label: 'Extract palette', do() {}, undo() {} }, items: [] };
-
-  const bounds = unionRects(
-    sourceItemIds.map((id) => placements.get(id)).filter((p): p is Placement => !!p),
-  );
-  const at = bounds ? { x: bounds.x + bounds.w + EXTRACT_GAP, y: bounds.y } : origin;
-
-  const item = makePaletteItem(
-    colors,
-    en.palettes.fromItems(sourceItemIds.length),
-    isLibraryBoard ? null : boardId,
-  );
-  const placement = placementFor(item, boardId, at.x, at.y, colors.length);
-
-  const command: Command = {
-    label: 'Extract palette',
-    do: async () => {
-      useLibraryStore.getState().upsertItem(item);
-      useLibraryStore.getState().upsertPlacement(placement);
-      await platform.db.batch(insertStatements(item, placement));
-    },
-    undo: () => undoCreate(platform, [item.id]),
-  };
-  return { command, items: [item] };
 }

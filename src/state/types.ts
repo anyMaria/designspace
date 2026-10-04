@@ -2,7 +2,7 @@
  * columns from §5.2. M1 only deals with the `image` kind; the rest of the union lands with the
  * milestones that add them (videos/PDFs/fonts in M5, links in M5, notes/swatches in M4). */
 
-import type { FontMeta } from '@/lib/fontRender';
+import type { FontMeta, FontVariationAxis } from '@/lib/fontRender';
 import type { LinkMeta } from '@/platform/types';
 
 export type ItemKind = 'image' | 'video' | 'pdf' | 'font' | 'link' | 'note' | 'swatch';
@@ -86,6 +86,40 @@ export interface Item {
   url?: string | null;
   coverPath?: string | null;
   linkMeta?: LinkMeta | null;
+  /** Patch 2 · F1: a font item is a family (several files in `font_files`). `fontFamilyKey` finds
+   * the family on import; `fontCard` is what the card shows; `fontCollection` marks the item as a
+   * type collection (it has no file of its own). */
+  fontFamilyKey?: string | null;
+  fontCard?: FontCardOptions | null;
+  fontCollection?: { ids: string[] } | null;
+}
+
+/** One file of a font family (Patch 2 · F1). */
+export interface FontFile {
+  id: string;
+  itemId: string;
+  filePath: string;
+  fileName: string;
+  fileHash: string;
+  fileSize: number | null;
+  mime: string | null;
+  styleName: string;
+  weight: number;
+  italic: boolean;
+  axes: FontVariationAxis[] | null;
+  instances: Record<string, Record<string, number>> | null;
+  sort: number;
+  status: string;
+  createdAt: string;
+  deletedAt: string | null;
+}
+
+/** What the card of a font family shows (Patch 2 · F4); null fields = the defaults. */
+export interface FontCardOptions {
+  fileId: string | null;
+  wght: number | null;
+  size: 's' | 'm' | 'l';
+  text: string | null;
 }
 
 export interface Placement {
@@ -101,6 +135,8 @@ export interface Placement {
    * by the owner (Patch 2 · C3). */
   cropX: number | null;
   cropY: number | null;
+  /** The type collection this family belongs to on this space, or null (Patch 2 · F5). */
+  parentId: string | null;
   addedAt: string;
 }
 

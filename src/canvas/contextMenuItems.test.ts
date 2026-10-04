@@ -43,18 +43,20 @@ describe('contextMenuItemIds', () => {
     );
   });
 
-  it('extract palette only when something has a palette', () => {
-    expect(contextMenuItemIds([item({})], ctx)).not.toContain('extract-palette');
-    expect(contextMenuItemIds([item({ palette: [{ hex: '#ffffff', weight: 1 }] })], ctx)).toContain(
-      'extract-palette',
+  it('Make a palette only for one photo that has sampled colours', () => {
+    const palette = [{ hex: '#ffffff', weight: 1 }];
+    expect(contextMenuItemIds([item({})], ctx)).not.toContain('make-palette');
+    expect(contextMenuItemIds([item({ palette })], ctx)).toContain('make-palette');
+    expect(contextMenuItemIds([item({ palette }), item({ id: 'b', palette })], ctx)).not.toContain(
+      'make-palette',
     );
   });
 
-  it('swatches never offer Extract palette; they offer Combine, Edit and Copy instead', () => {
+  it('swatches never offer Make a palette; they offer Combine, Edit and Copy instead', () => {
     const sw = (id: string) =>
       item({ id, kind: 'swatch', filePath: null, palette: [{ hex: '#ffffff', weight: 1 }] });
     const one = contextMenuItemIds([sw('a')], ctx);
-    expect(one).not.toContain('extract-palette');
+    expect(one).not.toContain('make-palette');
     expect(one).toEqual(expect.arrayContaining(['edit-palette', 'copy-colors']));
     expect(one).not.toContain('combine-palette');
     const two = contextMenuItemIds([sw('a'), sw('b')], ctx);

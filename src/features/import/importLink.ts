@@ -118,6 +118,7 @@ async function createLinkRow(
     frameId: null,
     cropX: null,
     cropY: null,
+    parentId: null,
     addedAt: now,
   };
   useLibraryStore.getState().upsertItem(item);

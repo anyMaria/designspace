@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-test('the Add menu creates a swatch and clicking it copies its HEX', async ({ page }) => {
+test('the Add menu makes a palette in the Color studio and the Details panel shows it', async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (msg) => {
@@ -14,7 +16,11 @@ test('the Add menu creates a swatch and clicking it copies its HEX', async ({ pa
   // Add menu → Swatch creates a default-grey swatch and selects nothing new automatically, so
   // click it once to select (and copy its HEX).
   await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Swatch', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Palette…', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Color studio' })
+    .getByRole('button', { name: 'Save palette' })
+    .click();
   await page.waitForTimeout(300);
 
   const canvas = page.locator('canvas').first();
@@ -22,15 +28,15 @@ test('the Add menu creates a swatch and clicking it copies its HEX', async ({ pa
   if (!box) throw new Error('canvas not found');
   const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   await page.mouse.click(center.x, center.y);
-  await expect(page.getByText('Copied #8c8c8c')).toBeVisible();
+  // (A palette copies nothing on select; clicking one of its cells copies that colour.)
 
-  // The Details panel shows the palette editor (Hex field) for the selected swatch.
-  await expect(page.getByLabel('Hex', { exact: true })).toHaveValue('#8C8C8C');
+  // The Details panel shows the compact palette view.
+  await expect(page.getByRole('button', { name: 'Open in Color studio' })).toBeVisible();
 
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('Extract palette turns a right-clicked image into swatches', async ({ page }) => {
+test('Make a palette opens the Color studio on a right-clicked image', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (msg) => {
@@ -47,8 +53,10 @@ test('Extract palette turns a right-clicked image into swatches', async ({ page 
   const item0 = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   await page.mouse.click(item0.x, item0.y, { button: 'right' });
   await page.waitForTimeout(200);
-  await page.getByRole('menuitem', { name: 'Extract palette' }).click();
-  await expect(page.getByText(/^Extracted a palette of \d+ colors$/)).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Make a palette' }).click();
+  const studio = page.getByRole('dialog', { name: 'Color studio' });
+  await expect(studio).toBeVisible();
+  await expect(studio.getByRole('tab', { name: 'From an image', selected: true })).toBeVisible();
 
   expect(errors, errors.join('\n')).toEqual([]);
 });
