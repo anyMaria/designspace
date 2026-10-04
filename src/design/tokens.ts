@@ -165,6 +165,8 @@ export const motion = {
   panel: 200,
   overlay: 320,
   flyTo: 500,
+  /** The Overview's nodes pull together into a new layout (Patch 2 · B2). */
+  overviewSettle: 600,
 } as const;
 
 /** Zoom range, world %  — §2.2. */

@@ -11,6 +11,9 @@ export interface OverviewNode {
   aspect: number;
   /** The `t128` thumbnail URL, or null for items that have none (notes, swatches, not ready). */
   thumbUrl: string | null;
+  /** Where the node was in My layout, so a new layout can settle from there (Patch 2 · B2). */
+  homeX?: number;
+  homeY?: number;
 }
 
 export interface OverviewHubInput {
@@ -25,6 +28,8 @@ export interface OverviewHubInput {
 
 export interface OverviewHub {
   id: string;
+  /** Stable across layouts (`criterion:value`), so a clicked star can stay clicked. */
+  key: string;
   x: number;
   y: number;
   label: string;
@@ -79,7 +84,15 @@ export function buildOverviewModel(input: OverviewInput): OverviewModel {
       const cx = h.x ?? members.reduce((s, id) => s + (pos.get(id)?.x ?? 0), 0) / members.length;
       const cy = h.y ?? members.reduce((s, id) => s + (pos.get(id)?.y ?? 0), 0) / members.length;
       const id = `hub:${hubs.length}`;
-      hubs.push({ id, x: cx, y: cy, label: h.label, criterion: h.criterion, itemIds: members });
+      hubs.push({
+        id,
+        key: `${h.criterion}:${h.value}`,
+        x: cx,
+        y: cy,
+        label: h.label,
+        criterion: h.criterion,
+        itemIds: members,
+      });
       for (const m of members)
         edges.push({ aId: m, bId: id, criterion: h.criterion, manual: false });
     }

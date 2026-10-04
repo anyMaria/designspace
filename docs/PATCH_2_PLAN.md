@@ -501,7 +501,7 @@ that toggles the switch).
 **Done when:** typecheck, unit and e2e green; Shift+C does nothing; the Connections popover has no ✦ switch.
 DECISIONS: "Constellations removed (owner, Patch 2 D1); the layout code lives on in the Overview."
 
-### B2 · The Overview opens on clusters that you can actually see `[ ]`
+### B2 · The Overview opens on clusters that you can actually see `[x]`
 **Why:** measured on synthetic libraries with today's constants, items sit about 185 px (screen) from their star and stars
 are about 32 px apart: clusters overlap into one cloud (separation ratio 0.17). The constants were tuned for full-size
 cards on the map (long side 160), not for the Overview's small thumbnails.

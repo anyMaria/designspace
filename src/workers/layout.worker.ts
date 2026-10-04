@@ -16,17 +16,19 @@ export interface LayoutRequest {
   /** `similar` ("Similar look", §4.10) — omitted (not just empty) when no embeddings are
    * available at all, same convention `buildConnectionIndex` uses. */
   embeddings?: Map<string, Float32Array>;
+  /** Overview's Spacing slider; multiplies every layout distance. Default 1. */
+  spacing?: number;
 }
 
 export interface LayoutResponse extends ConstellationLayout {
   id: string;
 }
 
-/** §4.9 Constellations, off the main thread — CLAUDE.md's "Ingest, layout and AI run in
+/** §4.9 clusters layout, off the main thread — CLAUDE.md's "Ingest, layout and AI run in
  * workers". Rebuilds the connection index here (mirroring how `ingest.worker.ts` takes raw bytes
  * rather than a pre-decoded image) instead of receiving a pre-built `ConnectionIndex`, since Maps
  * of Maps of Sets structured-clone fine either way but the source arrays are simpler to reason
- * about at the call site in `useConstellationsBinding` (M3-7). */
+ * about at the call site in `useOverviewData`. */
 self.onmessage = (event: MessageEvent<LayoutRequest>) => {
   const req = event.data;
   const index = buildConnectionIndex(
@@ -43,6 +45,7 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
     index,
     req.terms,
     itemTitles,
+    { spacing: req.spacing },
   );
   const response: LayoutResponse = { id: req.id, ...layout };
   self.postMessage(response);

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { pixelAt } from './helpers/pixels';
 
-// Patch 1 · G2: O opens the Overview, nodes are drawn, Esc closes it.
+// Patch 1 · G2 (+ Patch 2 · B2): O opens the Overview, nodes are drawn, Esc closes it.
 test('the Overview opens with O, draws the library, and closes with Esc', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/?seed=demo', { waitUntil: 'networkidle' });
@@ -23,8 +23,18 @@ test('the Overview opens with O, draws the library, and closes with Esc', async 
   }
   expect(drawn).toBe(true);
 
-  // Switching to Clusters works and Esc closes the whole thing.
-  await page.getByRole('tab', { name: 'Clusters' }).click();
+  // It opens on Clusters (Patch 2 · B2); the Spacing slider keeps it open and redraws.
+  await expect(page.getByRole('tab', { name: 'Clusters' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  const spacing = page.getByRole('slider', { name: 'Spacing' });
+  await spacing.focus();
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(800);
+  await expect(overview).toBeVisible();
+
+  await page.getByRole('tab', { name: 'My layout' }).click();
   await page.waitForTimeout(500);
   await page.keyboard.press('Escape');
   await expect(overview).toBeHidden();

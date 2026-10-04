@@ -82,6 +82,7 @@ export const en = {
     title: 'Overview',
     myLayout: 'My layout',
     clusters: 'Clusters',
+    spacing: 'Spacing',
     thumbnails: 'Thumbnails',
     dots: 'Dots',
     hint: 'Double-click an item to go to it · Esc to close',

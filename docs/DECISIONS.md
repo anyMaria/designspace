@@ -3009,3 +3009,8 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
 
 - **B1:** Constellations removed (owner, Patch 2 D1); the layout code (`lib/constellations.ts`, the layout worker and
   `runConstellationLayout`) lives on in the Overview. The motion token `constellations` is gone.
+- **B2:** the Overview opens on Clusters with the plan's new constants (`ITEM_CARD_LONG_SIDE` is gone), a Spacing slider
+  (applied on release) and nodes that settle over 600 ms (`motion.overviewSettle`, instant with reduced motion). Nodes
+  tween from their My layout position (`homeX/homeY` on `OverviewNode`) the first time. Clicking a star keeps its group
+  bright (others fade to 15 %); Esc clears the star first, then closes the Overview. The star's identity is
+  `criterion:value` (`OverviewHub.key`), stored in `overviewStore.focusHubKey`.

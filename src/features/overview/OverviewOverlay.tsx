@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Engine } from '@/canvas/Engine';
 import { CRITERION_COLOR } from '@/canvas/criterionColor';
-import { IconButton, Tabs } from '@/design/components';
+import { IconButton, Slider, Tabs } from '@/design/components';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import { prefersReducedMotion } from '@/lib/motion';
@@ -11,7 +11,7 @@ import type { Criterion } from '@/lib/connections';
 import { en } from '@/i18n/en';
 import { OverviewCanvas } from './OverviewCanvas';
 import { useOverviewData } from './useOverviewData';
-import { useOverviewStore } from './overviewStore';
+import { OVERVIEW_SPACING_MAX, OVERVIEW_SPACING_MIN, useOverviewStore } from './overviewStore';
 
 const CRITERION_LABEL: Record<Criterion, string> = {
   type: en.connections.criterionType,
@@ -38,7 +38,11 @@ export function OverviewOverlay({
   const layout = useOverviewStore((s) => s.layout);
   const nodes = useOverviewStore((s) => s.nodes);
   const criteria = useConnectionsUiStore((s) => s.activeCriteria);
+  const spacing = useOverviewStore((s) => s.spacing);
+  const focusHubKey = useOverviewStore((s) => s.focusHubKey);
   const { model, arranging } = useOverviewData(platform);
+  // The slider moves freely; the layout is only recomputed on release.
+  const [spacingDraft, setSpacingDraft] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -46,7 +50,10 @@ export function OverviewOverlay({
       if (e.key !== 'Escape') return;
       e.preventDefault();
       e.stopPropagation();
-      useOverviewStore.getState().hide();
+      // Esc steps back one level: first a clicked star, then the Overview itself.
+      const store = useOverviewStore.getState();
+      if (store.focusHubKey) store.setFocusHubKey(null);
+      else store.hide();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
@@ -61,6 +68,12 @@ export function OverviewOverlay({
     engine?.zoomToIds([id], prefersReducedMotion());
   }
 
+  function commitSpacing(): void {
+    if (spacingDraft === null) return;
+    useOverviewStore.getState().setSpacing(spacingDraft);
+    setSpacingDraft(null);
+  }
+
   const empty = model.nodes.length === 0;
   return (
     <div
@@ -69,7 +82,13 @@ export function OverviewOverlay({
       aria-label={en.overview.title}
       style={{ position: 'fixed', inset: 0, zIndex: 18, background: css(0x170b1c) }}
     >
-      <OverviewCanvas model={model} mode={nodes} onOpen={openItem} />
+      <OverviewCanvas
+        model={model}
+        mode={nodes}
+        focusHubKey={focusHubKey}
+        onFocusHub={(key) => useOverviewStore.getState().setFocusHubKey(key)}
+        onOpen={openItem}
+      />
 
       <div
         style={{
@@ -87,8 +106,8 @@ export function OverviewOverlay({
           value={layout}
           onChange={(v) => useOverviewStore.getState().setLayout(v)}
           tabs={[
-            { id: 'mine', label: en.overview.myLayout },
             { id: 'clusters', label: en.overview.clusters },
+            { id: 'mine', label: en.overview.myLayout },
           ]}
         />
         <Tabs
@@ -100,6 +119,30 @@ export function OverviewOverlay({
             { id: 'dots', label: en.overview.dots },
           ]}
         />
+        {layout === 'clusters' && (
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              color: 'var(--text-2)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            {en.overview.spacing}
+            <Slider
+              aria-label={en.overview.spacing}
+              min={OVERVIEW_SPACING_MIN}
+              max={OVERVIEW_SPACING_MAX}
+              step={0.1}
+              value={spacingDraft ?? spacing}
+              onChange={(e) => setSpacingDraft(Number(e.target.value))}
+              onPointerUp={commitSpacing}
+              onKeyUp={commitSpacing}
+              onBlur={commitSpacing}
+            />
+          </label>
+        )}
         {arranging && <span style={{ color: 'var(--text-2)' }}>{en.overview.arranging}</span>}
       </div>
 

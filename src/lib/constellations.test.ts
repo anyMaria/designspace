@@ -111,6 +111,25 @@ describe('computeConstellationLayout', () => {
     expect(layout1.unclassifiedIds).toEqual(layout2.unclassifiedIds);
   });
 
+  it('a bigger spacing puts members further from their star', () => {
+    const ids = Array.from({ length: 20 }, (_, i) => `i${i}`);
+    const items = ids.map((id) => makeItem({ id }));
+    const terms = new Map([['v1', makeTerm({ id: 'v1', facet: 'vibe', name: 'Dreamy' })]]);
+    const itemTerms = new Map(ids.map((id) => [id, new Set(['v1'])]));
+    const index = buildConnectionIndex(items, itemTerms, terms, []);
+    const titles = new Map(items.map((i) => [i.id, i.title]));
+    const meanDistance = (spacing: number): number => {
+      const layout = computeConstellationLayout(ids, ['vibe'], index, terms, titles, { spacing });
+      const hub = layout.hubs[0];
+      const total = ids.reduce((sum, id) => {
+        const p = layout.itemPositions.get(id)!;
+        return sum + Math.hypot(p.x - hub.x, p.y - hub.y);
+      }, 0);
+      return total / ids.length;
+    };
+    expect(meanDistance(2)).toBeGreaterThan(meanDistance(1));
+  });
+
   it('gives a different layout for a different active-criteria set (part of the seed)', () => {
     const { index, terms, itemTerms, items } = setup();
     const itemTitles = new Map(items.map((i) => [i.id, i.title]));
