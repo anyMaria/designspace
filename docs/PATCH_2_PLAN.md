@@ -266,7 +266,7 @@ outline). Open Connections with nothing classified: it tells you why and offers 
 
 **Done when:** all Rust tests pass (with the Tauri prerequisites installed); unit tests green.
 
-### A3 · Pictures survive a reload in the browser build; a texture that failed is retried once `[ ]`
+### A3 · Pictures survive a reload in the browser build; a texture that failed is retried once `[x]`
 **Why:** the browser build loses every thumbnail URL on reload, so no test can catch "works once, not twice".
 And one failed texture load sticks until the app restarts.
 

@@ -9,7 +9,15 @@ import type {
   Platform,
 } from '@/platform/types';
 import { SqlJsDb } from './sqljsDb';
-import { idbDelete, idbGet, idbHas, idbSet, STORE_CACHE, STORE_MEDIA } from './idbStore';
+import {
+  idbDelete,
+  idbEntries,
+  idbGet,
+  idbHas,
+  idbSet,
+  STORE_CACHE,
+  STORE_MEDIA,
+} from './idbStore';
 import { newId } from '@/lib/ids';
 import { logger } from '@/lib/logger';
 
@@ -60,6 +68,7 @@ export class BrowserPlatform implements Platform {
   private sqljs: SqlJsDb;
   private libraryInfo: LibraryInfo | null = null;
   private objectUrls = new Map<string, string>();
+  private hydrated: Promise<void> | null = null;
 
   constructor() {
     this.sqljs = new SqlJsDb();
@@ -78,6 +87,7 @@ export class BrowserPlatform implements Platform {
       return info;
     },
     open: async (): Promise<LibraryInfo> => {
+      await this.hydrateObjectUrls();
       const saved = await idbGet<LibraryInfo>('kv', LIBRARY_KEY);
       if (saved) {
         this.libraryInfo = saved;
@@ -272,10 +282,21 @@ export class BrowserPlatform implements Platform {
     },
   };
 
+  /** Recreates the blob URLs of everything kept in IndexedDB, so a reload still shows the pictures
+   * and `cache.url` / `media.originalUrl` can stay synchronous. */
+  private hydrateObjectUrls(): Promise<void> {
+    this.hydrated ??= (async () => {
+      for (const store of [STORE_MEDIA, STORE_CACHE])
+        for (const [key, value] of await idbEntries<unknown>(store))
+          if (value instanceof Blob && !this.objectUrls.has(`${store}:${key}`))
+            this.cacheObjectUrl(store, key, value);
+    })();
+    return this.hydrated;
+  }
+
   /** Caches a blob: URL for a store/key pair at write time, so `originalUrl`/`cache.url` — which
    * the Platform interface requires to be synchronous — can return it immediately afterwards.
-   * A page reload loses this in-memory map; BrowserPlatform is for dev and tests only (§4.5),
-   * and the real texture pipeline (M1, §4.6) re-derives everything from the DB on load anyway. */
+   * A page reload loses this in-memory map; `hydrateObjectUrls` rebuilds it from IndexedDB. */
   private cacheObjectUrl(store: string, key: string, blob: Blob): void {
     this.objectUrls.set(`${store}:${key}`, URL.createObjectURL(blob));
   }

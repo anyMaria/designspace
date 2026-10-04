@@ -134,6 +134,8 @@ interface EngineEvents {
 const LINE_WIDTH_PX = connectionLineStyle.width;
 const LINE_WIDTH_HOVERED_PX = connectionLineStyle.width + 1;
 const LINE_OPACITY = connectionLineStyle.opacity;
+const TEXTURE_RETRY_MS = 5000; // a texture that failed to load is retried once after this
+const MAX_TEXTURE_ATTEMPTS = 2;
 const LINE_GAP_PX = 6; // space between a picture's edge and the line that leaves it
 const LINE_OFFSET_PX = 4; // spacing between up to 3 parallel lines for the same pair
 
@@ -277,6 +279,8 @@ export class Engine {
   // lines to; unset (empty array) means no connections are showing right now.
   private connectionSources: { fromId: string; candidates: ScoredCandidate[] }[] = [];
   private connectionLineGraphics: Graphics[] = [];
+  private texFailures = new Map<string, { attempts: number; at: number }>();
+  private texRetryTimer: number | null = null;
   private hoveredConnectionLine: { fromId: string; toId: string } | null = null;
   // "Show all" mode (§2.10) — hubs plus their item-to-hub edges; unset (empty array) means
   // Show all isn't active right now (Hover mode owns `connectionSources` instead).
@@ -1203,6 +1207,7 @@ export class Engine {
     for (const sprite of this.sprites.values()) sprite.destroy();
     this.sprites.clear();
     this.appliedTexKey.clear();
+    this.texFailures.clear();
     for (const d of this.decor.values()) d.destroy({ children: true });
     this.decor.clear();
     this.decorKey.clear();
@@ -2532,10 +2537,30 @@ export class Engine {
       this.textureManager.touch(want.key); // keep on-screen textures out of LRU eviction
       return;
     }
+    const failed = this.texFailures.get(want.key);
+    if (
+      failed &&
+      (failed.attempts >= MAX_TEXTURE_ATTEMPTS || performance.now() - failed.at < TEXTURE_RETRY_MS)
+    )
+      return;
     this.appliedTexKey.set(card.id, want.key); // also marks "in flight": no duplicate requests
     void this.textureManager.request(want.key, want.url).then((texture) => {
+      if (!texture) {
+        // Failed: keep the placeholder and try once more after a pause; after that, only a new
+        // URL (re-ingest bumps thumb_v) retries.
+        this.texFailures.set(want.key, {
+          attempts: (failed?.attempts ?? 0) + 1,
+          at: performance.now(),
+        });
+        if (this.appliedTexKey.get(card.id) === want.key) this.appliedTexKey.delete(card.id);
+        this.texRetryTimer ??= window.setTimeout(() => {
+          this.texRetryTimer = null;
+          this.scheduleFrame();
+        }, TEXTURE_RETRY_MS);
+        return;
+      }
+      this.texFailures.delete(want.key);
       if (sprite.destroyed || this.appliedTexKey.get(card.id) !== want.key) return; // superseded
-      if (!texture) return; // failed: keep the placeholder; a new URL (re-ingest) retries
       sprite.texture = texture;
       sprite.tint = 0xffffff;
     });
@@ -2604,6 +2629,7 @@ export class Engine {
     this.detachSelectionInput?.();
     this.unsubscribeCamera?.();
     if (this.textResolutionTimer !== null) window.clearTimeout(this.textResolutionTimer);
+    if (this.texRetryTimer !== null) window.clearTimeout(this.texRetryTimer);
     this.stopVideoPreview();
     this.clearScene();
     this.clearMarquee();
