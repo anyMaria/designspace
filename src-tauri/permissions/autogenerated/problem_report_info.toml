@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-problem-report-info"
+description = "Enables the problem_report_info command without any pre-configured scope."
+commands.allow = ["problem_report_info"]
+
+[[permission]]
+identifier = "deny-problem-report-info"
+description = "Denies the problem_report_info command without any pre-configured scope."
+commands.deny = ["problem_report_info"]

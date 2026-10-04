@@ -49,6 +49,19 @@ export interface FolderListing {
   skipped: number;
 }
 
+export interface ProblemReportInfo {
+  appVersion: string;
+  os: string;
+  arch: string;
+  webviewVersion: string | null;
+  libraryId: string;
+  storedLibraryId: string | null;
+  cacheFolderCount: number;
+  cacheFileCount: number;
+  models: { name: string; present: boolean; bytes: number }[];
+  logTail: string;
+}
+
 export interface AppPaths {
   appLocalDataDir: string;
   logsDir: string;
@@ -139,6 +152,7 @@ export interface Platform {
   app: {
     paths(): Promise<AppPaths>;
     openLogs(): Promise<void>;
+    problemReportInfo(): Promise<ProblemReportInfo>;
   };
 
   /** §5.5's machine settings (window/wheel mode/reduce motion/etc., as opposed to the library's

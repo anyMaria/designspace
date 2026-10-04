@@ -28,6 +28,7 @@ const APP_COMMANDS: &[&str] = &[
     "backup_restore",
     "app_paths",
     "open_logs",
+    "problem_report_info",
     "dialog_save_file",
     "net_link_meta",
     "net_download_image",

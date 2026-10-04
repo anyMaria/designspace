@@ -436,7 +436,7 @@ Update any spec that relied on blur creating a value (search `blur()` near chip 
 **Tests:** `placeMenu.test.ts`: fits as is; flips up; flips left; clamps a menu taller than the window to the top margin.
 e2e (`smoke-m1-canvas-ui`): right-click near the bottom of the canvas; the menu's bounding box ends inside the viewport.
 
-### A12 · "Copy a problem report" `[ ]`
+### A12 · "Copy a problem report" `[x]`
 **Why:** every bug in this round only happened on Windows. One click gives the next conversation what the owner's PC sees.
 
 **Files:** `src-tauri/src/app_info.rs`, `lib.rs`, `build.rs`, `capabilities/default.json`, `src/platform/types.ts` + both

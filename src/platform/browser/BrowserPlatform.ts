@@ -1,5 +1,6 @@
 import type {
   AppPaths,
+  ProblemReportInfo,
   BackupInfo,
   FileFilter,
   FolderListing,
@@ -215,6 +216,19 @@ export class BrowserPlatform implements Platform {
   app = {
     paths: (): Promise<AppPaths> => notSupported('app.paths'),
     openLogs: (): Promise<void> => notSupported('app.openLogs'),
+    problemReportInfo: (): Promise<ProblemReportInfo> =>
+      Promise.resolve({
+        appVersion: __APP_VERSION__,
+        os: 'browser',
+        arch: '',
+        webviewVersion: navigator.userAgent,
+        libraryId: this.libraryInfo?.id ?? '',
+        storedLibraryId: null,
+        cacheFolderCount: 0,
+        cacheFileCount: 0,
+        models: [],
+        logTail: '',
+      }),
   };
 
   machineSettings = {

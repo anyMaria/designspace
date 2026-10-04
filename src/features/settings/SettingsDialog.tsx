@@ -7,6 +7,8 @@ import { formatBytes } from '@/lib/formatBytes';
 import { logger } from '@/lib/logger';
 import { DropInspector } from '@/features/diagnostics/DropInspector';
 import { MediaCheck } from '@/features/diagnostics/MediaCheck';
+import { buildProblemReport } from '@/features/diagnostics/problemReport';
+import { useToastStore } from '@/state/toastStore';
 import { loadLibraryStats, type LibraryStats } from './libraryStats';
 import { LibrarySection } from './LibrarySection';
 import { CanvasSection } from './CanvasSection';
@@ -99,6 +101,15 @@ function AboutSection({ platform, library }: { platform: Platform; library: Libr
     }
   }
 
+  async function copyProblemReport(): Promise<void> {
+    try {
+      await platform.clipboard.writeText(await buildProblemReport(platform));
+      useToastStore.getState().show(en.settings.about.problemReportCopied);
+    } catch (err) {
+      logger.error('Copying the problem report failed', err);
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
       <Row label={en.settings.about.version} value={__APP_VERSION__} />
@@ -121,6 +132,16 @@ function AboutSection({ platform, library }: { platform: Platform; library: Libr
           {en.settings.about.openLogs}
         </Button>
       )}
+      <Button
+        variant="secondary"
+        onClick={() => void copyProblemReport()}
+        style={{ alignSelf: 'flex-start' }}
+      >
+        {en.settings.about.problemReport}
+      </Button>
+      <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>
+        {en.settings.about.problemReportHelp}
+      </p>
       <button
         type="button"
         className="ds-menu__item"

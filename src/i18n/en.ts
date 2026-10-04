@@ -212,6 +212,11 @@ export const en = {
       about: 'About',
     },
     about: {
+      problemReport: 'Copy a problem report',
+      problemReportHelp:
+        'Copies details about the app and your PC (no pictures or names) to paste into a ' +
+        'conversation. The recent log lines it includes may contain file paths.',
+      problemReportCopied: 'Problem report copied',
       version: 'Version',
       itemCounts: 'Items',
       /** `breakdown` is a pre-joined "3 images, 1 video" string built by the caller (which has

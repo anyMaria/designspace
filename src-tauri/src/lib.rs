@@ -58,6 +58,7 @@ pub fn run() {
             backups::backup_restore,
             app_info::app_paths,
             app_info::open_logs,
+            app_info::problem_report_info,
             dialogs::dialog_save_file,
             export::export_library_zip,
             machine_settings::machine_settings_read,

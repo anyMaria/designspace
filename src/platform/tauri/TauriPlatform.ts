@@ -6,6 +6,7 @@ import { Image } from '@tauri-apps/api/image';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type {
   AppPaths,
+  ProblemReportInfo,
   BackupInfo,
   DbRow,
   DbStatement,
@@ -160,6 +161,8 @@ export class TauriPlatform implements Platform {
   app = {
     paths: (): Promise<AppPaths> => invoke<AppPaths>('app_paths'),
     openLogs: (): Promise<void> => invoke<void>('open_logs'),
+    problemReportInfo: (): Promise<ProblemReportInfo> =>
+      invoke<ProblemReportInfo>('problem_report_info'),
   };
 
   machineSettings = {

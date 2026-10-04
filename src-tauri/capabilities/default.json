@@ -38,6 +38,7 @@
     "allow-backup-restore",
     "allow-app-paths",
     "allow-open-logs",
+    "allow-problem-report-info",
     "allow-dialog-save-file",
     "allow-net-link-meta",
     "allow-net-download-image",
