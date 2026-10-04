@@ -24,19 +24,28 @@ test('the Details panel classifies a selected item: Type, Vibe, Favorite', async
   await page.getByRole('button', { name: 'Poster' }).first().click();
   await page.waitForTimeout(200);
 
-  // Add a Vibe via the chip input.
-  const vibeInput = page.getByPlaceholder('Add a vibe…');
-  await vibeInput.fill('Dreamy');
+  // Vibe: focusing the field lists the existing words (most used first); Enter adds the highlighted
+  // one. Typing a near-miss marks the closest word "Did you mean?" (Patch 2 · D).
+  const vibeInput = page.getByRole('combobox', { name: 'Vibe' });
+  await vibeInput.focus();
+  const vibeList = page.getByRole('listbox', { name: 'Vibe' });
+  await expect(vibeList.getByRole('option', { name: /Dreamy/ })).toBeVisible();
+  await vibeInput.fill('dremy');
+  await expect(vibeList.getByRole('option').first()).toContainText('Did you mean?');
   await vibeInput.press('Enter');
-  await page.waitForTimeout(200);
-  await expect(page.getByText('Dreamy', { exact: true })).toBeVisible();
+  await expect(page.locator('.ds-chip', { hasText: 'Dreamy' })).toBeVisible();
 
-  // Each word field has its own suggestions: Movement offers Art Nouveau, never Vibe's Dreamy.
-  const movementInput = page.getByPlaceholder('Add a movement…');
-  const listId = await movementInput.getAttribute('list');
-  expect(listId).toBeTruthy();
-  await expect(page.locator(`[id="${listId}"] option[value="Art Nouveau"]`)).toHaveCount(1);
-  await expect(page.locator(`[id="${listId}"] option[value="Dreamy"]`)).toHaveCount(0);
+  // Each word field has its own words: Movement lists Art Nouveau, never Vibe's Bold.
+  const movementInput = page.getByRole('combobox', { name: 'Movement' });
+  await movementInput.focus();
+  const movementList = page.getByRole('listbox', { name: 'Movement' });
+  await expect(movementList.getByRole('option', { name: /Art Nouveau/ })).toBeVisible();
+  await expect(movementList.getByRole('option', { name: /Bold/ })).toHaveCount(0);
+
+  // Leaving a field never makes a word: type something new, click elsewhere, nothing is added.
+  await movementInput.fill('Brandnewmovement');
+  await page.getByText('Movement', { exact: true }).first().click();
+  await expect(page.locator('.ds-chip', { hasText: 'Brandnewmovement' })).toHaveCount(0);
 
   // Toggle favorite.
   await page.getByRole('switch', { name: 'Favorite' }).click();

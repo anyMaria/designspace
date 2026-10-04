@@ -14,7 +14,7 @@ import {
   DockDivider,
   Tabs,
   Chip,
-  ChipInput,
+  TermCombobox,
   SearchField,
   Menu,
   Popover,
@@ -110,13 +110,21 @@ export function DesignPage() {
         </Row>
       </Section>
 
-      <Section title="Chip input">
+      <Section title="Word field">
         <div style={{ maxWidth: 360 }}>
-          <ChipInput
+          <TermCombobox
+            label="Vibe"
             values={tags}
+            options={[
+              { id: 'a', name: 'Dreamy', count: 12 },
+              { id: 'b', name: 'Bold', count: 7 },
+              { id: 'c', name: 'Playful', count: 3 },
+            ]}
             onAdd={(v) => setTags((t) => [...t, v])}
             onRemove={(v) => setTags((t) => t.filter((x) => x !== v))}
-            placeholder="Add a tag…"
+            placeholder="Add a vibe…"
+            dotColor="var(--criterion-vibe)"
+            newWordLabel="new vibe"
           />
         </div>
       </Section>

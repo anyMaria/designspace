@@ -4,7 +4,6 @@ export * from './Panel';
 export * from './Dock';
 export * from './Tabs';
 export * from './Chip';
-export * from './ChipInput';
 export * from './TermCombobox';
 export * from './SearchField';
 export * from './Menu';

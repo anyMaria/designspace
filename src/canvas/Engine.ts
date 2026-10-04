@@ -967,6 +967,21 @@ export class Engine {
     return { x: edge.x + CONNECT_HANDLE_OFFSET_PX, y: edge.y };
   }
 
+  /** Whether the pointer is on the strip between the hovered card's right edge and its connect
+   * handle, or on the handle itself. */
+  private overConnectHandleZone(): boolean {
+    if (!this.hoveredId || !this.lastPointer) return false;
+    const handle = this.connectHandleScreenPos(this.hoveredId);
+    const rect = this.getScreenRect(this.hoveredId);
+    if (!handle || !rect) return false;
+    const p = this.lastPointer;
+    return (
+      p.x >= rect.x + rect.w &&
+      p.x <= handle.x + CONNECT_HANDLE_HIT_PX &&
+      Math.abs(p.y - handle.y) <= CONNECT_HANDLE_HIT_PX
+    );
+  }
+
   /** The resize handle of `card` under a world point (a whole edge counts, not only the pill). */
   private resizeHandleUnder(card: ItemCard, world: { x: number; y: number }): ResizeHandle | null {
     return resizeHandleAt(card, world, {
@@ -1155,7 +1170,9 @@ export class Engine {
           handleCursor = false;
         }
         const hit = hitTest(this.interactableCards(), world);
-        if (hit?.id !== this.hoveredId) {
+        // The connect handle sits outside the card: keep the card hovered while the pointer travels
+        // the gap to it and over it, or the handle would vanish before it can be grabbed.
+        if (hit?.id !== this.hoveredId && !this.overConnectHandleZone()) {
           this.hoveredId = hit?.id ?? null;
           this.emit('hover', this.hoveredId);
           this.drawConnectHandle();

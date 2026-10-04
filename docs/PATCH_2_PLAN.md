@@ -834,7 +834,7 @@ Plus the favourite star (C6). Never render an `<img>` without a `src` (that's th
 typos are forgiven, a new word is only made on purpose, and Movement holds only movements.
 Size: M. Version at the end: **0.12.0**. Mockup: `docs/patch-2/combobox.png`.
 
-### D1 · Matching and the combobox component `[ ]`
+### D1 · Matching and the combobox component `[x]`
 **Files:** new `src/lib/termMatch.ts` (+ test), new `src/design/components/TermCombobox.tsx`, `components.css`,
 `src/design/components/index.ts`, new `src/features/details/useTermOptions.ts`, `en.ts`.
 
@@ -884,7 +884,7 @@ Size: M. Version at the end: **0.12.0**. Mockup: `docs/patch-2/combobox.png`.
 typing "grain" then Enter calls `onAdd('grain')`; ↓ from a match to Create then Enter calls `onAdd('dremy')`; blur
 calls nothing; Esc with the list open closes it and the event is `defaultPrevented`.
 
-### D2 · Use the combobox in Details, Triage and bulk editing `[ ]`
+### D2 · Use the combobox in Details, Triage and bulk editing `[x]`
 **Files:** `src/features/details/DetailsPanel.tsx`, `src/features/triage/TriageView.tsx`,
 `src/features/details/BulkDetailsPanel.tsx`, `src/features/design/DesignPage.tsx` (or wherever `DesignPage.tsx` lives:
 `grep -rn "ChipInput" src`), delete `src/design/components/ChipInput.tsx` and its export.

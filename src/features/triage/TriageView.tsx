@@ -12,7 +12,8 @@ import {
   createRemoveItemTermCommand,
   createSetItemTypeCommand,
 } from '@/commands/itemTermCommands';
-import { ChipInput, Chip, IconButton, Toggle, Button } from '@/design/components';
+import { TermCombobox, Chip, IconButton, Toggle, Button } from '@/design/components';
+import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from '@/features/details/useTermOptions';
 import { en } from '@/i18n/en';
 import { useSuggestions } from '@/features/ai/useSuggestions';
 import { useEscape } from '@/app/useEscape';
@@ -41,12 +42,9 @@ export function TriageView({ platform }: { platform: Platform }) {
     () => [...terms.values()].filter((t) => t.facet === 'type').sort((a, b) => a.sort - b.sort),
     [terms],
   );
-  const vibeTerms = useMemo(() => [...terms.values()].filter((t) => t.facet === 'vibe'), [terms]);
-  const movementTerms = useMemo(
-    () => [...terms.values()].filter((t) => t.facet === 'movement'),
-    [terms],
-  );
-  const tagTerms = useMemo(() => [...terms.values()].filter((t) => t.facet === 'tag'), [terms]);
+  const vibeOptions = useTermOptions('vibe');
+  const movementOptions = useTermOptions('movement');
+  const tagOptions = useTermOptions('tag');
 
   const currentTypeId = [...itemTermIds].find((id) => terms.get(id)?.facet === 'type') ?? null;
   const vibeValues = [...itemTermIds]
@@ -120,12 +118,12 @@ export function TriageView({ platform }: { platform: Platform }) {
   useEffect(() => {
     if (!isOpen) return;
     function onKeyDown(e: KeyboardEvent): void {
-      // `e.target` (not `document.activeElement`) — ChipInput's own Escape handler blurs the
+      // `e.target` (not `document.activeElement`) — TermCombobox's own Escape handler blurs the
       // field synchronously before this bubbles up, so activeElement would already look "not
       // typing" for the very keystroke that's supposed to stay inside the field.
       const isTyping =
         e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-      if (isTyping) return; // ChipInput owns Enter (add value) / Escape (leave field) while typing.
+      if (isTyping) return; // TermCombobox owns Enter (add value) / Escape (leave field) while typing.
 
       if (e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault();
@@ -274,34 +272,43 @@ export function TriageView({ platform }: { platform: Platform }) {
 
             <Field label={en.vocabulary.facets.vibe}>
               <div ref={vibeContainerRef}>
-                <ChipInput
+                <TermCombobox
+                  label={en.vocabulary.facets.vibe}
                   values={vibeValues}
+                  options={vibeOptions}
                   onAdd={(v) => addTerm('vibe', v)}
                   onRemove={(v) => removeTerm('vibe', v)}
                   placeholder={en.details.vibePlaceholder}
-                  suggestions={vibeTerms.map((t) => t.name)}
+                  dotColor={FACET_DOT.vibe}
+                  newWordLabel={FACET_NEW_WORD.vibe}
                 />
               </div>
             </Field>
             <Field label={en.vocabulary.facets.movement}>
               <div ref={movementContainerRef}>
-                <ChipInput
+                <TermCombobox
+                  label={en.vocabulary.facets.movement}
                   values={movementValues}
+                  options={movementOptions}
                   onAdd={(v) => addTerm('movement', v)}
                   onRemove={(v) => removeTerm('movement', v)}
                   placeholder={en.details.movementPlaceholder}
-                  suggestions={movementTerms.map((t) => t.name)}
+                  dotColor={FACET_DOT.movement}
+                  newWordLabel={FACET_NEW_WORD.movement}
                 />
               </div>
             </Field>
             <Field label={en.vocabulary.facets.tag}>
               <div ref={tagContainerRef}>
-                <ChipInput
+                <TermCombobox
+                  label={en.vocabulary.facets.tag}
                   values={tagValues}
+                  options={tagOptions}
                   onAdd={(v) => addTerm('tag', v)}
                   onRemove={(v) => removeTerm('tag', v)}
                   placeholder={en.details.tagsPlaceholder}
-                  suggestions={tagTerms.map((t) => t.name)}
+                  dotColor={FACET_DOT.tag}
+                  newWordLabel={FACET_NEW_WORD.tag}
                 />
               </div>
             </Field>

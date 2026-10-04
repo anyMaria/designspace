@@ -19,7 +19,7 @@ test('hovering a classified item runs the connections scoring/dim/line pipeline 
   await page.keyboard.press('Control+a');
   await page.waitForTimeout(300);
   await page.getByPlaceholder('Add a vibe…').fill('Dreamy');
-  await page.getByPlaceholder('Add a vibe…').press('Enter');
+  await page.getByPlaceholder('Add a vibe…').press('Enter'); // Dreamy exists: Enter adds it
   await page.waitForTimeout(300);
 
   // Deselect (Esc), then hover the item at canvas center and wait past the 300ms hover delay.

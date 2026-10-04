@@ -24,7 +24,7 @@ test('the drag handle connects two items, and double-click/Delete on the line la
   const item0Center = { x: topLeft.x + 160, y: topLeft.y + 200 };
   const item1Center = { x: topLeft.x + 560, y: topLeft.y + 200 };
   // The connect handle sits at the hovered item's right edge, vertically centered.
-  const handle = { x: topLeft.x + 320, y: topLeft.y + 200 };
+  const handle = { x: topLeft.x + 320 + 22, y: topLeft.y + 200 }; // 22 px outside the edge (C2)
 
   await page.keyboard.press('l'); // close the panel so item 1 isn't covered
   await page.waitForTimeout(200);

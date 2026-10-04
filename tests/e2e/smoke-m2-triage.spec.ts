@@ -33,7 +33,9 @@ test('Triage opens from the Inbox chip, classifies with number keys and the keyb
   await expect(page.getByText('Dreamy', { exact: true })).toBeVisible();
   await expect(page.getByText(/^1 of \d+$/)).toBeVisible(); // still on item 1 — Enter stayed in the field
 
-  // Blur back onto the overlay so the global shortcuts apply again, then advance with Enter.
+  // Blur back onto the overlay so the global shortcuts apply again (the first Esc closes the
+  // word list, the second leaves the field), then advance with Enter.
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
   await page.keyboard.press('Enter');

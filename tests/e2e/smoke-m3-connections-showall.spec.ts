@@ -19,7 +19,7 @@ test('Show all mode draws hub stars and item-to-hub lines for a shared classific
   await page.keyboard.press('Control+a');
   await page.waitForTimeout(300);
   await page.getByPlaceholder('Add a vibe…').fill('Dreamy');
-  await page.getByPlaceholder('Add a vibe…').press('Enter');
+  await page.getByPlaceholder('Add a vibe…').press('Enter'); // Dreamy exists: Enter adds it
   await page.waitForTimeout(300);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
