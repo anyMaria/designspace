@@ -590,3 +590,23 @@
   box-shadow: none;
   background: transparent;
 }
+
+/* The word-field combobox's list (Patch 2 · D1): in the flow under the field, so no panel clips it. */
+.ds-combobox__list {
+  margin-top: var(--space-1);
+  max-height: 260px;
+  overflow-y: auto;
+}
+.ds-combobox__row[data-active] {
+  background: var(--surface-2);
+}
+.ds-combobox__dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+.ds-combobox__hint {
+  color: var(--accent);
+  font-size: 12px;
+}

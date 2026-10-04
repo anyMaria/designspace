@@ -415,6 +415,14 @@ export const en = {
     moveToTrash: 'Move to Trash',
     findSimilar: 'Find similar',
   },
+  combobox: {
+    mostUsed: 'Most used',
+    didYouMean: 'Did you mean?',
+    create: (text: string) => `Create "${text}"`,
+    newVibe: 'new vibe',
+    newMovement: 'new movement',
+    newTag: 'new tag',
+  },
   vocabulary: {
     facets: {
       type: 'Type',
