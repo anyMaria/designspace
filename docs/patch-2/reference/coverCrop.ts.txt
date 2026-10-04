@@ -1,0 +1,124 @@
+// Proposed: src/canvas/coverCrop.ts (pure; no Pixi, no DOM).
+// A crop is stored per placement as a focus (`crop_x`, `crop_y`, 0..1, NULL = centred), with the
+// meaning of CSS `object-position: X% Y%` under `object-fit: cover`: 0 shows the picture's
+// left/top edge, 1 its right/bottom edge, 0.5 the middle. It never depends on texture size, so
+// the same focus works for t128, t512, a video frame and the export.
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface CropFocus {
+  x: number | null;
+  y: number | null;
+}
+
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+function valid(...values: number[]): boolean {
+  return values.every((v) => Number.isFinite(v) && v > 0);
+}
+
+/** Which share of the picture's width (`fw`) and height (`fh`) a card of `cardAspect` shows under
+ * object-fit: cover. One of them is always 1. */
+export function visibleFraction(
+  imageAspect: number,
+  cardAspect: number,
+): { fw: number; fh: number } {
+  if (!valid(imageAspect, cardAspect)) return { fw: 1, fh: 1 };
+  return imageAspect > cardAspect
+    ? { fw: cardAspect / imageAspect, fh: 1 }
+    : { fw: 1, fh: imageAspect / cardAspect };
+}
+
+/** The part of a `texW` × `texH` texture (texture pixels) that fills a `cardW` × `cardH` card
+ * without stretching (object-fit: cover), positioned by the focus. Feed it to
+ * `new Texture({ source, frame: new Rectangle(f.x, f.y, f.w, f.h) })`, or to the 9-argument
+ * `ctx.drawImage`. Recompute it whenever the texture (LOD) or the card's proportions change. */
+export function coverFrame(
+  texW: number,
+  texH: number,
+  cardW: number,
+  cardH: number,
+  focusX: number | null,
+  focusY: number | null,
+): Rect {
+  if (!valid(texW, texH, cardW, cardH)) {
+    return { x: 0, y: 0, w: Math.max(0, texW || 0), h: Math.max(0, texH || 0) };
+  }
+  const { fw, fh } = visibleFraction(texW / texH, cardW / cardH);
+  const w = texW * fw;
+  const h = texH * fh;
+  return {
+    x: (texW - w) * clamp01(focusX ?? 0.5),
+    y: (texH - h) * clamp01(focusY ?? 0.5),
+    w,
+    h,
+  };
+}
+
+/** True when `frame` is (within `tolerancePx`) the whole texture: show the shared texture itself
+ * and skip the crop texture. Thumbnails are rounded to whole pixels, so an uncropped card's frame
+ * is often a fraction of a pixel short. */
+export function isWholeTexture(frame: Rect, texW: number, texH: number, tolerancePx = 1): boolean {
+  return frame.w >= texW - tolerancePx && frame.h >= texH - tolerancePx;
+}
+
+/** "Adjust crop": the focus after dragging the picture by `delta` (world units) inside its card.
+ * The picture follows the pointer; an axis with nothing hidden doesn't move. */
+export function dragCropFocus(
+  start: CropFocus,
+  delta: { x: number; y: number },
+  card: { w: number; h: number },
+  imageAspect: number,
+): { x: number; y: number } {
+  const sx = start.x ?? 0.5;
+  const sy = start.y ?? 0.5;
+  if (!valid(card.w, card.h, imageAspect)) return { x: sx, y: sy };
+  const { fw, fh } = visibleFraction(imageAspect, card.w / card.h);
+  const eps = 1e-6;
+  return {
+    x: fw < 1 - eps ? clamp01(sx - ((delta.x / card.w) * fw) / (1 - fw)) : sx,
+    y: fh < 1 - eps ? clamp01(sy - ((delta.y / card.h) * fh) / (1 - fh)) : sy,
+  };
+}
+
+/** Whether a card's proportions differ from its picture's (more than `tolerance`, relative), i.e.
+ * whether "Reset crop" has something to do. */
+export function isCropped(
+  card: { w: number; h: number },
+  imageAspect: number,
+  tolerance = 0.01,
+): boolean {
+  if (!valid(card.w, card.h, imageAspect)) return false;
+  return Math.abs(card.w / card.h / imageAspect - 1) > tolerance;
+}
+
+/** "Reset crop": the picture's real proportions, same centre and same area as the card now. */
+export function resetCropRect(card: Rect, imageAspect: number): Rect {
+  if (!valid(card.w, card.h, imageAspect)) return { ...card };
+  const area = card.w * card.h;
+  const w = Math.sqrt(area * imageAspect);
+  const h = w / imageAspect;
+  return { x: card.x + (card.w - w) / 2, y: card.y + (card.h - h) / 2, w, h };
+}
+
+/** A point inside the card (u, v in 0..1) → the same point in the whole picture (0..1). For
+ * "Pick from a photo" on a cropped card. */
+export function cardUvToImageUv(
+  u: number,
+  v: number,
+  card: { w: number; h: number },
+  imageAspect: number,
+  focus: CropFocus,
+): { u: number; v: number } {
+  const { fw, fh } = visibleFraction(imageAspect, card.w / card.h);
+  return {
+    u: clamp01((focus.x ?? 0.5) * (1 - fw) + u * fw),
+    v: clamp01((focus.y ?? 0.5) * (1 - fh) + v * fh),
+  };
+}

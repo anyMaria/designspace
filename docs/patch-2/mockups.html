@@ -1,0 +1,2405 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Patch 2 mockups</title>
+    <!--
+      Patch 2 mockups (docs/PATCH_2_PLAN.md). Static HTML/CSS: open it in a browser, or render
+      each <section> to PNG with scripts in the plan (§2.3). Every colour, radius, shadow and font
+      here comes from src/design/tokens.css; sizes are px at 100 % (world units on the map).
+      These are references for layout and spacing, not code to copy: build the real UI with the
+      existing components in src/design/components.
+    -->
+    <style>
+      @font-face {
+        font-family: 'Urbanist';
+        src: url('../../src/design/fonts/urbanist/Urbanist-VariableFont_wght.ttf')
+          format('truetype');
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: 'Urbanist';
+        font-style: italic;
+        src: url('../../src/design/fonts/urbanist/Urbanist-Italic-VariableFont_wght.ttf')
+          format('truetype');
+        font-weight: 100 900;
+      }
+      :root {
+        --canvas: #1e1024;
+        --surface-1: #2a1832;
+        --surface-2: #33203d;
+        --surface-3: #3d2847;
+        --hairline: rgba(255, 255, 255, 0.08);
+        --text-1: #f4eef6;
+        --text-2: #c9bcd0;
+        --text-3: #9a8ba3;
+        --accent: #e9a845;
+        --on-accent: #2a1832;
+        --sage: #93b89d;
+        --blush: #f0b7b3;
+        --cream: #efe6d6;
+        --lavender: #b7a6e8;
+        --sky: #8cc6e6;
+        --danger: #ee8a7c;
+        --dot: rgba(236, 222, 245, 0.16);
+        --shadow-raised:
+          -4px -4px 10px rgba(255, 255, 255, 0.035), 6px 8px 18px rgba(8, 2, 12, 0.55);
+        --shadow-float: 0 12px 32px rgba(8, 2, 12, 0.55), 0 2px 6px rgba(8, 2, 12, 0.4);
+        --shadow-inset:
+          inset 3px 3px 6px rgba(8, 2, 12, 0.5), inset -2px -2px 5px rgba(255, 255, 255, 0.04);
+        --shadow-card: 0 6px 18px rgba(6, 1, 10, 0.5);
+        --font: 'Urbanist', system-ui, sans-serif;
+        --radius-sm: 8px;
+        --radius-input: 14px;
+        --radius-panel: 20px;
+        --radius-overlay: 28px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #120818;
+        font: 500 15px/1.4 var(--font);
+        color: var(--text-1);
+      }
+      section {
+        width: 1180px;
+        padding: 28px 32px 36px;
+        margin: 0 0 6px;
+        background-color: var(--canvas);
+        background-image: radial-gradient(var(--dot) 1.2px, transparent 1.6px);
+        background-size: 24px 24px;
+        position: relative;
+      }
+      h1 {
+        font: 700 22px var(--font);
+        margin: 0 0 4px;
+        letter-spacing: -0.01em;
+      }
+      p.sub {
+        margin: 0 0 20px;
+        color: var(--text-2);
+        max-width: 980px;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--text-3);
+        margin-top: 10px;
+        max-width: 1000px;
+      }
+      .row {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .cap {
+        font-size: 13px;
+        color: var(--text-3);
+      }
+      .label {
+        font-size: 14px;
+        color: var(--text-2);
+      }
+      svg.i {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.75;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+      }
+      svg.i.filled {
+        fill: currentColor;
+      }
+
+      /* existing components (src/design/components/components.css), copied for the mockups */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 40px;
+        padding: 0 16px;
+        border: none;
+        border-radius: 999px;
+        font: 600 14px var(--font);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: var(--on-accent);
+        box-shadow: var(--shadow-raised);
+      }
+      .btn.secondary {
+        background: var(--surface-2);
+        color: var(--text-1);
+        box-shadow: var(--shadow-raised);
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--text-2);
+      }
+      .btn.danger {
+        background: transparent;
+        color: var(--danger);
+      }
+      .btn.sm {
+        height: 32px;
+        padding: 0 12px;
+        font-size: 13px;
+      }
+      .ibtn {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        display: inline-grid;
+        place-items: center;
+        background: var(--surface-2);
+        color: var(--text-2);
+        box-shadow: var(--shadow-raised);
+        border: none;
+      }
+      .tabs {
+        display: inline-flex;
+        padding: 3px;
+        background: var(--surface-2);
+        border-radius: 999px;
+        gap: 2px;
+      }
+      .tabs span {
+        font: 600 14px var(--font);
+        color: var(--text-2);
+        padding: 8px 16px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .tabs span.on {
+        background: var(--surface-1);
+        color: var(--text-1);
+        box-shadow: var(--shadow-raised);
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: var(--surface-2);
+        color: var(--text-1);
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .field {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        min-height: 40px;
+        padding: 4px 8px;
+        border-radius: var(--radius-input);
+        background: var(--surface-2);
+        box-shadow: var(--shadow-inset);
+        font-size: 14px;
+      }
+      .field .typed {
+        padding: 4px;
+        color: var(--text-1);
+      }
+      .field .caret {
+        display: inline-block;
+        width: 1px;
+        height: 18px;
+        background: var(--text-1);
+        margin-left: -2px;
+      }
+      .field .ph {
+        padding: 4px;
+        color: var(--text-3);
+      }
+      .panel {
+        background: var(--surface-1);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius-panel);
+        box-shadow: var(--shadow-float);
+      }
+      .menu {
+        background: var(--surface-1);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius-input);
+        box-shadow: var(--shadow-float);
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .mi {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: var(--radius-sm);
+        font-size: 14px;
+        min-height: 32px;
+        color: var(--text-1);
+      }
+      .mi.hl {
+        background: var(--surface-2);
+      }
+      .mi .count {
+        margin-left: auto;
+        color: var(--text-3);
+        font-size: 13px;
+      }
+      .mi .muted {
+        color: var(--text-3);
+      }
+      .sep {
+        height: 1px;
+        background: var(--hairline);
+        margin: 4px 4px;
+      }
+      .kbd {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        border-radius: var(--radius-sm);
+        background: var(--surface-2);
+        box-shadow: var(--shadow-raised);
+        font-size: 13px;
+        color: var(--text-2);
+      }
+      .window {
+        width: 1116px;
+        height: 700px;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid var(--hairline);
+        background: var(--canvas);
+      }
+      .seg {
+        display: inline-flex;
+        padding: 3px;
+        background: var(--surface-2);
+        border-radius: 999px;
+        gap: 2px;
+      }
+      .seg span {
+        font: 600 13px var(--font);
+        color: var(--text-2);
+        padding: 6px 12px;
+        border-radius: 999px;
+      }
+      .seg span.on {
+        background: var(--surface-1);
+        color: var(--text-1);
+        box-shadow: var(--shadow-raised);
+      }
+      input.num {
+        width: 64px;
+      }
+      .inp {
+        height: 36px;
+        border-radius: 10px;
+        background: var(--surface-2);
+        box-shadow: var(--shadow-inset);
+        border: none;
+        color: var(--text-1);
+        font: 600 14px var(--font);
+        padding: 0 10px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .toggle {
+        width: 40px;
+        height: 24px;
+        border-radius: 999px;
+        background: var(--surface-3);
+        padding: 2px;
+        display: inline-flex;
+      }
+      .toggle i {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--text-1);
+      }
+      .toggle.on {
+        background: var(--accent);
+      }
+      .toggle.on i {
+        transform: translateX(16px);
+      }
+      .checkbox {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        border: 1.5px solid var(--text-3);
+        display: inline-grid;
+        place-items: center;
+      }
+      .checkbox.on {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--on-accent);
+      }
+    </style>
+  </head>
+  <body>
+    <style>
+      .studio {
+        display: grid;
+        grid-template-rows: 64px 1fr 228px;
+        grid-template-columns: 1fr 256px;
+        height: 100%;
+      }
+      .studio-top {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        padding: 0 16px 0 20px;
+        border-bottom: 1px solid var(--hairline);
+        background: var(--surface-1);
+      }
+      .studio-top .left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .studio-top .right {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .studio-title {
+        font: 700 17px var(--font);
+        white-space: nowrap;
+      }
+      .studio-main {
+        grid-column: 1;
+        grid-row: 2;
+        padding: 20px 24px 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .studio-side {
+        grid-column: 2;
+        grid-row: 2 / 4;
+        border-left: 1px solid var(--hairline);
+        background: var(--surface-1);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .strip {
+        grid-column: 1;
+        grid-row: 3;
+        display: flex;
+        gap: 8px;
+        padding: 0 24px 24px;
+      }
+      .slot {
+        flex: 1;
+        border-radius: 16px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 14px;
+        box-shadow: var(--shadow-card);
+        color: var(--text-1);
+      }
+      .slot.light {
+        color: #2a1832;
+      }
+      .slot.sel {
+        outline: 3px solid var(--text-1);
+        outline-offset: 3px;
+      }
+      .slot .hex {
+        font: 700 20px/1.1 var(--font);
+        letter-spacing: 0.02em;
+      }
+      .slot .nm {
+        font-size: 13px;
+        opacity: 0.75;
+      }
+      .slot .tools {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        gap: 4px;
+      }
+      .slot .tools .sp {
+        flex: 1;
+      }
+      .t {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .slot.light .t {
+        background: rgba(42, 24, 50, 0.12);
+      }
+      .t.on {
+        background: rgba(244, 238, 246, 0.92);
+        color: #2a1832;
+      }
+      .slot.light .t.on {
+        background: #2a1832;
+        color: #f4eef6;
+      }
+      .t.ghost {
+        background: transparent !important;
+        opacity: 0.55;
+      }
+      .addslot {
+        width: 56px;
+        border-radius: 16px;
+        border: 1.5px dashed var(--text-3);
+        display: grid;
+        place-items: center;
+        color: var(--text-2);
+      }
+      .hist {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .hrow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 10px;
+        border-radius: 12px;
+      }
+      .hrow.now {
+        background: var(--surface-1);
+        box-shadow: var(--shadow-raised);
+      }
+      .hrow .mini {
+        display: flex;
+        gap: 4px;
+      }
+      .hrow .mini i {
+        width: 44px;
+        height: 28px;
+        border-radius: 6px;
+        display: block;
+      }
+      .hrow .meta {
+        font-size: 13px;
+        color: var(--text-2);
+      }
+      .hrow .meta b {
+        color: var(--text-1);
+        font-weight: 600;
+      }
+      .liked-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .liked {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .liked i {
+        height: 56px;
+        border-radius: 12px;
+        display: block;
+        box-shadow: var(--shadow-card);
+      }
+      .liked.sel i {
+        outline: 2px solid var(--text-1);
+        outline-offset: 2px;
+      }
+      .liked span {
+        font: 600 13px var(--font);
+        color: var(--text-2);
+      }
+      .compare {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-radius: 14px;
+        overflow: hidden;
+        height: 96px;
+        box-shadow: var(--shadow-card);
+      }
+      .compare div {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 8px 10px;
+        font: 600 12px var(--font);
+      }
+      .hint {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-2);
+        font-size: 14px;
+      }
+    </style>
+
+    <section id="studio-generate">
+      <h1>1 · Color studio: Generate (and the parts every tab shares)</h1>
+      <p class="sub">
+        A full-window workspace (like Triage). The <b>top bar</b>, the <b>palette strip</b> at the
+        bottom and the <b>Liked shelf</b> on the right are the same on every tab; only the middle
+        changes. Space proposes new colours for every unlocked spot. A heart sends a colour to
+        Liked; pick one there to compare it with the selected spot, then Choose.
+      </p>
+      <div class="window">
+        <div class="studio">
+          <div class="studio-top">
+            <div class="left">
+              <span class="studio-title">Color studio</span>
+              <span class="inp" style="width: 220px">Untitled palette</span>
+            </div>
+            <div class="tabs">
+              <span><i data-i="palette"></i>Wheel</span>
+              <span><i data-i="image-plus"></i>From an image</span>
+              <span class="on"><i data-i="shuffle"></i>Generate</span>
+              <span><i data-i="contrast"></i>Contrast</span>
+            </div>
+            <div class="right">
+              <span class="btn ghost">Cancel</span>
+              <span class="btn primary">Save palette</span>
+            </div>
+          </div>
+
+          <div class="studio-main">
+            <div class="row" style="align-items: center; gap: 12px">
+              <div class="seg">
+                <span class="on">Goes with my colors</span><span>Surprise me</span>
+              </div>
+              <div style="flex: 1"></div>
+              <span class="ibtn"><i data-i="chevron-left"></i></span>
+              <span class="cap" style="min-width: 110px; text-align: center">Proposal 4 of 9</span>
+              <span class="ibtn"><i data-i="chevron-right"></i></span>
+            </div>
+            <div class="hint">
+              <span class="kbd">Space</span> new colors for every unlocked spot
+              <span style="width: 16px"></span><span class="kbd">←</span
+              ><span class="kbd">→</span> previous / next proposal <span style="width: 16px"></span
+              ><span class="kbd">L</span> lock <span class="kbd">H</span> like
+            </div>
+            <div class="hist">
+              <div class="hrow now">
+                <div class="mini">
+                  <i style="background: #2e3a59"></i><i style="background: #e9a845"></i
+                  ><i style="background: #f3e3c3"></i><i style="background: #c4553b"></i
+                  ><i style="background: #7a9e7e"></i>
+                </div>
+                <div class="meta"><b>Now</b> · Complementary around Navy</div>
+              </div>
+              <div class="hrow">
+                <div class="mini">
+                  <i style="background: #2e3a59"></i><i style="background: #d98c5f"></i
+                  ><i style="background: #f3e3c3"></i><i style="background: #8f5b7a"></i
+                  ><i style="background: #5f7f99"></i>
+                </div>
+                <div class="meta">Analogous around Navy</div>
+              </div>
+              <div class="hrow">
+                <div class="mini">
+                  <i style="background: #2e3a59"></i><i style="background: #b8c95a"></i
+                  ><i style="background: #f3e3c3"></i><i style="background: #e0795a"></i
+                  ><i style="background: #4b6c8f"></i>
+                </div>
+                <div class="meta">Triad around Navy</div>
+              </div>
+              <div class="hrow">
+                <div class="mini">
+                  <i style="background: #2e3a59"></i><i style="background: #9fb7d9"></i
+                  ><i style="background: #f3e3c3"></i><i style="background: #5c6f9e"></i
+                  ><i style="background: #1b2238"></i>
+                </div>
+                <div class="meta">Shades of Navy</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="strip">
+            <div class="slot" style="background: #2e3a59">
+              <div class="tools">
+                <span class="t ghost"><i data-i="grip-vertical"></i></span><span class="sp"></span
+                ><span class="t on"><i data-i="lock"></i></span>
+              </div>
+              <div class="hex">#2E3A59</div>
+              <div class="nm">Locked</div>
+            </div>
+            <div class="slot light" style="background: #e9a845">
+              <div class="tools">
+                <span class="t ghost"><i data-i="grip-vertical"></i></span><span class="sp"></span
+                ><span class="t on"><i class="filled" data-i="heart"></i></span>
+              </div>
+              <div class="hex">#E9A845</div>
+              <div class="nm">Liked</div>
+            </div>
+            <div class="slot light" style="background: #f3e3c3">
+              <div class="tools">
+                <span class="t ghost"><i data-i="grip-vertical"></i></span><span class="sp"></span
+                ><span class="t on"><i data-i="lock"></i></span>
+              </div>
+              <div class="hex">#F3E3C3</div>
+              <div class="nm">Locked</div>
+            </div>
+            <div class="slot sel" style="background: #c4553b">
+              <div class="tools">
+                <span class="t ghost"><i data-i="grip-vertical"></i></span><span class="sp"></span
+                ><span class="t"><i data-i="lock-open"></i></span
+                ><span class="t"><i data-i="heart"></i></span
+                ><span class="t"><i data-i="copy"></i></span
+                ><span class="t"><i data-i="x"></i></span>
+              </div>
+              <div class="hex">#C4553B</div>
+              <div class="nm">Selected · hover shows every tool</div>
+            </div>
+            <div class="slot" style="background: #7a9e7e">
+              <div class="tools">
+                <span class="t ghost"><i data-i="grip-vertical"></i></span>
+              </div>
+              <div class="hex">#7A9E7E</div>
+            </div>
+            <div class="addslot"><i data-i="plus"></i></div>
+          </div>
+
+          <div class="studio-side">
+            <div class="row" style="gap: 8px; align-items: center">
+              <i data-i="heart" class="filled" style="color: var(--blush)"></i>
+              <b>Liked</b><span class="cap">6</span>
+            </div>
+            <div class="cap">Colors you hearted. They stay here until you remove them.</div>
+            <div class="liked-grid">
+              <div class="liked"><i style="background: #e9a845"></i><span>#E9A845</span></div>
+              <div class="liked sel"><i style="background: #b2523f"></i><span>#B2523F</span></div>
+              <div class="liked"><i style="background: #d98c5f"></i><span>#D98C5F</span></div>
+              <div class="liked"><i style="background: #8f5b7a"></i><span>#8F5B7A</span></div>
+              <div class="liked"><i style="background: #5f7f99"></i><span>#5F7F99</span></div>
+              <div class="liked"><i style="background: #b8c95a"></i><span>#B8C95A</span></div>
+            </div>
+            <div style="flex: 1"></div>
+            <div class="cap">Compare with the selected spot</div>
+            <div class="compare">
+              <div style="background: #c4553b">Spot 4<br />#C4553B</div>
+              <div style="background: #b2523f">Liked<br />#B2523F</div>
+            </div>
+            <span class="btn primary" style="width: 100%">Choose</span>
+            <span class="btn ghost sm" style="align-self: center">Remove from Liked</span>
+          </div>
+        </div>
+      </div>
+      <p class="note">
+        Spot text is dark (#2a1832) on light colours and light (#f4eef6) on dark ones (pick by
+        contrast, never by hand). Tools: grip (drag to reorder), lock, heart, copy, remove; locked
+        and liked spots always show their icon on a solid disc; the other tools appear on hover. At
+        most 10 spots can be added in the studio (a palette that already has more, from Combine,
+        keeps them). Choose puts the picked liked colour into the selected spot; with no spot
+        selected it adds a new one.
+      </p>
+    </section>
+    <style>
+      .tabcard {
+        width: 1116px;
+        border-radius: 12px;
+        border: 1px solid var(--hairline);
+        background: var(--canvas);
+        padding: 20px 24px;
+        margin-bottom: 18px;
+      }
+      .tabcard h2 {
+        font: 700 16px var(--font);
+        margin: 0 0 14px;
+        color: var(--text-2);
+      }
+      .wheel {
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        position: relative;
+        background:
+          radial-gradient(circle closest-side, #fff 0%, rgba(255, 255, 255, 0) 100%),
+          conic-gradient(from 90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+        box-shadow: var(--shadow-card);
+        flex: none;
+      }
+      .wheel .mk {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+        transform: translate(-50%, -50%);
+      }
+      .wheel .mk.base {
+        width: 26px;
+        height: 26px;
+        border-width: 3px;
+      }
+      .wheel svg.lines {
+        position: absolute;
+        inset: 0;
+      }
+      .rules {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        width: 210px;
+      }
+      .rules span {
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-size: 14px;
+        color: var(--text-2);
+      }
+      .rules span.on {
+        background: var(--surface-1);
+        color: var(--text-1);
+        box-shadow: var(--shadow-raised);
+        font-weight: 600;
+      }
+      .vals {
+        display: grid;
+        grid-template-columns: 56px repeat(3, 72px);
+        gap: 8px 8px;
+        align-items: center;
+      }
+      .vals .inp {
+        width: 72px;
+        justify-content: center;
+      }
+      .photo {
+        width: 600px;
+        height: 380px;
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 70% 30%, #f6d58a 0 60px, transparent 61px),
+          linear-gradient(
+            180deg,
+            #2e3a59 0%,
+            #6e5a7a 35%,
+            #e0795a 62%,
+            #f3c27a 70%,
+            #7a9e7e 71%,
+            #3f5d4a 100%
+          );
+        flex: none;
+      }
+      .photo .hill {
+        position: absolute;
+        left: -40px;
+        right: 180px;
+        bottom: -60px;
+        height: 200px;
+        border-radius: 50% 50% 0 0;
+        background: #2f4a3a;
+      }
+      .dropper {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+        transform: translate(-50%, -50%);
+        display: grid;
+        place-items: center;
+        font: 700 11px var(--font);
+        color: #fff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+      }
+      .loupe {
+        position: absolute;
+        width: 104px;
+        height: 104px;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        box-shadow: var(--shadow-float);
+        overflow: hidden;
+        transform: translate(-50%, -125%);
+        background-color: #e0795a;
+        background-image:
+          linear-gradient(rgba(0, 0, 0, 0.18) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 0, 0, 0.18) 1px, transparent 1px),
+          linear-gradient(180deg, #c8705f 0 30%, #e0795a 30% 65%, #ea9a6a 65%);
+        background-size:
+          13px 13px,
+          13px 13px,
+          100% 100%;
+      }
+      .loupe::after {
+        content: '';
+        position: absolute;
+        left: 45px;
+        top: 45px;
+        width: 13px;
+        height: 13px;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+      }
+      .preview {
+        border-radius: 16px;
+        padding: 22px 26px;
+        width: 440px;
+        box-shadow: var(--shadow-card);
+      }
+      .ratio {
+        font: 700 40px/1 var(--font);
+      }
+      .pass {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--text-2);
+      }
+      .pass b {
+        width: 52px;
+        text-align: center;
+        border-radius: 999px;
+        padding: 2px 0;
+        font-size: 12px;
+      }
+      .pass b.ok {
+        background: rgba(147, 184, 157, 0.2);
+        color: var(--sage);
+      }
+      .pass b.no {
+        background: rgba(238, 138, 124, 0.18);
+        color: var(--danger);
+      }
+      .cvd {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 6px 16px;
+        align-items: center;
+      }
+      .cvd .sw {
+        display: flex;
+        gap: 4px;
+      }
+      .cvd .sw i {
+        width: 72px;
+        height: 28px;
+        border-radius: 6px;
+        display: block;
+      }
+      .pick {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .pick i {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: block;
+        box-shadow: var(--shadow-card);
+      }
+      .pick i.on {
+        outline: 2px solid var(--text-1);
+        outline-offset: 2px;
+      }
+    </style>
+
+    <section id="studio-tabs">
+      <h1>2 · Color studio: Wheel, From an image, Contrast</h1>
+      <p class="sub">
+        Only the middle area of the studio is shown (the top bar, palette strip and Liked shelf are
+        as in mockup 1). Every tab edits the <b>selected spot</b> of the palette strip; locked spots
+        never change.
+      </p>
+
+      <div class="tabcard">
+        <h2>Wheel</h2>
+        <div class="row" style="gap: 32px">
+          <div class="col" style="align-items: center">
+            <div class="wheel">
+              <svg class="lines" viewBox="0 0 300 300">
+                <g stroke="rgba(255,255,255,.55)" stroke-width="1.5">
+                  <line x1="150" y1="150" x2="88" y2="226" />
+                  <line x1="150" y1="150" x2="212" y2="74" />
+                  <line x1="150" y1="150" x2="58" y2="150" />
+                  <line x1="150" y1="150" x2="242" y2="150" />
+                </g>
+              </svg>
+              <span class="mk base" style="left: 88px; top: 226px; background: #2e3a59"></span>
+              <span class="mk" style="left: 212px; top: 74px; background: #e9a845"></span>
+              <span class="mk" style="left: 58px; top: 150px; background: #5f7f99"></span>
+              <span class="mk" style="left: 242px; top: 150px; background: #c4553b"></span>
+            </div>
+            <div class="col" style="width: 300px; gap: 4px">
+              <span class="label">Brightness</span>
+              <input type="range" value="55" style="width: 100%; accent-color: var(--accent)" />
+            </div>
+          </div>
+          <div class="col">
+            <span class="label">Harmony</span>
+            <div class="rules">
+              <span>Analogous</span><span>Monochromatic</span><span>Triad</span>
+              <span class="on">Complementary</span><span>Split complementary</span>
+              <span>Square</span><span>Compound</span><span>Shades</span><span>Custom</span>
+            </div>
+          </div>
+          <div class="col" style="gap: 14px">
+            <span class="label">Selected spot</span>
+            <div
+              style="
+                width: 248px;
+                height: 96px;
+                border-radius: 14px;
+                background: #2e3a59;
+                box-shadow: var(--shadow-card);
+              "
+            ></div>
+            <div class="vals">
+              <span class="cap">HEX</span
+              ><span
+                class="inp"
+                style="grid-column: span 3; width: auto; justify-content: flex-start"
+                >#2E3A59</span
+              >
+              <span class="cap">RGB</span><span class="inp">46</span><span class="inp">58</span
+              ><span class="inp">89</span> <span class="cap">HSB</span><span class="inp">223°</span
+              ><span class="inp">48%</span><span class="inp">35%</span>
+            </div>
+            <div class="cap" style="max-width: 260px">
+              The big ring is the base colour. Drag it and the others follow the harmony. In Custom,
+              every dot moves on its own.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabcard">
+        <h2>From an image</h2>
+        <div class="row" style="gap: 24px">
+          <div class="col" style="width: 210px">
+            <span class="label">Image</span>
+            <span class="btn secondary" style="justify-content: flex-start"
+              ><i data-i="folder-open"></i>Open an image…</span
+            >
+            <span class="btn secondary" style="justify-content: flex-start"
+              ><i data-i="clipboard-paste"></i>Paste</span
+            >
+            <span class="btn secondary" style="justify-content: flex-start"
+              ><i data-i="library"></i>From my library</span
+            >
+            <span class="label" style="margin-top: 10px">Mood</span>
+            <div class="rules" style="width: 210px">
+              <span class="on">Colorful</span><span>Bright</span><span>Muted</span><span>Deep</span
+              ><span>Dark</span>
+            </div>
+            <label
+              class="row"
+              style="gap: 8px; align-items: center; margin-top: 10px; font-size: 14px"
+            >
+              <span class="checkbox"></span>Also add this image to my library
+            </label>
+          </div>
+          <div class="col">
+            <div class="photo">
+              <div class="hill"></div>
+              <span class="dropper" style="left: 90px; top: 50px; background: #2e3a59">1</span>
+              <span class="dropper" style="left: 418px; top: 112px; background: #f6d58a">2</span>
+              <span class="dropper" style="left: 300px; top: 190px; background: #f3c27a">3</span>
+              <span class="loupe" style="left: 150px; top: 230px"></span>
+              <span class="dropper" style="left: 150px; top: 230px; background: #e0795a">4</span>
+              <span class="dropper" style="left: 520px; top: 330px; background: #3f5d4a">5</span>
+            </div>
+            <div class="cap">
+              One numbered dropper per spot. Drag a dropper: the loupe shows the pixels under it and
+              the spot updates live. Locked spots have no dropper. The image is only kept if the box
+              on the left is ticked.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabcard">
+        <h2>Contrast</h2>
+        <div class="row" style="gap: 28px">
+          <div class="col" style="gap: 14px">
+            <div class="row" style="gap: 24px; align-items: center">
+              <div class="col" style="gap: 6px">
+                <span class="label">Text</span>
+                <div class="pick">
+                  <i style="background: #2e3a59"></i><i style="background: #e9a845"></i
+                  ><i style="background: #f3e3c3"></i><i class="on" style="background: #c4553b"></i
+                  ><i style="background: #7a9e7e"></i>
+                </div>
+              </div>
+              <span class="ibtn" title="Swap"><i data-i="arrow-right"></i></span>
+              <div class="col" style="gap: 6px">
+                <span class="label">Background</span>
+                <div class="pick">
+                  <i style="background: #2e3a59"></i><i style="background: #e9a845"></i
+                  ><i class="on" style="background: #f3e3c3"></i><i style="background: #c4553b"></i
+                  ><i style="background: #7a9e7e"></i>
+                </div>
+              </div>
+            </div>
+            <div class="preview" style="background: #f3e3c3; color: #c4553b">
+              <div style="font: 700 54px/1 var(--font)">Aa</div>
+              <div style="font: 700 22px/1.3 var(--font); margin-top: 8px">A sample heading</div>
+              <div style="font: 500 15px/1.4 var(--font)">
+                Body text at 15 px, the size you read every day.
+              </div>
+            </div>
+          </div>
+          <div class="col" style="gap: 10px; width: 300px">
+            <div class="ratio">3.52 : 1</div>
+            <div class="pass"><b class="no">Fails</b>AA · normal text (needs 4.5)</div>
+            <div class="pass"><b class="ok">Passes</b>AA · large text (needs 3)</div>
+            <div class="pass"><b class="no">Fails</b>AAA · normal text (needs 7)</div>
+            <div class="pass"><b class="no">Fails</b>AAA · large text (needs 4.5)</div>
+            <span class="btn secondary" style="margin-top: 6px"
+              >Find a text color that passes AA</span
+            >
+            <div class="row" style="gap: 10px; align-items: center">
+              <i
+                style="
+                  width: 40px;
+                  height: 40px;
+                  border-radius: 10px;
+                  background: #b04229;
+                  display: block;
+                "
+              ></i>
+              <div class="col" style="gap: 0">
+                <b>#B04229</b><span class="cap">4.54 : 1 · same hue, darker</span>
+              </div>
+              <span class="btn primary sm" style="margin-left: auto">Use this</span>
+            </div>
+          </div>
+        </div>
+        <div class="col" style="margin-top: 22px; gap: 8px">
+          <span class="label">How the palette looks to people who see color differently</span>
+          <div class="cvd">
+            <span class="cap">Typical vision</span>
+            <div class="sw">
+              <i style="background: #2e3a59"></i><i style="background: #e9a845"></i
+              ><i style="background: #f3e3c3"></i><i style="background: #c4553b"></i
+              ><i style="background: #7a9e7e"></i>
+            </div>
+            <span class="cap">Red-blind (protanopia)</span>
+            <div class="sw">
+              <i style="background: #323c5b"></i><i style="background: #c6a640"></i
+              ><i style="background: #ece2c1"></i><i style="background: #6b5f39"></i
+              ><i style="background: #9f977c"></i>
+            </div>
+            <span class="cap">Green-blind (deuteranopia)</span>
+            <div class="sw">
+              <i style="background: #2f3858"></i><i style="background: #d6b647"></i
+              ><i style="background: #f0e6c4"></i><i style="background: #84733a"></i
+              ><i style="background: #98927f"></i>
+            </div>
+            <span class="cap">Blue-blind (tritanopia)</span>
+            <div class="sw">
+              <i style="background: #254043"></i><i style="background: #ff948a"></i
+              ><i style="background: #fdddd9"></i><i style="background: #e5484e"></i
+              ><i style="background: #779c94"></i>
+            </div>
+            <span class="cap">No color (achromatopsia)</span>
+            <div class="sw">
+              <i style="background: #3a3a3a"></i><i style="background: #afafaf"></i
+              ><i style="background: #e4e4e4"></i><i style="background: #6b6b6b"></i
+              ><i style="background: #949494"></i>
+            </div>
+          </div>
+          <span class="cap"
+            >Two spots that look almost the same in a row get a small ⚠ under them ("hard to tell
+            apart").</span
+          >
+        </div>
+      </div>
+      <p class="note">
+        Values in these mockups were computed with culori 4.0.2 (wcagContrast,
+        filterDeficiencyProt/Deuter/Trit, filterGrayscale), the same functions the plan uses.
+      </p>
+    </section>
+    <style>
+      .combo {
+        width: 320px;
+      }
+      .combo .menu {
+        margin-top: 6px;
+        max-height: 330px;
+      }
+      .combo .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--blush);
+        flex: none;
+      }
+      .combo .hdr {
+        font-size: 12px;
+        color: var(--text-3);
+        padding: 4px 12px 2px;
+      }
+      .combo .dym {
+        font-size: 12px;
+        color: var(--accent);
+        margin-left: 6px;
+      }
+      .combo .create {
+        color: var(--text-2);
+      }
+      .combo .create b {
+        color: var(--text-1);
+      }
+    </style>
+    <section id="combobox">
+      <h1>3 · Word fields (Type, Vibe, Movement, Tags)</h1>
+      <p class="sub">
+        One combobox for every word field (Details, Triage, editing several items). Existing words
+        always come first; making a new word is the last row and never the default when a match
+        exists, so near-duplicates can't happen by accident. Arrow keys move, Enter picks the
+        highlighted row, Esc closes the list (a second Esc leaves the field).
+      </p>
+      <div class="row" style="gap: 40px">
+        <div class="col combo">
+          <span class="label">Vibe · clicked, nothing typed</span>
+          <div class="field"><span class="chip">Calm ×</span><span class="caret"></span></div>
+          <div class="menu">
+            <div class="hdr">Most used</div>
+            <div class="mi hl"><span class="dot"></span>Dreamy<span class="count">12</span></div>
+            <div class="mi"><span class="dot"></span>Nostalgic<span class="count">9</span></div>
+            <div class="mi"><span class="dot"></span>Dark<span class="count">7</span></div>
+            <div class="mi"><span class="dot"></span>Bold<span class="count">5</span></div>
+            <div class="mi"><span class="dot"></span>Playful<span class="count">3</span></div>
+            <div class="mi"><span class="dot"></span>Psychedelic<span class="count">1</span></div>
+            <div class="mi"><span class="dot"></span>Romantic<span class="count">0</span></div>
+            <div class="mi"><span class="dot"></span>Serene<span class="count">0</span></div>
+          </div>
+        </div>
+        <div class="col combo">
+          <span class="label">Typing "dremy" (a typo)</span>
+          <div class="field">
+            <span class="chip">Calm ×</span><span class="typed">dremy</span
+            ><span class="caret"></span>
+          </div>
+          <div class="menu">
+            <div class="mi hl">
+              <span class="dot"></span>Dreamy<span class="dym">Did you mean?</span
+              ><span class="count">12</span>
+            </div>
+            <div class="sep"></div>
+            <div class="mi create"><i data-i="plus"></i>Create&nbsp;<b>"dremy"</b></div>
+          </div>
+          <span class="cap"
+            >Enter adds Dreamy. To really create "dremy", press ↓ then Enter, or click it.</span
+          >
+        </div>
+        <div class="col combo">
+          <span class="label">Typing "grain" (a new word)</span>
+          <div class="field">
+            <span class="chip">serif ×</span><span class="typed">grain</span
+            ><span class="caret"></span>
+          </div>
+          <div class="menu">
+            <div class="mi hl create">
+              <i data-i="plus"></i>Create&nbsp;<b>"grain"</b><span class="count">new tag</span>
+            </div>
+          </div>
+          <span class="cap"
+            >No match, so the only row (Create) is highlighted and Enter creates it.</span
+          >
+        </div>
+      </div>
+      <p class="note">
+        Matching ignores case and accents and forgives one typo from 4 letters (two from 8):
+        starts-with first, then a word inside the name, then contains, then typos; most used first
+        inside each group; at most 8 rows. The dot uses the field's criterion colour (Vibe = blush,
+        Movement = cream, Tags = sage, Type = accent). Leaving the field never creates a word.
+      </p>
+    </section>
+
+    <style>
+      .cover {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        flex: none;
+        background: var(--surface-3);
+      }
+      .cover i {
+        display: block;
+      }
+      .two {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+      }
+      .two small {
+        color: var(--text-3);
+        font-size: 12px;
+      }
+      .tile {
+        width: 148px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        position: relative;
+      }
+      .tile .th {
+        height: 112px;
+        border-radius: 12px;
+        box-shadow: var(--shadow-card);
+      }
+      .tile.sel .th {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .tile .ck {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+      }
+      .tile .t1 {
+        font-size: 14px;
+      }
+      .tile .t2 {
+        font-size: 12px;
+        color: var(--text-3);
+      }
+    </style>
+    <section id="library-trash">
+      <h1>4 · Library menu and Trash</h1>
+      <p class="sub">
+        The top-left menu becomes one panel (no box inside a box). The space you're in has a check.
+        Boards show a small cover (first four items) and how many items they hold. "New board" looks
+        like a button and asks for a name right away. Trash is at the bottom and opens its own
+        screen.
+      </p>
+      <div class="row" style="gap: 32px">
+        <div class="col">
+          <span
+            class="chip"
+            style="height: 36px; padding: 0 14px; font-size: 14px; align-self: flex-start"
+            >Moodboard Été ▾</span
+          >
+          <div class="menu" style="width: 300px">
+            <div class="mi"><i data-i="map"></i>Library<span class="count">1,240</span></div>
+            <div class="sep"></div>
+            <div class="hdr" style="font-size: 12px; color: var(--text-3); padding: 4px 12px">
+              Boards
+            </div>
+            <div class="mi hl">
+              <span class="cover"
+                ><i style="background: #c4553b"></i><i style="background: #e9a845"></i
+                ><i style="background: #2e3a59"></i><i style="background: #7a9e7e"></i
+              ></span>
+              <span class="two">Moodboard Été<small>48 items · edited today</small></span>
+              <i data-i="check" style="margin-left: auto; color: var(--accent)"></i>
+            </div>
+            <div class="mi">
+              <span class="cover"
+                ><i style="background: #efe6d6"></i><i style="background: #3a2546"></i
+                ><i style="background: #b7a6e8"></i><i style="background: #8cc6e6"></i
+              ></span>
+              <span class="two"
+                >Brand: Atelier Nord<small>21 items · edited 3 days ago</small></span
+              >
+            </div>
+            <div class="mi">
+              <span class="cover"
+                ><i style="background: #93b89d"></i><i style="background: #f0b7b3"></i><i></i><i></i
+              ></span>
+              <span class="two">Type research<small>2 items · edited last week</small></span>
+            </div>
+            <div style="padding: 6px 4px 2px">
+              <span class="btn secondary sm" style="width: 100%"
+                ><i data-i="plus"></i>New board</span
+              >
+            </div>
+            <div class="mi">
+              <i data-i="layout-grid"></i>All boards…<span class="count">7</span>
+            </div>
+            <div class="sep"></div>
+            <div class="mi"><i data-i="trash"></i>Trash<span class="count">12</span></div>
+          </div>
+          <span class="cap" style="max-width: 300px"
+            >Five most recent boards; "All boards…" opens the gallery. Clicking anywhere outside
+            closes the menu.</span
+          >
+        </div>
+        <div class="col">
+          <span class="label">After "New board": the row becomes a name field</span>
+          <div class="menu" style="width: 300px">
+            <div style="padding: 4px">
+              <span
+                class="inp"
+                style="
+                  width: 100%;
+                  box-shadow:
+                    var(--shadow-inset),
+                    0 0 0 2px var(--cream);
+                "
+                >Packaging ideas<span
+                  class="caret"
+                  style="
+                    display: inline-block;
+                    width: 1px;
+                    height: 18px;
+                    background: var(--text-1);
+                    margin-left: 2px;
+                  "
+                ></span
+              ></span>
+            </div>
+            <div class="cap" style="padding: 2px 8px 4px">
+              Enter creates and opens it · Esc cancels
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="window"
+        style="
+          height: 560px;
+          margin-top: 28px;
+          background: rgba(8, 2, 12, 0.6);
+          display: grid;
+          place-items: center;
+        "
+      >
+        <div
+          class="panel"
+          style="
+            width: 1020px;
+            height: 500px;
+            border-radius: var(--radius-overlay);
+            padding: 22px 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+          "
+        >
+          <div class="row" style="align-items: center; gap: 12px">
+            <span style="font: 700 21px var(--font)">Trash</span
+            ><span class="cap">12 items · 1 board</span>
+            <div style="flex: 1"></div>
+            <span class="btn danger">Empty trash…</span>
+            <span class="ibtn"><i data-i="x"></i></span>
+          </div>
+          <div class="cap" style="font-size: 14px">
+            Things stay here until you delete them. "Delete forever" moves the original files to the
+            Windows Recycle Bin.
+          </div>
+          <div class="row" style="align-items: center; gap: 10px">
+            <span class="checkbox on"><i data-i="minus"></i></span
+            ><span class="label">3 selected</span>
+            <span class="btn secondary sm"><i data-i="undo-2"></i>Restore</span>
+            <span class="btn danger sm">Delete forever</span>
+            <div style="flex: 1"></div>
+            <div class="seg"><span class="on">Newest first</span><span>Oldest first</span></div>
+          </div>
+          <div class="row" style="gap: 16px; flex-wrap: wrap">
+            <div class="tile sel">
+              <div class="th" style="background: linear-gradient(160deg, #6e5a7a, #e0795a)"></div>
+              <span class="ck checkbox on"><i data-i="check"></i></span
+              ><span class="t1">Sunset over Arles</span><span class="t2">today</span>
+            </div>
+            <div class="tile sel">
+              <div
+                class="th"
+                style="
+                  background: #2a1832;
+                  display: grid;
+                  place-items: center;
+                  font:
+                    400 44px Georgia,
+                    serif;
+                "
+              >
+                Aa
+              </div>
+              <span class="ck checkbox on"><i data-i="check"></i></span
+              ><span class="t1">Playfair Display</span><span class="t2">today</span>
+            </div>
+            <div class="tile sel">
+              <div
+                class="th"
+                style="
+                  background: linear-gradient(#efe6d6 0 0) padding-box;
+                  background-color: #efe6d6;
+                  background-image: repeating-linear-gradient(
+                    transparent 0 17px,
+                    rgba(255, 255, 255, 0.7) 17px 18px
+                  );
+                "
+              ></div>
+              <span class="ck checkbox on"><i data-i="check"></i></span
+              ><span class="t1">Note: fonts to try</span><span class="t2">2 days ago</span>
+            </div>
+            <div class="tile">
+              <div class="th" style="background: linear-gradient(200deg, #2f4a3a, #93b89d)"></div>
+              <span class="t1">Forest path</span><span class="t2">5 days ago</span>
+            </div>
+            <div class="tile">
+              <div
+                class="th"
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 6px;
+                  padding: 8px;
+                  background: var(--surface-2);
+                "
+              >
+                <i style="background: #c4553b; border-radius: 6px"></i
+                ><i style="background: #e9a845; border-radius: 6px"></i
+                ><i style="background: #2e3a59; border-radius: 6px"></i><i></i>
+              </div>
+              <span class="t1">Autumn palette</span><span class="t2">last week</span>
+            </div>
+            <div class="tile">
+              <div
+                class="th"
+                style="
+                  background: var(--surface-2);
+                  display: grid;
+                  place-items: center;
+                  color: var(--text-2);
+                "
+              >
+                <i data-i="layout-grid"></i>
+              </div>
+              <span class="t1">Board: Old ideas</span><span class="t2">last week · 9 items</span>
+            </div>
+          </div>
+          <span class="cap"
+            >Hovering a tile shows Restore and Delete forever on it. Restoring a board brings back
+            its board-only notes and swatches too.</span
+          >
+        </div>
+      </div>
+      <p class="note">
+        The "Moved to Trash · Undo" message gets a second action, "Open Trash". The Trash section in
+        Settings → Library is removed.
+      </p>
+    </section>
+
+    <section id="settings">
+      <h1>5 · Settings that always fit the window</h1>
+      <p class="sub">
+        The dialog never grows past the window (24 px margin). The section list stays put on the
+        left; only the right side scrolls. Backups shrink to one line with "Show all".
+      </p>
+      <div
+        class="window"
+        style="height: 620px; background: rgba(8, 2, 12, 0.6); display: grid; place-items: center"
+      >
+        <div
+          class="panel"
+          style="
+            width: 860px;
+            height: 572px;
+            border-radius: var(--radius-overlay);
+            display: grid;
+            grid-template-columns: 210px 1fr;
+            overflow: hidden;
+          "
+        >
+          <div
+            style="
+              border-right: 1px solid var(--hairline);
+              padding: 22px 12px;
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+            "
+          >
+            <span style="font: 700 19px var(--font); padding: 0 12px 14px">Settings</span>
+            <div class="mi">Canvas</div>
+            <div class="mi hl"><b>Library</b></div>
+            <div class="mi">Vocabularies</div>
+            <div class="mi">AI</div>
+            <div class="mi">Content &amp; network</div>
+            <div class="mi">About</div>
+          </div>
+          <div style="position: relative; padding: 22px 28px; overflow: hidden">
+            <div class="row" style="align-items: center">
+              <span style="font: 700 17px var(--font)">Library</span>
+              <div style="flex: 1"></div>
+              <span class="ibtn"><i data-i="x"></i></span>
+            </div>
+            <div class="col" style="gap: 18px; margin-top: 16px">
+              <div class="col" style="gap: 6px">
+                <span class="label">Library folder</span
+                ><span class="inp" style="width: 100%">D:\Designspace\Library</span>
+              </div>
+              <div class="col" style="gap: 6px">
+                <span class="label">Backups</span>
+                <div class="row" style="align-items: center; gap: 10px">
+                  <span>Last backup today at 10:02 · 22 kept</span>
+                  <div style="flex: 1"></div>
+                  <span class="btn ghost sm">Show all</span
+                  ><span class="btn secondary sm">Back up now</span>
+                </div>
+              </div>
+              <div class="col" style="gap: 6px">
+                <span class="label">Statistics</span
+                ><span class="cap" style="font-size: 14px"
+                  >1,240 items · 4.2 GB originals · 310 MB previews</span
+                >
+              </div>
+              <div class="col" style="gap: 6px">
+                <span class="label">Maintenance</span>
+                <div class="row" style="gap: 8px">
+                  <span class="btn secondary sm">Refresh all previews</span
+                  ><span class="btn secondary sm">Open library folder</span>
+                </div>
+              </div>
+              <div class="col" style="gap: 6px">
+                <span class="label">Export</span>
+                <div class="row" style="gap: 8px">
+                  <span class="btn secondary sm">Export library…</span>
+                </div>
+              </div>
+            </div>
+            <div
+              style="
+                position: absolute;
+                right: 6px;
+                top: 70px;
+                width: 6px;
+                height: 160px;
+                border-radius: 3px;
+                background: var(--surface-3);
+              "
+            ></div>
+          </div>
+        </div>
+      </div>
+      <p class="note">
+        CSS: the overlay keeps its padding; the dialog gets
+        <code>max-height: calc(100vh - 48px)</code>; the content column
+        <code>overflow-y: auto</code>; the nav never scrolls. Items in the Library section are
+        illustrative: keep what's there today, minus Trash.
+      </p>
+    </section>
+    <style>
+      .pg {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        position: relative;
+      }
+      .pg .paper {
+        background: #fbf8f2;
+        border-radius: 4px;
+        box-shadow: var(--shadow-card);
+        position: relative;
+        overflow: hidden;
+      }
+      .pg.sel .paper {
+        outline: 3px solid var(--accent);
+        outline-offset: 3px;
+      }
+      .pg .badge {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: var(--on-accent);
+        display: grid;
+        place-items: center;
+        box-shadow: var(--shadow-card);
+      }
+      .pg span {
+        font-size: 13px;
+        color: var(--text-2);
+      }
+      .paper .blk {
+        position: absolute;
+        border-radius: 2px;
+      }
+    </style>
+    <section id="pdf-picker">
+      <h1>6 · Choosing PDF pages</h1>
+      <p class="sub">
+        Shown when you add a PDF with more than one page (Files…, drag and drop, paste) and from the
+        PDF viewer's "Split into pages…". Click pages to pick them. Separate pages keep their real
+        shape (portrait, landscape) and land side by side in reading order.
+      </p>
+      <div
+        class="window"
+        style="height: 600px; background: rgba(8, 2, 12, 0.6); display: grid; place-items: center"
+      >
+        <div
+          class="panel"
+          style="
+            width: 960px;
+            height: 548px;
+            border-radius: var(--radius-overlay);
+            padding: 22px 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+          "
+        >
+          <div class="row" style="align-items: baseline; gap: 12px">
+            <span style="font: 700 21px var(--font)">Add "Brochure 2026.pdf"</span
+            ><span class="cap">12 pages</span>
+          </div>
+          <div class="row" style="align-items: center; gap: 10px">
+            <span class="btn ghost sm">Select all</span><span class="btn ghost sm">None</span>
+            <span class="inp" style="width: 200px; color: var(--text-1)">2-4, 7</span>
+            <div style="flex: 1"></div>
+            <span class="label">4 of 12 selected</span>
+          </div>
+          <div
+            style="
+              flex: 1;
+              display: grid;
+              grid-template-columns: repeat(6, 1fr);
+              gap: 22px 18px;
+              align-content: start;
+              padding: 6px 4px;
+              overflow: hidden;
+            "
+          >
+            <div class="pg">
+              <div class="paper" style="width: 92px; height: 130px">
+                <i
+                  class="blk"
+                  style="left: 10px; top: 12px; width: 72px; height: 56px; background: #c4553b"
+                ></i
+                ><i
+                  class="blk"
+                  style="left: 10px; top: 76px; width: 50px; height: 6px; background: #2e3a59"
+                ></i>
+              </div>
+              <span>1</span>
+            </div>
+            <div class="pg sel">
+              <div class="paper" style="width: 92px; height: 130px">
+                <i
+                  class="blk"
+                  style="left: 10px; top: 12px; width: 72px; height: 8px; background: #2e3a59"
+                ></i
+                ><i
+                  class="blk"
+                  style="left: 10px; top: 28px; width: 72px; height: 80px; background: #7a9e7e"
+                ></i>
+              </div>
+              <span class="badge"><i data-i="check"></i></span><span>2</span>
+            </div>
+            <div class="pg sel">
+              <div class="paper" style="width: 92px; height: 130px">
+                <i
+                  class="blk"
+                  style="left: 10px; top: 12px; width: 34px; height: 96px; background: #e9a845"
+                ></i
+                ><i
+                  class="blk"
+                  style="left: 50px; top: 12px; width: 32px; height: 44px; background: #2e3a59"
+                ></i>
+              </div>
+              <span class="badge"><i data-i="check"></i></span><span>3</span>
+            </div>
+            <div class="pg sel">
+              <div class="paper" style="width: 130px; height: 92px; margin-top: 19px">
+                <i
+                  class="blk"
+                  style="left: 10px; top: 10px; width: 110px; height: 58px; background: #8f5b7a"
+                ></i>
+              </div>
+              <span class="badge"><i data-i="check"></i></span><span>4 · landscape</span>
+            </div>
+            <div class="pg">
+              <div class="paper" style="width: 92px; height: 130px">
+                <i
+                  class="blk"
+                  style="left: 10px; top: 12px; width: 72px; height: 6px; background: #2e3a59"
+                ></i
+                ><i
+                  class="blk"
+                  style="left: 10px; top: 24px; width: 60px; height: 6px; background: #9a8ba3"
+                ></i>
+              </div>
+              <span>5</span>
+            </div>
+            <div class="pg">
+              <div class="paper" style="width: 92px; height: 130px">
+                <i
+                  class="blk"
+                  style="left: 10px; top: 12px; width: 72px; height: 96px; background: #d98c5f"
+                ></i>
+              </div>
+              <span>6</span>
+            </div>
+            <div class="pg sel">
+              <div class="paper" style="width: 92px; height: 130px">
+                <i
+                  class="blk"
+                  style="left: 10px; top: 12px; width: 72px; height: 40px; background: #5f7f99"
+                ></i
+                ><i
+                  class="blk"
+                  style="left: 10px; top: 60px; width: 72px; height: 40px; background: #f3e3c3"
+                ></i>
+              </div>
+              <span class="badge"><i data-i="check"></i></span><span>7</span>
+            </div>
+            <div class="pg">
+              <div
+                class="paper"
+                style="width: 92px; height: 130px; background: var(--surface-2)"
+              ></div>
+              <span>8</span>
+            </div>
+            <div class="pg">
+              <div
+                class="paper"
+                style="width: 92px; height: 130px; background: var(--surface-2)"
+              ></div>
+              <span>9</span>
+            </div>
+            <div class="pg">
+              <div
+                class="paper"
+                style="width: 92px; height: 130px; background: var(--surface-2)"
+              ></div>
+              <span>10</span>
+            </div>
+          </div>
+          <div class="row" style="align-items: center; gap: 10px">
+            <span class="cap">Pages draw as they scroll into view (grey = not drawn yet).</span>
+            <div style="flex: 1"></div>
+            <span class="btn ghost">Cancel</span>
+            <span class="btn secondary">Add as one PDF</span>
+            <span class="btn primary">Add these 4 pages separately</span>
+          </div>
+        </div>
+      </div>
+      <p class="note">
+        The range field and the clicks stay in sync. From the PDF viewer the buttons read "Cancel"
+        and "Add 4 pages" (the original PDF stays), and the pages land to the right of the PDF card.
+      </p>
+    </section>
+
+    <style>
+      .fontcard {
+        width: 320px;
+        height: 200px;
+        border-radius: 10px;
+        background: #2a1832;
+        box-shadow: var(--shadow-card);
+        padding: 18px 20px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        color: var(--text-1);
+      }
+      .fontcard .aa {
+        font-size: 56px;
+        line-height: 1;
+      }
+      .fontcard .fam {
+        font-size: 20px;
+        line-height: 1.2;
+      }
+      .fontcard .smp {
+        color: var(--text-1);
+        line-height: 1.2;
+        overflow: hidden;
+      }
+      .fontcard .sty {
+        position: absolute;
+        top: 16px;
+        right: 18px;
+        font: 600 11px var(--font);
+        color: var(--text-3);
+      }
+      .coll {
+        width: 360px;
+        border-radius: 12px;
+        background: #2a1832;
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+      }
+      .coll .hd {
+        height: 48px;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .coll .rw {
+        height: 56px;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid var(--hairline);
+        font-size: 26px;
+        position: relative;
+      }
+      .coll .rw:last-child {
+        border-bottom: none;
+      }
+      .coll .rw small {
+        margin-left: auto;
+        font: 600 12px var(--font);
+        color: var(--text-3);
+      }
+      .coll .rw.hover {
+        background: var(--surface-2);
+      }
+    </style>
+    <section id="fonts">
+      <h1>7 · Font families and type collections</h1>
+      <p class="sub">
+        One card per family. In Details, "On the card" sets the style (or a weight for variable
+        fonts), the text size and the text. A type collection groups families like a palette groups
+        colours, but every row is still its own family: it can be classified, opened and connected,
+        and lines attach to its row.
+      </p>
+      <div class="row" style="gap: 28px; align-items: flex-start">
+        <div class="col">
+          <span class="label">Family card · text size Small / Medium / Large</span>
+          <div class="fontcard">
+            <span class="sty">Regular · 18 styles</span>
+            <span class="aa" style="font-family: Urbanist; font-weight: 400">Aa</span>
+            <span class="fam" style="font-family: Urbanist; font-weight: 400">Urbanist</span>
+            <span class="smp" style="font-family: Urbanist; font-weight: 400; font-size: 14px"
+              >Sphinx of black quartz, judge my vow</span
+            >
+          </div>
+          <div class="fontcard">
+            <span class="sty">Semibold · 18 styles</span>
+            <span class="aa" style="font-family: Urbanist; font-weight: 600">Aa</span>
+            <span class="fam" style="font-family: Urbanist; font-weight: 600">Urbanist</span>
+            <span class="smp" style="font-family: Urbanist; font-weight: 600; font-size: 19px"
+              >Sphinx of black quartz, judge my vow</span
+            >
+          </div>
+          <div class="fontcard">
+            <span class="sty">Bold Italic · 18 styles</span>
+            <span class="aa" style="font-family: Urbanist; font-weight: 700; font-style: italic"
+              >Aa</span
+            >
+            <span class="fam" style="font-family: Urbanist; font-weight: 700; font-style: italic"
+              >Urbanist</span
+            >
+            <span
+              class="smp"
+              style="font-family: Urbanist; font-weight: 700; font-style: italic; font-size: 26px"
+              >Sphinx of black quartz, judge my vow</span
+            >
+          </div>
+          <span class="cap" style="max-width: 320px"
+            >Sizes in world units on a 320 × 200 card: "Aa" 56, name 20, text S 14 · M 19 · L 26 (at
+            most two lines, then "…"). The text is drawn in the main text colour, not the dim
+            one.</span
+          >
+        </div>
+        <div class="col" style="width: 300px">
+          <span class="label">Details → On the card</span>
+          <div
+            class="panel"
+            style="padding: 16px; display: flex; flex-direction: column; gap: 14px"
+          >
+            <div class="col" style="gap: 6px">
+              <span class="label">Style</span
+              ><span class="inp" style="width: 100%; justify-content: space-between"
+                >Semibold <i data-i="chevron-down"></i
+              ></span>
+            </div>
+            <div class="col" style="gap: 6px">
+              <span class="label">Weight · 600</span
+              ><input
+                type="range"
+                min="100"
+                max="900"
+                value="600"
+                style="width: 100%; accent-color: var(--accent)"
+              /><span class="cap">Only for variable fonts.</span>
+            </div>
+            <div class="col" style="gap: 6px">
+              <span class="label">Text size</span>
+              <div class="seg">
+                <span>Small</span><span class="on">Medium</span><span>Large</span>
+              </div>
+            </div>
+            <div class="col" style="gap: 6px">
+              <span class="label">Text</span
+              ><span class="inp" style="width: 100%; color: var(--text-3)"
+                >Your preview text (Settings)</span
+              >
+            </div>
+          </div>
+          <span class="label" style="margin-top: 8px">Details → Styles (18)</span>
+          <div class="panel" style="padding: 8px">
+            <div class="mi">
+              <span style="font-family: Urbanist; font-weight: 100">Thin</span
+              ><span class="count">100</span>
+            </div>
+            <div class="mi">
+              <span style="font-family: Urbanist; font-weight: 400">Regular</span
+              ><span class="count">400</span>
+            </div>
+            <div class="mi hl">
+              <span style="font-family: Urbanist; font-weight: 600">Semibold</span
+              ><span class="count">600 · on the card</span>
+            </div>
+            <div class="mi">
+              <span style="font-family: Urbanist; font-weight: 700; font-style: italic"
+                >Bold Italic</span
+              ><span class="count">700</span>
+            </div>
+          </div>
+        </div>
+        <div class="col" style="position: relative">
+          <span class="label">Type collection</span>
+          <div class="coll">
+            <div class="hd">
+              <i data-i="type"></i><b>Sans serifs I like</b
+              ><span class="cap" style="margin-left: auto">4 families</span>
+            </div>
+            <div class="rw" style="font-family: Urbanist; font-weight: 600">
+              Urbanist<small>18 styles</small>
+            </div>
+            <div class="rw hover" style="font-family: 'DejaVu Sans', Verdana, sans-serif">
+              DejaVu Sans<small>4 styles</small>
+            </div>
+            <div
+              class="rw"
+              style="font-family: 'Liberation Sans', Arial, sans-serif; font-weight: 700"
+            >
+              Liberation Sans<small>4 styles</small>
+            </div>
+            <div class="rw" style="font-family: system-ui; font-weight: 300">
+              System Light<small>1 style</small>
+            </div>
+          </div>
+          <svg
+            width="200"
+            height="140"
+            style="position: absolute; left: 352px; top: 70px; overflow: visible"
+          >
+            <path d="M 8 74 L 26 210" stroke="var(--blush)" stroke-width="2" fill="none" />
+          </svg>
+          <div
+            style="
+              position: absolute;
+              left: 378px;
+              top: 250px;
+              width: 80px;
+              height: 60px;
+              border-radius: 10px;
+              background: linear-gradient(160deg, #6e5a7a, #e0795a);
+              box-shadow: var(--shadow-card);
+            "
+          ></div>
+          <span class="cap" style="max-width: 360px"
+            >Card: 360 wide; header 48; one 56-high row per family (name in its own font at 26,
+            style count on the right). The hovered row lights up and its connection line (here a
+            shared Vibe) starts at the row's edge. Dragging the header or any row moves the whole
+            collection; reorder and rename in Details; right-click a row to take it out.</span
+          >
+        </div>
+      </div>
+    </section>
+
+    <style>
+      .stagebox {
+        position: relative;
+        border-radius: 12px;
+        border: 1px dashed var(--hairline);
+        padding: 30px;
+      }
+      .h {
+        position: absolute;
+        background: #fff;
+        border: 1.5px solid var(--accent);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      }
+      .h.c {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        transform: translate(-50%, -50%);
+      }
+      .h.s {
+        border-radius: 3px;
+        transform: translate(-50%, -50%);
+      }
+      .callout {
+        position: absolute;
+        font-size: 12px;
+        color: var(--text-2);
+        white-space: nowrap;
+      }
+      .star {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(30, 16, 36, 0.72);
+        display: grid;
+        place-items: center;
+        color: var(--accent);
+      }
+      .ltile {
+        width: 88px;
+        height: 88px;
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: var(--shadow-card);
+        flex: none;
+      }
+      .ltile .star {
+        top: 4px;
+        left: 4px;
+        width: 20px;
+        height: 20px;
+      }
+    </style>
+    <section id="canvas">
+      <h1>8 · Resizing, cropping, favourites, List tiles</h1>
+      <p class="sub">
+        Eight handles. Corners keep the proportions (hold Shift for free); sides change them. Hold
+        Alt to resize from the centre. Pictures never stretch: when the proportions change, the card
+        becomes a window onto the picture (a crop), and "Adjust crop" moves the picture inside it.
+      </p>
+      <div class="row" style="gap: 36px; align-items: flex-start">
+        <div class="stagebox" style="width: 470px; height: 330px">
+          <div
+            style="
+              position: absolute;
+              left: 90px;
+              top: 70px;
+              width: 280px;
+              height: 186px;
+              border-radius: 10px;
+              background: linear-gradient(
+                180deg,
+                #2e3a59 0%,
+                #6e5a7a 40%,
+                #e0795a 70%,
+                #3f5d4a 71%,
+                #2f4a3a 100%
+              );
+              box-shadow: var(--shadow-card);
+              outline: 1.5px solid var(--accent);
+            "
+          ></div>
+          <span class="h c" style="left: 90px; top: 70px"></span
+          ><span class="h c" style="left: 370px; top: 70px"></span>
+          <span class="h c" style="left: 90px; top: 256px"></span
+          ><span class="h c" style="left: 370px; top: 256px"></span>
+          <span class="h s" style="left: 230px; top: 70px; width: 20px; height: 6px"></span
+          ><span class="h s" style="left: 230px; top: 256px; width: 20px; height: 6px"></span>
+          <span class="h s" style="left: 90px; top: 163px; width: 6px; height: 20px"></span
+          ><span class="h s" style="left: 370px; top: 163px; width: 6px; height: 20px"></span>
+          <span
+            style="
+              position: absolute;
+              left: 392px;
+              top: 155px;
+              width: 16px;
+              height: 16px;
+              border-radius: 50%;
+              background: var(--surface-3);
+              border: 2px solid var(--text-1);
+            "
+          ></span>
+          <span class="callout" style="left: 20px; top: 34px"
+            >corner ↖ keeps proportions · Shift = free</span
+          >
+          <span class="callout" style="left: 180px; top: 270px"
+            >side ↕ changes proportions (crops a picture)</span
+          >
+          <span class="callout" style="left: 330px; top: 182px">connect handle, 22 px outside</span>
+          <span class="callout" style="left: 20px; top: 300px"
+            >Alt + any handle: from the centre · the whole edge is grabbable (6 px either
+            side)</span
+          >
+        </div>
+        <div class="stagebox" style="width: 330px; height: 330px">
+          <div
+            style="
+              position: absolute;
+              left: 30px;
+              top: 60px;
+              width: 270px;
+              height: 180px;
+              border-radius: 10px;
+              opacity: 0.32;
+              background: linear-gradient(
+                180deg,
+                #2e3a59 0%,
+                #6e5a7a 40%,
+                #e0795a 70%,
+                #3f5d4a 71%,
+                #2f4a3a 100%
+              );
+            "
+          ></div>
+          <div
+            style="
+              position: absolute;
+              left: 105px;
+              top: 60px;
+              width: 120px;
+              height: 180px;
+              border-radius: 10px;
+              overflow: hidden;
+              outline: 2px solid var(--text-1);
+              box-shadow: var(--shadow-card);
+            "
+          >
+            <div
+              style="
+                position: absolute;
+                left: -75px;
+                top: 0;
+                width: 270px;
+                height: 180px;
+                background: linear-gradient(
+                  180deg,
+                  #2e3a59 0%,
+                  #6e5a7a 40%,
+                  #e0795a 70%,
+                  #3f5d4a 71%,
+                  #2f4a3a 100%
+                );
+              "
+            ></div>
+          </div>
+          <span
+            class="chip"
+            style="
+              position: absolute;
+              left: 30px;
+              top: 262px;
+              background: var(--surface-1);
+              box-shadow: var(--shadow-float);
+            "
+            >Drag to move the picture · Enter or click outside to finish</span
+          >
+          <span class="callout" style="left: 30px; top: 22px"
+            >Adjust crop (right-click on a cropped picture)</span
+          >
+        </div>
+        <div class="col" style="gap: 18px">
+          <div
+            style="
+              position: relative;
+              width: 200px;
+              height: 150px;
+              border-radius: 10px;
+              background: linear-gradient(200deg, #2f4a3a, #93b89d);
+              box-shadow: var(--shadow-card);
+            "
+          >
+            <span class="star"><i class="filled" data-i="star"></i></span>
+          </div>
+          <span class="cap" style="max-width: 220px"
+            >Favourite: a 24-unit amber star on a dark disc, top-left (the thought bubble is
+            top-right, badges bottom-right). Hidden below 25 % zoom.</span
+          >
+        </div>
+      </div>
+      <div class="col" style="margin-top: 26px; gap: 10px">
+        <span class="label">List tiles (size M, 88 px): every kind shows something</span>
+        <div class="row" style="gap: 12px">
+          <div class="ltile" style="background: linear-gradient(160deg, #6e5a7a, #e0795a)">
+            <span class="star"
+              ><i class="filled" data-i="star" style="width: 12px; height: 12px"></i
+            ></span>
+          </div>
+          <div
+            class="ltile"
+            style="
+              background: var(--surface-2);
+              padding: 6px;
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 2px;
+            "
+          >
+            <i style="background: #2e3a59; border-radius: 4px"></i
+            ><i style="background: #e9a845; border-radius: 4px"></i
+            ><i style="background: #f3e3c3; border-radius: 4px"></i
+            ><i style="background: #c4553b; border-radius: 4px"></i
+            ><i style="background: #7a9e7e; border-radius: 4px"></i>
+          </div>
+          <div
+            class="ltile"
+            style="
+              background: #8cc6e6;
+              color: #1b2a33;
+              padding: 8px;
+              font: 500 11px/1.35 var(--font);
+            "
+          >
+            hello<br /><b>#dive-in</b> help<br />fonts to try
+          </div>
+          <div class="ltile" style="background: #2a1832; display: grid; place-items: center">
+            <span style="font: 400 30px Urbanist">Aa</span>
+          </div>
+          <div
+            class="ltile"
+            style="
+              background: var(--surface-2);
+              padding: 8px;
+              display: flex;
+              flex-direction: column;
+              justify-content: flex-end;
+              font-size: 11px;
+              line-height: 1.3;
+            "
+          >
+            <span style="color: var(--text-3)">are.na</span><span>Brutalist web index</span>
+          </div>
+          <div
+            class="ltile"
+            style="
+              background: #2a1832;
+              padding: 8px;
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+              font-size: 12px;
+            "
+          >
+            <span style="color: var(--text-3); font-size: 10px">4 families</span
+            ><span style="font-weight: 600">Urbanist</span><span>DejaVu</span
+            ><span style="font-weight: 700">Liberation</span>
+          </div>
+        </div>
+        <span class="cap"
+          >Photo (with favourite star) · palette (its colours) · note (paper colour, first lines) ·
+          font (the specimen, never cropped) · link before its cover arrives (site, title) · type
+          collection.</span
+        >
+      </div>
+    </section>
+
+    <script>
+      const ICONS = {
+        lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+        'lock-open':
+          '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+        heart:
+          '<path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/>',
+        copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+        x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+        'grip-vertical':
+          '<circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>',
+        plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+        check: '<path d="M20 6 9 17l-5-5"/>',
+        trash:
+          '<path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+        star: '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+        map: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
+        'layout-grid':
+          '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+        pipette:
+          '<path d="m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"/><path d="m18 9 .4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4 3.4-3.4a1 1 0 1 1 3 3z"/><path d="m2 22 .414-.414"/>',
+        shuffle:
+          '<path d="m18 14 4 4-4 4"/><path d="m18 2 4 4-4 4"/><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"/><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"/><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"/>',
+        sparkles:
+          '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
+        'chevron-left': '<path d="m15 18-6-6 6-6"/>',
+        'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+        'image-plus':
+          '<path d="M16 5h6"/><path d="M19 2v6"/><path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/>',
+        'clipboard-paste':
+          '<path d="M11 14h10"/><path d="M16 4h2a2 2 0 0 1 2 2v1.344"/><path d="m17 18 4-4-4-4"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 1.793-1.113"/><rect x="8" y="2" width="8" height="4" rx="1"/>',
+        library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
+        contrast: '<circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/>',
+        eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+        search: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
+        'folder-open':
+          '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+        crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>',
+        'rotate-ccw':
+          '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+        'undo-2':
+          '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+        settings:
+          '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>',
+        info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+        palette:
+          '<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>',
+        type: '<path d="M12 4v16"/><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"/><path d="M9 20h6"/>',
+        waypoints:
+          '<path d="m10.586 5.414-5.172 5.172"/><path d="m18.586 13.414-5.172 5.172"/><path d="M6 12h12"/><circle cx="12" cy="20" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="4" cy="12" r="2"/>',
+        minus: '<path d="M5 12h14"/>',
+        'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+        'arrow-right': '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+        'file-text':
+          '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+        'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+        'circle-check': '<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>',
+        'square-check':
+          '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m16 9-5.5 5.5L8 12"/>',
+        square: '<rect width="18" height="18" x="3" y="3" rx="2"/>',
+        'circle-x': '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+      };
+      for (const el of document.querySelectorAll('i[data-i]')) {
+        const name = el.getAttribute('data-i');
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('class', 'i' + (el.classList.contains('filled') ? ' filled' : ''));
+        if (el.style.width) svg.style.width = el.style.width;
+        if (el.style.height) svg.style.height = el.style.height;
+        if (el.style.color) svg.style.color = el.style.color;
+        if (el.style.marginLeft) svg.style.marginLeft = el.style.marginLeft;
+        svg.innerHTML = ICONS[name] ?? '';
+        el.replaceWith(svg);
+      }
+    </script>
+  </body>
+</html>
