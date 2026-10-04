@@ -486,6 +486,12 @@ export const en = {
     dock: 'Connections',
     display: 'Display',
     displayOff: 'Off',
+    summary: (items: number, groups: number) =>
+      `${items} items share something (${groups} group${groups === 1 ? '' : 's'})`,
+    empty: (names: string) => `Nothing shares a ${names} yet.`,
+    turnOn: (name: string, count: number) => `Turn on ${name} (${count} items)`,
+    emptyHint: 'Give a few items the same Vibe or Tag to see them connect.',
+    noneForItem: (names: string) => `No shared ${names}`,
     onHover: 'On hover',
     showAll: 'Show all',
     strength: (n: number) => `Link items that share at least ${n} thing${n === 1 ? '' : 's'}`,

@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import { criterionColors } from '@/design/tokens';
-import type { Criterion } from '@/lib/connections';
+import { connectionSummary, type Criterion } from '@/lib/connections';
+import { useLibraryStore } from '@/state/libraryStore';
+import { useConnectionIndex } from './useConnectionIndex';
 import { Popover, Tabs, Toggle } from '@/design/components';
 import { en } from '@/i18n/en';
 
@@ -58,6 +60,15 @@ export function ConnectionsPopover() {
   const constellationsOn = useConnectionsUiStore((s) => s.constellationsOn);
   const limitHitAt = useConnectionsUiStore((s) => s.limitHitAt);
   const showAllOverLimit = useConnectionsUiStore((s) => s.showAllOverLimit);
+
+  const items = useLibraryStore((s) => s.items);
+  const index = useConnectionIndex(isOpen);
+  const summary = useMemo(() => {
+    if (!index) return null;
+    const visible: string[] = [];
+    for (const item of items.values()) if (!item.deletedAt) visible.push(item.id);
+    return connectionSummary(visible, activeCriteria, index);
+  }, [index, items, activeCriteria]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -143,6 +154,50 @@ export function ConnectionsPopover() {
               <span style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>
                 {en.connections.limitHit}
               </span>
+            )}
+
+            {summary && (
+              <div
+                data-testid="connections-summary"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--space-1)',
+                  color: 'var(--text-2)',
+                  fontSize: 'var(--text-sm)',
+                }}
+              >
+                {summary.connectedItems > 0 ? (
+                  <span>{en.connections.summary(summary.connectedItems, summary.groups)}</span>
+                ) : (
+                  <>
+                    <span>
+                      {en.connections.empty(
+                        activeCriteria
+                          .filter((c) => c !== 'manual' && c !== 'similar')
+                          .map((c) => (c === 'tag' ? 'Tag' : CRITERION_LABEL[c]))
+                          .join(' or ') || CRITERION_LABEL.manual,
+                      )}
+                    </span>
+                    {(Object.entries(summary.byInactive) as [Criterion, number][])
+                      .filter(([, n]) => n > 0)
+                      .map(([c, n]) => (
+                        <button
+                          key={c}
+                          type="button"
+                          className="ds-chip"
+                          style={{ alignSelf: 'flex-start' }}
+                          onClick={() => useConnectionsUiStore.getState().toggleCriterion(c)}
+                        >
+                          {en.connections.turnOn(CRITERION_LABEL[c], n)}
+                        </button>
+                      ))}
+                    {Object.values(summary.byInactive).every((n) => !n) && (
+                      <span>{en.connections.emptyHint}</span>
+                    )}
+                  </>
+                )}
+              </div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>

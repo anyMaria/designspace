@@ -182,7 +182,7 @@ really runs (and says when it can't), PDFs show their first page, the minimap fo
 Settings fits the window, copying colours works, and menus behave. Size: M. Version at the end: **0.9.0**.
 This phase ships on its own so the owner can confirm the fixes before anything new.
 
-### A1 · Connection lines are visible, and the app says when nothing connects `[ ]`
+### A1 · Connection lines are visible, and the app says when nothing connects `[x]`
 **Why (diagnosis).** Reproduced in the browser build (three imported pictures, two sharing the Vibe "Dreamy"):
 - The connection logic works: hovering one card dims the unrelated one, and Show all puts a "Dreamy" star between them.
 - **But the lines are almost invisible.** Since Patch 1 B4, a line is clipped to each card's edge with a 6 px gap. Cards

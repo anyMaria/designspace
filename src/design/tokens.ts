@@ -38,6 +38,17 @@ export const criterionColors = {
   manual: 0xffffff,
 } as const;
 
+/** Map connection lines (Patch 2 · A1): a dark halo under a bolder line so they read on photos. */
+export const connectionLineStyle = {
+  width: 2,
+  opacity: 0.9,
+  hubWidth: 2,
+  hubOpacity: 0.55,
+  haloWidth: 5,
+  haloAlpha: 0.35,
+  minVisiblePx: 12,
+} as const;
+
 export const criterionLineStyle = {
   tags: 'solid',
   vibe: 'solid',

@@ -5,6 +5,20 @@ import { hoverNameFor } from './hoverName';
 import { motion } from '@/design/tokens';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useUiStore } from '@/state/uiStore';
+import { useConnectionsUiStore } from '@/state/connectionsUiStore';
+import { useConnectionIndex } from '@/features/connections/useConnectionIndex';
+import { scoreCandidates } from '@/lib/connections';
+import { en } from '@/i18n/en';
+
+const CRITERION_KEY = {
+  type: 'criterionType',
+  vibe: 'criterionVibe',
+  movement: 'criterionMovement',
+  tag: 'criterionTag',
+  color: 'criterionColor',
+  manual: 'criterionManual',
+  similar: 'criterionSimilar',
+} as const;
 
 const GAP_PX = 8;
 const PILL_HEIGHT_PX = 32;
@@ -16,6 +30,10 @@ export function CanvasHoverOverlay({ engine }: { engine: Engine | null }) {
   const enabled = useUiStore((s) => s.showNamesOnHover);
   const items = useLibraryStore((s) => s.items);
   const camera = useCameraState(engine);
+  const mode = useConnectionsUiStore((s) => s.mode);
+  const activeCriteria = useConnectionsUiStore((s) => s.activeCriteria);
+  const minStrength = useConnectionsUiStore((s) => s.minStrength);
+  const index = useConnectionIndex(enabled && mode === 'hover');
   const [hoverId, setHoverId] = useState<string | null>(null);
   // The pill is visible only for the card and camera it was timed for: any change of either hides
   // it at once, and the timer below shows it again if the pointer is still resting there.
@@ -48,6 +66,20 @@ export function CanvasHoverOverlay({ engine }: { engine: Engine | null }) {
   const name = item ? hoverNameFor(item) : null;
   if (!rect || !name) return null;
 
+  // Patch 2 · A1: say so when the hovered card connects to nothing under the active criteria.
+  const none =
+    shownId && index && mode === 'hover'
+      ? scoreCandidates(shownId, activeCriteria, index, minStrength).length === 0
+      : false;
+  const noneText = none
+    ? en.connections.noneForItem(
+        activeCriteria
+          .filter((c) => c !== 'manual' && c !== 'similar')
+          .map((c) => (c === 'tag' ? 'Tag' : en.connections[CRITERION_KEY[c]]))
+          .join(' or ') || en.connections.criterionManual,
+      )
+    : null;
+
   const below = rect.y + rect.h + GAP_PX + PILL_HEIGHT_PX <= window.innerHeight;
   return (
     <div
@@ -73,6 +105,14 @@ export function CanvasHoverOverlay({ engine }: { engine: Engine | null }) {
       }}
     >
       {name}
+      {noneText && (
+        <div
+          data-testid="hover-name-none"
+          style={{ fontWeight: 400, color: 'var(--text-2)', fontSize: 'var(--text-xs)' }}
+        >
+          {noneText}
+        </div>
+      )}
     </div>
   );
 }
