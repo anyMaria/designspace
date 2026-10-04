@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { near, waitForPixel } from './helpers/pixels';
 
 // Patch 2 · C2: resize a picture from its sides and corners. The engine publishes the selected
 // card's on-screen rect (container px) in `data-selected-rect`, so nothing here is hard-coded.
@@ -95,4 +96,70 @@ test('a side handle changes one dimension; corners keep proportions; Shift frees
   const afterAlt = (await selectedRect(page)).rect;
   expect(afterAlt.x).toBeLessThan(rect.x - 30);
   expect(afterAlt.x + afterAlt.w).toBeGreaterThan(rect.x + rect.w + 30);
+});
+
+// C3: widening a picture crops it; it is never stretched. wide-circle.png is 800×400 with a circle
+// of radius 150 in the middle: in a 480×160 card drawn "cover" the circle is 90 px tall, so it
+// reaches 70 px above and below the centre; stretched it would only reach 60.
+test('widening a picture crops it instead of stretching it', async ({ page }) => {
+  await importAndSelect(page);
+  const { rect, origin } = await selectedRect(page);
+  await drag(
+    page,
+    { x: origin.x + rect.x + rect.w, y: origin.y + rect.y + rect.h / 2 },
+    { x: origin.x + rect.x + rect.w + 160, y: origin.y + rect.y + rect.h / 2 },
+  );
+  const after = (await selectedRect(page)).rect;
+  expect(after.w).toBeCloseTo(rect.w + 160, 0);
+  await page.mouse.move(5, 5);
+
+  const cx = origin.x + after.x + after.w / 2;
+  const cy = origin.y + after.y + after.h / 2;
+  const circle: [number, number, number] = [240, 180, 60];
+  await waitForPixel(page, cx, cy, (c) => near(c, circle, 40), 15_000);
+  await waitForPixel(page, cx, cy + 70, (c) => near(c, circle, 40), 15_000);
+  // 30 px inside the right edge it is background, not circle.
+  await waitForPixel(
+    page,
+    origin.x + after.x + after.w - 30,
+    cy,
+    (c) => !near(c, circle, 60),
+    15_000,
+  );
+});
+
+test('a cropped picture offers Adjust crop and Reset crop; reset restores its proportions', async ({
+  page,
+}) => {
+  await importAndSelect(page);
+  const { rect, origin } = await selectedRect(page);
+  await drag(
+    page,
+    { x: origin.x + rect.x + rect.w, y: origin.y + rect.y + rect.h / 2 },
+    { x: origin.x + rect.x + rect.w + 160, y: origin.y + rect.y + rect.h / 2 },
+  );
+  const cropped = (await selectedRect(page)).rect;
+  await page.mouse.click(
+    origin.x + cropped.x + cropped.w / 2,
+    origin.y + cropped.y + cropped.h / 2,
+    { button: 'right' },
+  );
+  await expect(page.getByRole('menuitem', { name: 'Adjust crop' })).toBeVisible();
+
+  // Adjust crop: the hint shows; Esc finishes.
+  await page.getByRole('menuitem', { name: 'Adjust crop' }).click();
+  await expect(page.getByTestId('crop-hint')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('crop-hint')).toBeHidden();
+
+  // Reset crop: back to the picture's own proportions (2:1) at the same area.
+  await page.mouse.click(
+    origin.x + cropped.x + cropped.w / 2,
+    origin.y + cropped.y + cropped.h / 2,
+    { button: 'right' },
+  );
+  await page.getByRole('menuitem', { name: 'Reset crop' }).click();
+  await page.waitForTimeout(300);
+  const reset = (await selectedRect(page)).rect;
+  expect(reset.w / reset.h).toBeCloseTo(2, 1);
 });

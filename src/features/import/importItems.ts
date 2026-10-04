@@ -332,6 +332,8 @@ export async function createRow(
     h: primary.rect.h,
     z: primary.z,
     frameId: null,
+    cropX: null,
+    cropY: null,
     addedAt: now,
   };
   useLibraryStore.getState().upsertItem(item);

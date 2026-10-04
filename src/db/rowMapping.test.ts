@@ -137,6 +137,20 @@ describe('rowToItem', () => {
   });
 });
 
+describe('rowToPlacement crop columns', () => {
+  const base = { board_id: 'b', item_id: 'i', x: 0, y: 0, w: 1, h: 1, z: 0, added_at: 'x' };
+  it('maps crop_x / crop_y, and null when unset', () => {
+    expect(rowToPlacement({ ...base, crop_x: 0.25, crop_y: 0.75 })).toMatchObject({
+      cropX: 0.25,
+      cropY: 0.75,
+    });
+    expect(rowToPlacement({ ...base, crop_x: null, crop_y: null })).toMatchObject({
+      cropX: null,
+      cropY: null,
+    });
+  });
+});
+
 describe('rowToPlacement', () => {
   it('maps a placement row', () => {
     const placement = rowToPlacement({
@@ -159,6 +173,8 @@ describe('rowToPlacement', () => {
       h: 240,
       z: 3,
       frameId: null,
+      cropX: null,
+      cropY: null,
       addedAt: '2026-09-27T00:00:00.000Z',
     });
   });

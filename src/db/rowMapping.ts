@@ -93,6 +93,8 @@ export function rowToPlacement(row: DbRow): Placement {
     h: Number(row.h),
     z: Number(row.z ?? 0),
     frameId: asNullableString(row.frame_id),
+    cropX: row.crop_x == null ? null : Number(row.crop_x),
+    cropY: row.crop_y == null ? null : Number(row.crop_y),
     addedAt: asString(row.added_at),
   };
 }

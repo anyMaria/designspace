@@ -53,6 +53,8 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       swatchColors: null,
       swatchName: null,
       noteColor: colorName,
+      cropX: null,
+      cropY: null,
     };
   }
 
@@ -76,6 +78,8 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       swatchColors: colors,
       swatchName: item.title.trim() || null,
       noteColor: null,
+      cropX: null,
+      cropY: null,
     };
   }
 
@@ -107,6 +111,8 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       swatchColors: null,
       swatchName: null,
       noteColor: null,
+      cropX: placement.cropX,
+      cropY: placement.cropY,
     };
   }
 
@@ -145,5 +151,7 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     swatchColors: null,
     swatchName: null,
     noteColor: null,
+    cropX: placement.cropX,
+    cropY: placement.cropY,
   };
 }

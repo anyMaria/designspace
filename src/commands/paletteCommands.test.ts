@@ -34,7 +34,19 @@ function swatch(id: string, hex: string, extra: Partial<Item> = {}): Item {
 }
 
 function placement(id: string, x: number, y: number, w = 160, h = 160): Placement {
-  return { boardId: 'lib', itemId: id, x, y, w, h, z: 0, frameId: null, addedAt: '' };
+  return {
+    boardId: 'lib',
+    itemId: id,
+    x,
+    y,
+    w,
+    h,
+    z: 0,
+    frameId: null,
+    cropX: null,
+    cropY: null,
+    addedAt: '',
+  };
 }
 
 beforeEach(() => {

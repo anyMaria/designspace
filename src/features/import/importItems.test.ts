@@ -308,6 +308,8 @@ describe('freeCentreFor', () => {
             h: 200,
             z: 0,
             frameId: null,
+            cropX: null,
+            cropY: null,
             addedAt: '',
           },
         ],

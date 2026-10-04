@@ -97,6 +97,10 @@ export interface Placement {
   h: number;
   z: number;
   frameId: string | null;
+  /** Crop focus (0–1, like CSS `object-position` under `object-fit: cover`); null = not cropped
+   * by the owner (Patch 2 · C3). */
+  cropX: number | null;
+  cropY: number | null;
   addedAt: string;
 }
 

@@ -20,6 +20,7 @@ import { useSoftLimitNotice } from './useSoftLimitNotice';
 import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
 import { CanvasHoverOverlay } from '@/canvas/CanvasHoverOverlay';
+import { CropMode } from '@/features/crop/CropMode';
 import { ThoughtBubbleOverlay } from '@/canvas/ThoughtBubbleOverlay';
 import type { Engine } from '@/canvas/Engine';
 import { useEngineBindings } from '@/canvas/useEngineBindings';
@@ -162,6 +163,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         onEngineReady={setEngine}
       />
       <CanvasHoverOverlay engine={engine} />
+      <CropMode engine={engine} platform={platform} />
       <ThoughtBubbleOverlay engine={engine} />
 
       {/* Library map / Board empty state — §2.14 */}

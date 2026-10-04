@@ -104,4 +104,14 @@ describe('description entries', () => {
       'description-add',
     );
   });
+
+  it('Adjust crop and Reset crop only for one cropped picture', () => {
+    const cropped = contextMenuItemIds([item({})], { onBoard: false, cropped: true });
+    expect(cropped).toContain('adjust-crop');
+    expect(cropped).toContain('reset-crop');
+    expect(contextMenuItemIds([item({})], ctx)).not.toContain('adjust-crop');
+    expect(
+      contextMenuItemIds([item({}), item({ id: 'b' })], { onBoard: false, cropped: true }),
+    ).not.toContain('adjust-crop');
+  });
 });

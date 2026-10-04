@@ -671,7 +671,7 @@ right side handle 100 px right → the card is wider and the same height; drag a
 corner → proportions change; hold Alt on the right side → both left and right edges moved. Measure positions from the
 canvas bounding box (no hard-coded coordinates).
 
-### C3 · Pictures crop instead of stretching `[ ]`
+### C3 · Pictures crop instead of stretching `[x]`
 **Why:** D7: a side handle changes the proportions; a photo must never be squashed.
 
 **Files:** new `src/db/migrations/003_crop.sql`, `src/db/migrator.ts`, `src/state/types.ts`, `src/db/rowMapping.ts`

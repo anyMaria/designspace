@@ -96,7 +96,19 @@ function insertStatements(item: Item, placement: Placement): DbStatement[] {
 
 function placementFor(item: Item, boardId: string, x: number, y: number, n: number): Placement {
   const { w, h } = paletteCardSize(n);
-  return { boardId, itemId: item.id, x, y, w, h, z: 0, frameId: null, addedAt: item.createdAt };
+  return {
+    boardId,
+    itemId: item.id,
+    x,
+    y,
+    w,
+    h,
+    z: 0,
+    frameId: null,
+    cropX: null,
+    cropY: null,
+    addedAt: item.createdAt,
+  };
 }
 
 function undoCreate(platform: Platform, ids: string[]): Promise<void> {

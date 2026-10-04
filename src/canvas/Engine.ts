@@ -26,6 +26,7 @@ import { SpatialIndex } from './spatialIndex';
 import { TextureManager } from './TextureManager';
 import { attachCanvasInput, type Tool, type WheelMode } from './input';
 import { hitTest, normalizeRect, rectSelect } from './selection';
+import { cardUvToImageUv, coverFrame, dragCropFocus, isWholeTexture } from './coverCrop';
 import {
   ALL_HANDLES,
   cursorForHandle,
@@ -92,12 +93,23 @@ export interface ItemCard {
   swatchName: string | null;
   /** Patch 1 · D1: a note's paper colour (drives `decor/noteDecor.ts`); `null` for other kinds. */
   noteColor: NoteColor | null;
+  /** Patch 2 · C3: the crop focus (0–1) of a picture the owner has cropped; null = not cropped. */
+  cropX: number | null;
+  cropY: number | null;
 }
 
 interface EngineEvents {
   select: (ids: string[]) => void;
   move: (updates: { id: string; x: number; y: number }[]) => void;
-  resize: (update: { id: string; x: number; y: number; w: number; h: number }) => void;
+  resize: (update: {
+    id: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    cropX?: number | null;
+    cropY?: number | null;
+  }) => void;
   /** `world` is where the double-click landed, in canvas world coordinates — used to place a new
    * note when `id` is `null` (double-click on empty canvas, §2.11). */
   dblclick: (id: string | null, world: { x: number; y: number }) => void;
@@ -119,6 +131,10 @@ interface EngineEvents {
   connectDrop: (fromId: string, toId: string) => void;
   /** A manual-criterion line/edge was double-clicked — "Double-click a line to add a label". */
   connectionLineDblClick: (pair: { fromId: string; toId: string }) => void;
+  /** "Adjust crop" finished with a different focus (Patch 2 · C3). */
+  cropCommit: (update: { id: string; cropX: number; cropY: number }) => void;
+  /** "Adjust crop" ended, by any route. */
+  cropEnd: () => void;
 }
 
 const LINE_WIDTH_PX = connectionLineStyle.width;
@@ -245,6 +261,15 @@ export class Engine {
   // lines to; unset (empty array) means no connections are showing right now.
   private connectionSources: { fromId: string; candidates: ScoredCandidate[] }[] = [];
   private connectionLineGraphics: Graphics[] = [];
+  // Pictures are drawn "cover" (never stretched; Patch 2 · C3): `baseTex` is the shared texture a
+  // card currently shows, `cropTex` the cheap sub-frame of it when the card's proportions differ.
+  private baseTex = new Map<string, Texture>();
+  private cropTex = new Map<string, Texture>();
+  // "Adjust crop" mode (Patch 2 · C3): the card being adjusted, its focus when the mode started,
+  // and the dimmed whole-picture overlay.
+  private cropId: string | null = null;
+  private cropStart: { x: number; y: number } | null = null;
+  private cropOverlay: (Graphics | Sprite)[] = [];
   private texFailures = new Map<string, { attempts: number; at: number }>();
   private texRetryTimer: number | null = null;
   private hoveredConnectionLine: { fromId: string; toId: string } | null = null;
@@ -292,6 +317,8 @@ export class Engine {
     connectionLineHover: new Set(),
     connectDrop: new Set(),
     connectionLineDblClick: new Set(),
+    cropCommit: new Set(),
+    cropEnd: new Set(),
   };
 
   on<K extends keyof EngineEvents>(event: K, handler: EngineEvents[K]): () => void {
@@ -347,8 +374,13 @@ export class Engine {
           const card = this.cards.get(id);
           if (sprite && !sprite.destroyed) {
             sprite.texture = Texture.WHITE;
-            if (card) sprite.tint = card.dominantColor;
+            if (card) {
+              sprite.tint = card.dominantColor;
+              sprite.width = card.w;
+              sprite.height = card.h;
+            }
           }
+          this.dropCropTexture(id);
           this.appliedTexKey.delete(id);
         }
         tex.destroy(true);
@@ -419,6 +451,7 @@ export class Engine {
         sprite.destroy();
         this.sprites.delete(id);
         this.appliedTexKey.delete(id);
+        this.dropCropTexture(id);
         this.removeDecor(id);
         const label = this.noteLabels.get(id);
         if (label) {
@@ -435,10 +468,21 @@ export class Engine {
     for (const card of cards) {
       const existing = this.sprites.get(card.id);
       if (existing) {
+        const prev = this.cards.get(card.id);
         existing.position.set(card.x, card.y);
         existing.width = card.w;
         existing.height = card.h;
         existing.zIndex = card.z;
+        if (
+          !prev ||
+          prev.w !== card.w ||
+          prev.h !== card.h ||
+          prev.cropX !== card.cropX ||
+          prev.cropY !== card.cropY
+        ) {
+          // `refreshCrop` reads the new card, which isn't in `this.cards` yet.
+          this.refreshCrop(card.id, card);
+        }
         // A note's or swatch's tint IS its color (never overwritten by a loaded texture, since
         // neither ever gets one — see `requestLod`), so it must track `card.dominantColor` live
         // for the color picker/Extract palette to work. An image's tint is `requestLod`'s to own
@@ -829,6 +873,8 @@ export class Engine {
     for (const sprite of this.sprites.values()) sprite.destroy();
     this.sprites.clear();
     this.appliedTexKey.clear();
+    for (const id of [...this.cropTex.keys()]) this.dropCropTexture(id);
+    this.baseTex.clear();
     this.texFailures.clear();
     for (const d of this.decor.values()) d.destroy({ children: true });
     this.decor.clear();
@@ -900,7 +946,9 @@ export class Engine {
   }
 
   private attachSelectionInput(container: HTMLElement, opts: EngineOptions): () => void {
-    let mode: 'idle' | 'marquee' | 'move' | 'resize' | 'connect' = 'idle';
+    let mode: 'idle' | 'marquee' | 'move' | 'resize' | 'connect' | 'crop' = 'idle';
+    let cropDragWorld = { x: 0, y: 0 };
+    let cropFocusStart = { x: 0.5, y: 0.5 };
     let startWorld = { x: 0, y: 0 };
     let startScreen = { x: 0, y: 0 };
     let moved = false;
@@ -928,17 +976,48 @@ export class Engine {
       startScreen = { x: e.clientX, y: e.clientY };
       moved = false;
 
+      // "Adjust crop": a press inside the card drags the picture; anywhere else finishes.
+      if (this.cropId) {
+        const cropCard = this.cards.get(this.cropId);
+        const inside =
+          !!cropCard &&
+          world.x >= cropCard.x &&
+          world.x <= cropCard.x + cropCard.w &&
+          world.y >= cropCard.y &&
+          world.y <= cropCard.y + cropCard.h;
+        if (cropCard && inside) {
+          mode = 'crop';
+          cropDragWorld = world;
+          cropFocusStart = { x: cropCard.cropX ?? 0.5, y: cropCard.cropY ?? 0.5 };
+          container.setPointerCapture(e.pointerId);
+        } else {
+          this.endCropMode();
+        }
+        return;
+      }
+
       // Picking a colour from a photo overrides normal click behaviour too.
       if (this.pickingPoint) {
         const cb = this.pickingPoint;
         this.cancelPointPick();
         const hit = hitTest(this.interactableCards(), world);
         const isPicture = hit && ['image', 'video', 'pdf', 'link'].includes(hit.kind);
-        cb(
-          hit && isPicture
-            ? { id: hit.id, u: (world.x - hit.x) / hit.w, v: (world.y - hit.y) / hit.h }
-            : null,
-        );
+        if (hit && isPicture) {
+          // On a cropped card the click is inside the visible part: map it to the whole picture.
+          const base = this.baseTex.get(hit.id);
+          const uv = base
+            ? cardUvToImageUv(
+                (world.x - hit.x) / hit.w,
+                (world.y - hit.y) / hit.h,
+                hit,
+                base.width / base.height,
+                { x: hit.cropX, y: hit.cropY },
+              )
+            : { u: (world.x - hit.x) / hit.w, v: (world.y - hit.y) / hit.h };
+          cb({ id: hit.id, u: uv.u, v: uv.v });
+        } else {
+          cb(null);
+        }
         container.setPointerCapture(e.pointerId);
         return;
       }
@@ -1093,6 +1172,21 @@ export class Engine {
           }
         }
         this.drawSelectionOverlay();
+      } else if (mode === 'crop' && this.cropId) {
+        const card = this.cards.get(this.cropId);
+        const base = this.baseTex.get(this.cropId);
+        if (card && base) {
+          const focus = dragCropFocus(
+            cropFocusStart,
+            { x: world.x - cropDragWorld.x, y: world.y - cropDragWorld.y },
+            card,
+            base.width / base.height,
+          );
+          card.cropX = focus.x;
+          card.cropY = focus.y;
+          this.refreshCrop(card.id, card);
+          this.scheduleFrame();
+        }
       } else if (mode === 'resize' && resizeTargetId && resizeHandle) {
         const card = this.cards.get(resizeTargetId);
         const sprite = this.sprites.get(resizeTargetId);
@@ -1116,6 +1210,7 @@ export class Engine {
           sprite.position.set(next.x, next.y);
           sprite.width = next.w;
           sprite.height = next.h;
+          this.refreshCrop(card.id, card);
           this.syncNoteLabel(card);
           this.drawSelectionOverlay();
         }
@@ -1148,7 +1243,20 @@ export class Engine {
         this.emit('move', updates);
       } else if (mode === 'resize' && moved && resizeTargetId) {
         const c = this.cards.get(resizeTargetId);
-        if (c) this.emit('resize', { id: resizeTargetId, x: c.x, y: c.y, w: c.w, h: c.h });
+        if (c) {
+          // Changing a picture's proportions crops it (centred, unless it already has a focus).
+          const startAspect = resizeStartRect.w / resizeStartRect.h;
+          const changed = Math.abs(c.w / c.h / startAspect - 1) > 0.01;
+          const marksCrop = resizePolicyFor(c.kind).crops && changed && c.cropX === null;
+          this.emit('resize', {
+            id: resizeTargetId,
+            x: c.x,
+            y: c.y,
+            w: c.w,
+            h: c.h,
+            ...(marksCrop ? { cropX: 0.5, cropY: 0.5 } : {}),
+          });
+        }
       } else if (mode === 'connect' && connectFromId) {
         const world = toWorld(e);
         const hit = hitTest(this.interactableCards(), world);
@@ -1730,6 +1838,7 @@ export class Engine {
       this.applyCameraTransform();
       this.cullBench();
       this.cullItems();
+      this.drawCropOverlay();
       this.drawSelectionOverlay();
       this.drawConnectionLines();
       this.drawHubs();
@@ -1920,7 +2029,7 @@ export class Engine {
       jobs.push(
         this.textureManager.request(key, url).then((texture) => {
           if (texture && !sprite.destroyed) {
-            sprite.texture = texture;
+            this.applyTexture(id, sprite, texture);
             sprite.tint = 0xffffff;
             this.appliedTexKey.set(id, key);
           }
@@ -1966,6 +2075,105 @@ export class Engine {
     return { key: `${wantsT512 ? 't512' : 't128'}:${card.id}:${url}`, url };
   }
 
+  /** Shows `base` on the card's sprite, cover-fitted: the whole texture when the card has the
+   * picture's proportions, otherwise a sub-frame of it (shares the GPU source) positioned by the
+   * crop focus. */
+  private applyTexture(id: string, sprite: Sprite, base: Texture, card = this.cards.get(id)): void {
+    this.baseTex.set(id, base);
+    const old = this.cropTex.get(id);
+    let next = base;
+    if (card && card.w > 0 && card.h > 0 && base !== Texture.WHITE) {
+      const f = coverFrame(base.width, base.height, card.w, card.h, card.cropX, card.cropY);
+      if (!isWholeTexture(f, base.width, base.height)) {
+        next = new Texture({ source: base.source, frame: new Rectangle(f.x, f.y, f.w, f.h) });
+      }
+    }
+    if (next === base) this.cropTex.delete(id);
+    else this.cropTex.set(id, next);
+    sprite.texture = next;
+    if (card) {
+      sprite.width = card.w;
+      sprite.height = card.h;
+    }
+    if (old && old !== next) old.destroy(false); // never the shared source
+  }
+
+  /** Enters "Adjust crop" for a picture card: its whole picture shows dimmed around the card, and
+   * dragging inside moves it. False when the card isn't a cropped-able picture or isn't loaded. */
+  startCropMode(id: string): boolean {
+    const card = this.cards.get(id);
+    if (!card || !this.baseTex.has(id) || !resizePolicyFor(card.kind).crops) return false;
+    this.cropId = id;
+    this.cropStart = { x: card.cropX ?? 0.5, y: card.cropY ?? 0.5 };
+    if (this.container) this.container.style.cursor = 'move';
+    this.scheduleFrame();
+    return true;
+  }
+
+  isCropping(): boolean {
+    return this.cropId !== null;
+  }
+
+  /** Leaves "Adjust crop" (Enter, Esc, or a click outside); emits `cropCommit` when the focus moved. */
+  endCropMode(): void {
+    const id = this.cropId;
+    if (!id) return;
+    const card = this.cards.get(id);
+    const start = this.cropStart;
+    this.cropId = null;
+    this.cropStart = null;
+    if (this.container) this.container.style.cursor = '';
+    this.scheduleFrame();
+    this.emit('cropEnd');
+    if (!card || !start) return;
+    const x = card.cropX ?? 0.5;
+    const y = card.cropY ?? 0.5;
+    if (Math.abs(x - start.x) > 1e-4 || Math.abs(y - start.y) > 1e-4) {
+      this.emit('cropCommit', { id, cropX: x, cropY: y });
+    }
+  }
+
+  /** The dimmed whole picture around the card, and the card's part outlined in white. */
+  private drawCropOverlay(): void {
+    for (const g of this.cropOverlay) g.destroy();
+    this.cropOverlay = [];
+    if (!this.cropId || !this.overlayLayer || !this.app) return;
+    const card = this.cards.get(this.cropId);
+    const base = this.baseTex.get(this.cropId);
+    if (!card || !base) return;
+    const { width: vw, height: vh } = this.app.screen;
+    const zoom = this.camera.zoom;
+    const f = coverFrame(base.width, base.height, card.w, card.h, card.cropX, card.cropY);
+    const scale = card.w / f.w; // card (world) units per texture pixel
+    const topLeft = this.camera.worldToScreen(card.x - f.x * scale, card.y - f.y * scale, vw, vh);
+    const full = new Sprite(base);
+    full.alpha = 0.32;
+    full.position.set(topLeft.x, topLeft.y);
+    full.width = base.width * scale * zoom;
+    full.height = base.height * scale * zoom;
+    const cardTopLeft = this.camera.worldToScreen(card.x, card.y, vw, vh);
+    const outline = new Graphics()
+      .rect(cardTopLeft.x, cardTopLeft.y, card.w * zoom, card.h * zoom)
+      .stroke({ color: 0xffffff, width: 2 });
+    this.overlayLayer.addChild(full);
+    this.overlayLayer.addChild(outline);
+    this.cropOverlay.push(full, outline);
+  }
+
+  /** Re-fits the picture after the card's size or crop focus changed. */
+  private refreshCrop(id: string, card: ItemCard): void {
+    const base = this.baseTex.get(id);
+    const sprite = this.sprites.get(id);
+    if (base && sprite && !sprite.destroyed) this.applyTexture(id, sprite, base, card);
+  }
+
+  private dropCropTexture(id: string): void {
+    this.baseTex.delete(id);
+    const crop = this.cropTex.get(id);
+    this.cropTex.delete(id);
+    crop?.destroy(false);
+  }
+
   private requestLod(card: ItemCard, sprite: Sprite): void {
     if (!this.textureManager) return;
     const want = this.desiredTexture(card);
@@ -1998,7 +2206,7 @@ export class Engine {
       }
       this.texFailures.delete(want.key);
       if (sprite.destroyed || this.appliedTexKey.get(card.id) !== want.key) return; // superseded
-      sprite.texture = texture;
+      this.applyTexture(card.id, sprite, texture);
       sprite.tint = 0xffffff;
     });
   }
@@ -2032,7 +2240,7 @@ export class Engine {
       const sprite = this.sprites.get(id);
       if (sprite && !sprite.destroyed) {
         this.appliedTexKey.delete(id); // so stopVideoPreview → requestLod restores the poster
-        sprite.texture = texture;
+        this.applyTexture(id, sprite, texture);
       }
     } catch {
       // Playback failed (e.g. a codec this browser can't decode) — leave the poster thumbnail
@@ -2072,6 +2280,7 @@ export class Engine {
     this.clearMarquee();
     this.selectionOutline?.destroy();
     for (const h of this.handles) h.destroy();
+    for (const g of this.cropOverlay) g.destroy();
     for (const g of this.connectionLineGraphics) g.destroy();
     for (const g of this.hubDisplayObjects) g.destroy();
     this.connectHandleGraphic?.destroy();

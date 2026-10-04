@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Popover, Menu } from '@/design/components';
 import { placeMenu } from '@/lib/placeMenu';
+import { isCropped, resetCropRect } from './coverCrop';
+import { useCropUiStore } from '@/state/cropUiStore';
 import type { Engine } from './Engine';
 import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
@@ -10,6 +12,7 @@ import { noteColorNames, type NoteColor } from '@/design/tokens';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { useDescriptionStore } from '@/state/descriptionStore';
 import {
+  createSetCropCommand,
   createSetItemFieldCommand,
   createStackOrderCommand,
   createTidyUpCommand,
@@ -250,6 +253,37 @@ export function ContextMenu({
       });
   }
 
+  // A picture the owner cropped (Patch 2 · C3): "Adjust crop" and "Reset crop" apply to it.
+  const cropPlacement =
+    ids.length === 1 ? useLibraryStore.getState().placements.get(ids[0]) : undefined;
+  const cropItem = ids.length === 1 ? useLibraryStore.getState().items.get(ids[0]) : undefined;
+  const imageAspect = cropItem?.width && cropItem.height ? cropItem.width / cropItem.height : null;
+  const cropped =
+    !!cropPlacement &&
+    cropPlacement.cropX !== null &&
+    (imageAspect === null || isCropped(cropPlacement, imageAspect));
+
+  function adjustCrop(): void {
+    onClose();
+    useCropUiStore.getState().start(state.itemId);
+  }
+
+  function resetCrop(): void {
+    onClose();
+    if (!cropPlacement) return;
+    const rect = imageAspect ? resetCropRect(cropPlacement, imageAspect) : undefined;
+    void useHistoryStore
+      .getState()
+      .execute(
+        createSetCropCommand(
+          platform,
+          state.itemId,
+          { cropX: null, cropY: null, ...(rect ? { rect } : {}) },
+          en.crop.reset,
+        ),
+      );
+  }
+
   const selectedItems = ids
     .map((id) => useLibraryStore.getState().items.get(id))
     .filter((i): i is Item => !!i);
@@ -263,6 +297,8 @@ export function ContextMenu({
   ) as Record<`note-color-${NoteColor}`, Entry>;
   const entries: Record<ContextMenuItemId, Entry> = {
     ...colorEntries,
+    'adjust-crop': { id: 'adjust-crop', label: en.crop.adjust, onSelect: adjustCrop },
+    'reset-crop': { id: 'reset-crop', label: en.crop.reset, onSelect: resetCrop },
     'description-add': {
       id: 'description-add',
       label: en.description.add,
@@ -353,7 +389,7 @@ export function ContextMenu({
         <Popover>
           <Menu
             aria-label="Item"
-            items={contextMenuItemIds(selectedItems, { onBoard }).map((id) => entries[id])}
+            items={contextMenuItemIds(selectedItems, { onBoard, cropped }).map((id) => entries[id])}
           />
         </Popover>
       </div>

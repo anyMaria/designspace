@@ -49,12 +49,34 @@ interface ResizeUpdate {
   y: number;
   w: number;
   h: number;
+  /** Only present when the resize also marks the picture as cropped (Patch 2 · C3); undo restores
+   * the previous focus. */
+  cropX?: number | null;
+  cropY?: number | null;
 }
 
 async function applyResize(platform: Platform, update: ResizeUpdate): Promise<void> {
   const placement = useLibraryStore.getState().placements.get(update.id);
   if (!placement) return;
-  useLibraryStore.getState().upsertPlacement({ ...placement, ...update });
+  const withCrop = update.cropX !== undefined || update.cropY !== undefined;
+  const cropX = update.cropX === undefined ? placement.cropX : update.cropX;
+  const cropY = update.cropY === undefined ? placement.cropY : update.cropY;
+  useLibraryStore.getState().upsertPlacement({
+    ...placement,
+    x: update.x,
+    y: update.y,
+    w: update.w,
+    h: update.h,
+    cropX,
+    cropY,
+  });
+  if (withCrop) {
+    await platform.db.execute(
+      'UPDATE placements SET x = ?, y = ?, w = ?, h = ?, crop_x = ?, crop_y = ? WHERE board_id = ? AND item_id = ?',
+      [update.x, update.y, update.w, update.h, cropX, cropY, placement.boardId, update.id],
+    );
+    return;
+  }
   await platform.db.execute(
     'UPDATE placements SET x = ?, y = ?, w = ?, h = ? WHERE board_id = ? AND item_id = ?',
     [update.x, update.y, update.w, update.h, placement.boardId, update.id],
@@ -64,12 +86,65 @@ async function applyResize(platform: Platform, update: ResizeUpdate): Promise<vo
 export function createResizeItemCommand(platform: Platform, update: ResizeUpdate): Command {
   const existing = useLibraryStore.getState().placements.get(update.id);
   const previous: ResizeUpdate = existing
-    ? { id: update.id, x: existing.x, y: existing.y, w: existing.w, h: existing.h }
+    ? {
+        id: update.id,
+        x: existing.x,
+        y: existing.y,
+        w: existing.w,
+        h: existing.h,
+        ...(update.cropX !== undefined || update.cropY !== undefined
+          ? { cropX: existing.cropX, cropY: existing.cropY }
+          : {}),
+      }
     : update;
   return {
     label: 'Resize',
     do: () => applyResize(platform, update),
     undo: () => applyResize(platform, previous),
+  };
+}
+
+interface CropState {
+  cropX: number | null;
+  cropY: number | null;
+  /** The card's rect, when the change also reshapes it ("Reset crop"). */
+  rect?: { x: number; y: number; w: number; h: number };
+}
+
+async function applyCrop(platform: Platform, itemId: string, state: CropState): Promise<void> {
+  const placement = useLibraryStore.getState().placements.get(itemId);
+  if (!placement) return;
+  const rect = state.rect ?? { x: placement.x, y: placement.y, w: placement.w, h: placement.h };
+  useLibraryStore.getState().upsertPlacement({
+    ...placement,
+    ...rect,
+    cropX: state.cropX,
+    cropY: state.cropY,
+  });
+  await platform.db.execute(
+    'UPDATE placements SET x = ?, y = ?, w = ?, h = ?, crop_x = ?, crop_y = ? WHERE board_id = ? AND item_id = ?',
+    [rect.x, rect.y, rect.w, rect.h, state.cropX, state.cropY, placement.boardId, itemId],
+  );
+}
+
+/** "Adjust crop" / "Reset crop" (Patch 2 · C3): sets the crop focus (and, for a reset, the card's
+ * rect) of one placement. Undo restores the previous focus and rect. */
+export function createSetCropCommand(
+  platform: Platform,
+  itemId: string,
+  next: CropState,
+  label = 'Adjust crop',
+): Command {
+  const p = useLibraryStore.getState().placements.get(itemId);
+  const previous: CropState = {
+    cropX: p?.cropX ?? null,
+    cropY: p?.cropY ?? null,
+    ...(next.rect && p ? { rect: { x: p.x, y: p.y, w: p.w, h: p.h } } : {}),
+  };
+  return {
+    label,
+    do: () => applyCrop(platform, itemId, next),
+    undo: () => applyCrop(platform, itemId, previous),
   };
 }
 

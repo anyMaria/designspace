@@ -4,6 +4,8 @@ import { noteColorNames, type NoteColor } from '@/design/tokens';
 
 export type ContextMenuItemId =
   | 'copy-image'
+  | 'adjust-crop'
+  | 'reset-crop'
   | 'show-in-explorer'
   | 'bring-to-front'
   | 'send-to-back'
@@ -25,7 +27,11 @@ export type ContextMenuItemId =
 const MEDIA_KINDS = new Set(['image', 'video', 'pdf', 'font', 'link']);
 
 /** Which right-click entries make sense for what was clicked (Patch 1 · B6), in menu order. */
-export function contextMenuItemIds(items: Item[], ctx: { onBoard: boolean }): ContextMenuItemId[] {
+/** `cropped`: the single clicked picture has an owner's crop (Patch 2 · C3). */
+export function contextMenuItemIds(
+  items: Item[],
+  ctx: { onBoard: boolean; cropped?: boolean },
+): ContextMenuItemId[] {
   const ids: ContextMenuItemId[] = [];
   // Notes are written, not collected: a short menu of their own.
   if (items.length > 0 && items.every((i) => i.kind === 'note')) {
@@ -35,6 +41,7 @@ export function contextMenuItemIds(items: Item[], ctx: { onBoard: boolean }): Co
     return ids;
   }
   if (items.length === 1 && items[0]?.kind === 'image') ids.push('copy-image');
+  if (items.length === 1 && ctx.cropped) ids.push('adjust-crop', 'reset-crop');
   if (items.length > 0 && items.every((i) => !!i.filePath)) ids.push('show-in-explorer');
   ids.push('bring-to-front', 'send-to-back');
   if (items.length >= 2) ids.push('tidy-up');

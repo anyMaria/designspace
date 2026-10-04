@@ -603,6 +603,11 @@ export const en = {
     add: 'Add',
     empty: "This folder doesn't have any files Designspace can add yet.",
   },
+  crop: {
+    adjust: 'Adjust crop',
+    reset: 'Reset crop',
+    hint: 'Drag to move the picture · Enter or click outside to finish',
+  },
   fullscreen: {
     enter: 'Full screen',
     exit: 'Exit full screen',

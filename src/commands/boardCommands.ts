@@ -309,6 +309,8 @@ export function createAddToBoardCommand(
     h: size.h,
     z: nextZ(),
     frameId: null,
+    cropX: null,
+    cropY: null,
     addedAt: new Date().toISOString(),
   };
 
