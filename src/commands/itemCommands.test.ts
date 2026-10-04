@@ -161,6 +161,14 @@ describe('createTrashCommand', () => {
     expect(useLibraryStore.getState().placements.get('item1')).toBeDefined();
   });
 
+  it('removes trashed items from the selection', async () => {
+    useLibraryStore.getState().upsertItem(makeItem({ id: 'a' }));
+    useLibraryStore.getState().upsertItem(makeItem({ id: 'b' }));
+    useLibraryStore.getState().setSelection(['a', 'b']);
+    await createTrashCommand(makePlatform(), ['a']).do();
+    expect([...useLibraryStore.getState().selection]).toEqual(['b']);
+  });
+
   it('labels a bulk trash as one undo step (§4.11)', () => {
     const platform = makePlatform();
     const command = createTrashCommand(platform, ['a', 'b', 'c']);

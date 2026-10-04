@@ -373,7 +373,7 @@ the queue stuck.
 
 **Done when:** `smoke-m5-pdf` passes with the new assertion.
 
-### A8 · The minimap forgets deleted things; deleted things leave the selection `[ ]`
+### A8 · The minimap forgets deleted things; deleted things leave the selection `[x]`
 **Files:** `src/canvas/Minimap.tsx`, `src/commands/itemCommands.ts` (+ test).
 
 **Do**
