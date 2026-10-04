@@ -2,6 +2,11 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // GitHub's shared runners are sometimes 2× slower than a laptop (the same suite took 9 and 15
+  // minutes on consecutive runs), and several specs load a 60-item demo library. Give each test
+  // room instead of letting a slow minute turn into a red build.
+  timeout: process.env.CI ? 90_000 : 30_000,
+  expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
