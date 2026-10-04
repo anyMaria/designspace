@@ -28,6 +28,10 @@ test('a description written in the bubble panel persists and is searchable', asy
   await page.mouse.move(cx + 160, cy + 173);
   await expect(page.getByTestId('thought-bubble')).toHaveAttribute('data-has-description', 'true');
 
+  // The browser build saves its database to IndexedDB after a short debounce (the desktop app
+  // writes straight to SQLite): give a slow runner time to finish before leaving the page.
+  await page.waitForTimeout(3000);
+
   // It survives a reload and is found by a word that is only in the description.
   await page.goto('/', { waitUntil: 'networkidle' }); // no ?seed: the stored library, not a fresh demo
   await page.waitForTimeout(1500);
