@@ -9,6 +9,7 @@ interface LibrarySettingsJson {
   aiEnabled?: boolean;
   backupExtraDestination?: string | null;
   fontPreviewText?: string;
+  likedColors?: string[];
 }
 
 async function readSettingsJson(platform: Platform): Promise<LibrarySettingsJson> {
@@ -30,7 +31,36 @@ export async function loadSettings(platform: Platform): Promise<void> {
     aiEnabled: parsed.aiEnabled ?? true,
     backupExtraDestination: parsed.backupExtraDestination ?? null,
     fontPreviewText: parsed.fontPreviewText?.trim() || DEFAULT_PREVIEW_TEXT,
+    likedColors: cleanLikedColors(parsed.likedColors ?? []),
   });
+}
+
+export const MAX_LIKED_COLORS = 60;
+
+/** Uppercase `#RRGGBB`, no duplicates, newest first, at most `MAX_LIKED_COLORS`. */
+export function cleanLikedColors(hexes: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of hexes) {
+    const hex = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
+    if (!/^#[0-9A-F]{6}$/.test(hex) || seen.has(hex)) continue;
+    seen.add(hex);
+    out.push(hex);
+  }
+  return out.slice(0, MAX_LIKED_COLORS);
+}
+
+/** Patch 2 · E2 (D6): the colours hearted in the Color studio are kept per library, until removed.
+ * A preference like the font preview text, not a Command (nothing to undo on the map). */
+export async function setLikedColors(platform: Platform, hexes: string[]): Promise<void> {
+  const liked = cleanLikedColors(hexes);
+  const parsed = await readSettingsJson(platform);
+  parsed.likedColors = liked;
+  await platform.db.execute(
+    "INSERT INTO meta (key, value) VALUES ('settings', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    [JSON.stringify(parsed)],
+  );
+  useSettingsStore.setState({ likedColors: liked });
 }
 
 /** Patch 1 · F2: the text shown on every font card. Persisted like every other library setting;

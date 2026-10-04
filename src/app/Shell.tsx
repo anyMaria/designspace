@@ -23,6 +23,7 @@ import { CanvasView } from '@/canvas/CanvasView';
 import { CanvasHoverOverlay } from '@/canvas/CanvasHoverOverlay';
 import { CropMode } from '@/features/crop/CropMode';
 import { TrashView } from '@/features/trash/TrashView';
+import { ColorStudio } from '@/features/colorStudio/ColorStudio';
 import { ThoughtBubbleOverlay } from '@/canvas/ThoughtBubbleOverlay';
 import type { Engine } from '@/canvas/Engine';
 import { useEngineBindings } from '@/canvas/useEngineBindings';
@@ -167,6 +168,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       <CanvasHoverOverlay engine={engine} />
       <CropMode engine={engine} platform={platform} />
       <TrashView platform={platform} />
+      <ColorStudio platform={platform} engine={engine} />
       <ThoughtBubbleOverlay engine={engine} />
 
       {/* Library map / Board empty state — §2.14 */}

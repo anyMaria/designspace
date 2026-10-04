@@ -122,6 +122,9 @@
   gap: 2px;
 }
 .ds-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: none;
   background: transparent;
   color: var(--text-2);

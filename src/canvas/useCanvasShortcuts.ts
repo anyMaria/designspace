@@ -23,6 +23,7 @@ import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
 import { isTypingTarget } from '@/lib/isTypingTarget';
 import { showTrashToast } from '@/features/trash/trashToast';
 import { escapeStack } from '@/app/escapeStack';
+import { isBlockingOverlayOpen } from '@/app/overlayGate';
 
 /** Selection/stacking/trash/nudge/Rediscover/Favorite/Inbox-triage shortcuts that need the
  * engine and the library store — §2.2, §2.15. Kept separate from `useGlobalShortcuts` (which
@@ -64,7 +65,7 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
     if (!engine) return;
 
     function onKeyDown(e: KeyboardEvent) {
-      if (isTypingTarget(e.target)) return;
+      if (isTypingTarget(e.target) || isBlockingOverlayOpen()) return;
       const selection = [...useLibraryStore.getState().selection];
       const reduceMotion = prefersReducedMotion();
 

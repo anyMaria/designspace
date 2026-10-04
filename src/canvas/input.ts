@@ -1,5 +1,6 @@
 import type { Camera } from './Camera';
 import { isTypingTarget } from '@/lib/isTypingTarget';
+import { isBlockingOverlayOpen } from '@/app/overlayGate';
 
 export type Tool = 'select' | 'hand';
 export type WheelMode = 'zoom' | 'pan';
@@ -60,7 +61,12 @@ export function attachCanvasInput(
   }
 
   function onKeyDown(e: KeyboardEvent) {
-    if (e.code === 'Space' && !isTypingTarget(e.target) && !spacePressed) {
+    if (
+      e.code === 'Space' &&
+      !isTypingTarget(e.target) &&
+      !spacePressed &&
+      !isBlockingOverlayOpen()
+    ) {
       spacePressed = true;
       if (!panning) container.style.cursor = 'grab';
     }
