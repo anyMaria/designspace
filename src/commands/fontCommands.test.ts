@@ -12,8 +12,10 @@ const { createAddFontFilesCommand, createSetFontCardCommand } = await import('./
 function makePlatform() {
   const db = {
     select: vi.fn().mockResolvedValue([]),
-    execute: vi.fn().mockResolvedValue({ changes: 1 }),
-    batch: vi.fn().mockResolvedValue(undefined),
+    execute: vi
+      .fn<(sql: string, params?: unknown[]) => Promise<unknown>>()
+      .mockResolvedValue({ changes: 1 }),
+    batch: vi.fn<(s: { sql: string }[]) => Promise<void>>().mockResolvedValue(undefined),
   };
   return { platform: { db } as unknown as Platform, db };
 }
@@ -78,10 +80,10 @@ describe('createSetFontCardCommand', () => {
     const cmd = createSetFontCardCommand(platform, 'fam', next);
     await cmd.do();
     expect(useLibraryStore.getState().items.get('fam')?.fontCard).toEqual(next);
-    expect(db.execute.mock.calls[0][1][0]).toBe(JSON.stringify(next));
+    expect(db.execute.mock.calls[0][1]?.[0]).toBe(JSON.stringify(next));
     expect(enqueue).toHaveBeenCalledWith([{ itemId: 'fam' }]);
     await cmd.undo();
     expect(useLibraryStore.getState().items.get('fam')?.fontCard).toBeNull();
-    expect(db.execute.mock.calls[1][1][0]).toBeNull();
+    expect(db.execute.mock.calls[1][1]?.[0]).toBeNull();
   });
 });
