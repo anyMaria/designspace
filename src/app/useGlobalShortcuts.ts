@@ -29,15 +29,6 @@ export function useGlobalShortcuts(platform: Platform) {
         return;
       }
       if (isTypingTarget(e.target)) return;
-      // Shift+C (Constellations, §2.10) is distinct from bare "c" (the Connections popover) —
-      // handled before the modifier early-return below, since Shift isn't one of the modifiers
-      // that guards it.
-      if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'c') {
-        e.preventDefault();
-        const store = useConnectionsUiStore.getState();
-        store.setConstellationsOn(!store.constellationsOn);
-        return;
-      }
       if (e.metaKey || e.ctrlKey || e.altKey) {
         if ((e.ctrlKey || e.metaKey) && e.key === ',') {
           e.preventDefault();

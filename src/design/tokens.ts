@@ -165,7 +165,6 @@ export const motion = {
   panel: 200,
   overlay: 320,
   flyTo: 500,
-  constellations: 800,
 } as const;
 
 /** Zoom range, world %  — §2.2. */

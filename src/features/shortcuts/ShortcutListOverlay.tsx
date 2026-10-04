@@ -35,7 +35,6 @@ const ROWS: ShortcutRow[] = [
   { action: en.shortcuts.rediscover, keys: ['R'] },
   { action: en.shortcuts.inboxTriage, keys: ['I'] },
   { action: en.shortcuts.connections, keys: ['C'] },
-  { action: en.shortcuts.constellations, keys: ['Shift', 'C'] },
   { action: en.shortcuts.stackFront, keys: [']'] },
   { action: en.shortcuts.stackBack, keys: ['['] },
   { action: en.shortcuts.nudge, keys: ['↑↓←→'] },

@@ -51,7 +51,6 @@ import { SearchBar } from '@/features/search/SearchBar';
 import { useSearchBinding } from '@/canvas/useSearchBinding';
 import { useConnectionsBinding } from '@/canvas/useConnectionsBinding';
 import { useManualConnectionsBinding } from '@/canvas/useManualConnectionsBinding';
-import { useConstellationsBinding } from '@/canvas/useConstellationsBinding';
 import { ConnectionTooltip } from '@/features/connections/ConnectionTooltip';
 import { ConnectionsPopover } from '@/features/connections/ConnectionsPopover';
 import { ConnectionLabelDialog } from '@/features/connections/ConnectionLabelDialog';
@@ -150,11 +149,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   useSearchBinding(engine, platform);
   useConnectionsBinding(engine, platform);
   useManualConnectionsBinding(engine, platform);
-  useConstellationsBinding(engine, platform);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
   const listExpanded = useListStore((s) => s.expanded);
-  const constellationsOn = useConnectionsUiStore((s) => s.constellationsOn);
-  const arranging = useConnectionsUiStore((s) => s.arranging);
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
@@ -284,40 +280,6 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           onClick={togglePanel}
         />
       </div>
-
-      {/* Constellations (§2.10): "Show a subtle 'Arranging…'" while the worker computes, then
-          "Back to my layout" for as long as it's on. */}
-      {(constellationsOn || arranging) && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'var(--space-4)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 1,
-          }}
-        >
-          <Panel
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-              padding: 'var(--space-2) var(--space-4)',
-            }}
-          >
-            {arranging ? (
-              <span style={{ color: 'var(--text-2)' }}>{en.connections.arranging}</span>
-            ) : (
-              <Button
-                variant="ghost"
-                onClick={() => useConnectionsUiStore.getState().setConstellationsOn(false)}
-              >
-                {en.connections.backToMyLayout}
-              </Button>
-            )}
-          </Panel>
-        </div>
-      )}
 
       {/* Bottom-center dock (and, above it while a board with a source filter is open, the
           suggestions tray — §2.11) — §2.1 */}

@@ -485,7 +485,7 @@ Doing this before the comfort work means nothing gets polished that is about to 
 `grep -rn -i "constellation" src tests` (B1) or `grep -rnE "useFrameStore|frameCommands|FrameRename|selectedFrame|frameMove|onePagePerFrame" src tests` (B3)
 must find only what the task says to keep.
 
-### B1 · Remove Constellations from the map `[ ]`
+### B1 · Remove Constellations from the map `[x]`
 **Files to delete:** `src/canvas/useConstellationsBinding.ts`, `tests/e2e/smoke-m3-constellations.spec.ts`.
 **Files to edit:** `src/canvas/Engine.ts` (`enterConstellations` / exit, arranged positions and the morph, hub dragging,
 the "Back to my layout" event), `src/app/Shell.tsx` (the binding and the "Back to my layout" pill),

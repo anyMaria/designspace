@@ -4,7 +4,7 @@ import { criterionColors } from '@/design/tokens';
 import { connectionSummary, type Criterion } from '@/lib/connections';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useConnectionIndex } from './useConnectionIndex';
-import { Popover, Tabs, Toggle } from '@/design/components';
+import { Popover, Tabs } from '@/design/components';
 import { en } from '@/i18n/en';
 
 const LIMIT_HIT_DISPLAY_MS = 2500;
@@ -48,16 +48,12 @@ function hexToCss(hex: number): string {
   return `#${hex.toString(16).padStart(6, '0')}`;
 }
 
-/** Dock → Connections (or "C"): criteria toggles, hover/show-all mode, strength, and the
- * Constellations switch (§2.10). Show all's hub rendering (M3-4) and the Constellations layout
- * itself (M3-6/M3-7, via `useConstellationsBinding`) both read this same store, so every control
- * here changes the canvas live. */
+/** Dock → Connections (or "C"): criteria toggles, hover/show-all mode and strength (§2.10). */
 export function ConnectionsPopover() {
   const isOpen = useConnectionsUiStore((s) => s.isOpen);
   const activeCriteria = useConnectionsUiStore((s) => s.activeCriteria);
   const mode = useConnectionsUiStore((s) => s.mode);
   const minStrength = useConnectionsUiStore((s) => s.minStrength);
-  const constellationsOn = useConnectionsUiStore((s) => s.constellationsOn);
   const limitHitAt = useConnectionsUiStore((s) => s.limitHitAt);
   const showAllOverLimit = useConnectionsUiStore((s) => s.showAllOverLimit);
 
@@ -234,22 +230,6 @@ export function ConnectionsPopover() {
                 ]}
                 value={String(minStrength)}
                 onChange={(v) => useConnectionsUiStore.getState().setMinStrength(Number(v))}
-              />
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 'var(--space-2)',
-              }}
-            >
-              <span>{en.connections.constellations}</span>
-              <Toggle
-                checked={constellationsOn}
-                label={en.connections.constellations}
-                onChange={(v) => useConnectionsUiStore.getState().setConstellationsOn(v)}
               />
             </div>
           </div>

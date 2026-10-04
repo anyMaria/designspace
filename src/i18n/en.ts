@@ -486,7 +486,6 @@ export const en = {
     settings: 'Settings',
     shortcutList: 'Shortcut list',
     connections: 'Connections',
-    constellations: 'Constellations',
   },
   connections: {
     criterionType: 'Type',
@@ -511,8 +510,7 @@ export const en = {
     showAll: 'Show all',
     strength: (n: number) => `Link items that share at least ${n} thing${n === 1 ? '' : 's'}`,
     limitHit: 'Up to 3 at a time. Turn one off first.',
-    tooManyLinks: 'Too many links. Filter first or use Constellations.',
-    constellations: '✦ Constellations',
+    tooManyLinks: 'Too many links. Filter first.',
     connectTo: 'Connect to…',
     pickTarget: 'Click another item to connect',
     alreadyConnected: 'Already connected',
@@ -524,8 +522,6 @@ export const en = {
     noConnections: 'None yet',
     removeConnection: 'Remove connection',
     unclassified: 'Unclassified',
-    arranging: 'Arranging…',
-    backToMyLayout: 'Back to my layout',
   },
   list: {
     groupBy: 'Group by',

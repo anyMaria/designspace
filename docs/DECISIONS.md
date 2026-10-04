@@ -3004,3 +3004,8 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
 - **Not verifiable without Windows:** the library id staying stable and thumbnails being re-made, the clipboard
   permissions, the AI model files and tokenizer lookup (the CI "Check the bundled AI model files" step is the check),
   the media check, orphan-cache pruning, and the problem report's Rust half (tested only for its pure log-tail helper).
+
+## Patch 2 · Phase B: simplify (v0.10.0)
+
+- **B1:** Constellations removed (owner, Patch 2 D1); the layout code (`lib/constellations.ts`, the layout worker and
+  `runConstellationLayout`) lives on in the Overview. The motion token `constellations` is gone.
