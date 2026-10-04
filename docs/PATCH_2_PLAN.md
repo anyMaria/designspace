@@ -324,7 +324,7 @@ new `tests/e2e/patch2-reopen.spec.ts`.
 **Done when:** unit tests green. CI can't run the model; the Windows build log shows the check step listing only
 `*_quantized.onnx` files. The installer shrinks from 337 MB (expect roughly half).
 
-### A6 · Settings → AI tells the truth `[ ]`
+### A6 · Settings → AI tells the truth `[x]`
 **Why:** "A local model is loaded" is shown without checking; a failed load is never retried; a crashed worker leaves
 the queue stuck.
 

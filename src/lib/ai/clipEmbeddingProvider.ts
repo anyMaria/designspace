@@ -50,6 +50,11 @@ export class ClipEmbeddingProvider implements EmbeddingProvider {
     return { textModel: this.textModel, tokenizer: this.tokenizer };
   }
 
+  async warmUp(): Promise<void> {
+    await this.ensureVision();
+    await this.ensureText();
+  }
+
   async embedImage(bytes: ArrayBuffer, mime: string): Promise<Float32Array> {
     const { visionModel, processor } = await this.ensureVision();
     const image = await RawImage.fromBlob(new Blob([bytes], { type: mime }));

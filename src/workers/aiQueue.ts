@@ -3,7 +3,9 @@ import { useSettingsStore } from '@/state/settingsStore';
 import { useEmbeddingsStore } from '@/state/embeddingsStore';
 import { computeAiEnvConfig } from '@/lib/ai/env';
 import { CLIP_MODEL } from '@/lib/ai/model';
+import { useAiStatusStore } from '@/state/aiStatusStore';
 import { logger } from '@/lib/logger';
+import { en } from '@/i18n/en';
 import type {
   AiWorkerRequest,
   AiWorkerResponse,
@@ -17,6 +19,7 @@ export interface WorkerLike {
   postMessage(message: unknown, transfer?: Transferable[]): void;
   onmessage: ((event: MessageEvent) => void) | null;
   onerror: ((event: ErrorEvent) => void) | null;
+  onmessageerror: ((event: MessageEvent) => void) | null;
   terminate(): void;
 }
 
@@ -62,10 +65,38 @@ export class AiQueue {
     this.worker.onmessage = (event: MessageEvent<AiWorkerResponse>) => {
       this.handleResult(event.data);
     };
+    this.worker.onerror = (event) => {
+      event.preventDefault();
+      this.fail(event.message || en.settings.ai.workerStopped);
+    };
+    this.worker.onmessageerror = () => this.fail(en.settings.ai.workerStopped);
     this.configured = computeAiEnvConfig(platform.kind).then((config) => {
       const message: AiWorkerRequest = { type: 'configure', config };
       this.worker.postMessage(message);
+      this.requestLoad();
     });
+  }
+
+  /** Asks the worker to load the model now, so Settings can say whether it works. */
+  private requestLoad(): void {
+    useAiStatusStore.getState().set({ status: 'loading', error: null });
+    const message: AiWorkerRequest = { type: 'load' };
+    this.worker.postMessage(message);
+  }
+
+  /** "Try again" in Settings → AI. */
+  retry(): void {
+    void this.configured.then(() => this.requestLoad());
+  }
+
+  /** The helper can't work: say why, stop the queue (items are not marked failed) and answer
+   * waiting text requests with an error. */
+  private fail(message: string): void {
+    useAiStatusStore.getState().set({ status: 'error', error: message });
+    this.busy = false;
+    for (const request of this.pendingText.values()) request.reject(new Error(message));
+    this.pendingText.clear();
+    this.notify();
   }
 
   enqueue(items: AiQueueItem[]): void {
@@ -104,6 +135,7 @@ export class AiQueue {
 
   private pump(): void {
     if (this.paused || this.busy) return;
+    if (useAiStatusStore.getState().status !== 'ready') return;
     const next = this.queue.shift();
     if (!next) return;
     this.busy = true;
@@ -135,6 +167,16 @@ export class AiQueue {
   }
 
   private handleResult(result: AiWorkerResponse): void {
+    if (result.type === 'ready') {
+      useAiStatusStore.getState().set({ status: 'ready', error: null, provider: result.provider });
+      this.notify();
+      this.pump();
+      return;
+    }
+    if (result.type === 'error') {
+      this.fail(result.message);
+      return;
+    }
     if (result.type !== 'embedResult') return;
 
     const textRequest = this.pendingText.get(result.id);
@@ -181,6 +223,8 @@ export class AiQueue {
    * consume a background-analysis queue slot. */
   async embedText(text: string): Promise<Float32Array> {
     await this.configured;
+    const { status, error } = useAiStatusStore.getState();
+    if (status === 'error') throw new Error(error ?? en.settings.ai.workerStopped);
     return new Promise((resolve, reject) => {
       const id = `text-${++this.nextReqId}`;
       this.pendingText.set(id, { resolve, reject });

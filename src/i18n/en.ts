@@ -297,6 +297,13 @@ export const en = {
       pause: 'Pause analysis',
       resume: 'Resume analysis',
       paused: 'Paused',
+      statusLoading: 'Loading the local model…',
+      statusReady: 'Ready',
+      statusAnalyzing: (done: number, total: number) => `Analyzing ${done} of ${total}`,
+      statusError: (reason: string) => `Not working: ${reason}`,
+      retry: 'Try again',
+      workerStopped: 'The AI helper stopped unexpectedly.',
+      modelMissing: 'The AI model files are missing from this installation.',
     },
   },
   onboarding: {

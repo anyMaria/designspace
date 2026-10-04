@@ -30,7 +30,11 @@ export interface EmbedTextRequest {
   text: string;
 }
 
-export type AiWorkerRequest = ConfigureMessage | EmbedImageRequest | EmbedTextRequest;
+export interface LoadMessage {
+  type: 'load';
+}
+
+export type AiWorkerRequest = ConfigureMessage | LoadMessage | EmbedImageRequest | EmbedTextRequest;
 
 export interface EmbedSuccess {
   type: 'embedResult';
@@ -48,7 +52,17 @@ export interface EmbedFailure {
   error: string;
 }
 
-export type AiWorkerResponse = EmbedSuccess | EmbedFailure;
+export interface LoadReady {
+  type: 'ready';
+  provider: 'clip' | 'fake';
+}
+
+export interface LoadError {
+  type: 'error';
+  message: string;
+}
+
+export type AiWorkerResponse = EmbedSuccess | EmbedFailure | LoadReady | LoadError;
 
 let provider: EmbeddingProvider | null = null;
 
@@ -69,7 +83,10 @@ function loadProvider(config: AiEnvConfig | null): Promise<EmbeddingProvider> {
     configureTransformersEnv(env as unknown as TransformersEnvLike, config);
     const { ClipEmbeddingProvider } = await import('@/lib/ai/clipEmbeddingProvider');
     return new ClipEmbeddingProvider();
-  })();
+  })().catch((err: unknown) => {
+    providerPromise = null; // forget a failed load, so "Try again" really tries again
+    throw err;
+  });
   return providerPromise;
 }
 
@@ -83,8 +100,32 @@ self.onmessage = (event: MessageEvent<AiWorkerRequest>) => {
     return;
   }
 
+  if (req.type === 'load') {
+    void handleLoad();
+    return;
+  }
+
   void handleEmbedRequest(req);
 };
+
+async function handleLoad(): Promise<void> {
+  try {
+    provider ??= await loadProvider(envConfig);
+    await provider.warmUp?.();
+    const ready: LoadReady = {
+      type: 'ready',
+      provider: provider instanceof FakeEmbeddingProvider ? 'fake' : 'clip',
+    };
+    self.postMessage(ready);
+  } catch (err) {
+    provider = null;
+    const failure: LoadError = {
+      type: 'error',
+      message: err instanceof Error ? err.message : String(err),
+    };
+    self.postMessage(failure);
+  }
+}
 
 async function handleEmbedRequest(req: EmbedImageRequest | EmbedTextRequest): Promise<void> {
   try {
