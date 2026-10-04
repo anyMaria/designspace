@@ -565,6 +565,7 @@ export const en = {
     dim: 'Dim',
     hide: 'Hide',
     frameResults: 'Frame results',
+    favoritesToggle: 'Favorites',
     clearAll: 'Clear all',
     close: 'Close search',
     kind: 'Kind',
@@ -593,6 +594,8 @@ export const en = {
     previous: 'Previous',
   },
   contextMenu: {
+    addFavorite: 'Add to favorites',
+    removeFavorite: 'Remove from favorites',
     copyImage: 'Copy image',
     showInExplorer: 'Show in Explorer',
     bringToFront: 'Bring to front',

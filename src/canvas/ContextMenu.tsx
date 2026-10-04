@@ -13,6 +13,7 @@ import { noteColorNames, type NoteColor } from '@/design/tokens';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { useDescriptionStore } from '@/state/descriptionStore';
 import {
+  createBulkSetItemFieldCommand,
   createSetCropCommand,
   createSetItemFieldCommand,
   createStackOrderCommand,
@@ -259,6 +260,13 @@ export function ContextMenu({
     cropPlacement.cropX !== null &&
     (imageAspect === null || isCropped(cropPlacement, imageAspect));
 
+  function setFavorite(on: boolean): void {
+    onClose();
+    void useHistoryStore
+      .getState()
+      .execute(createBulkSetItemFieldCommand(platform, ids, 'favorite', on));
+  }
+
   function adjustCrop(): void {
     onClose();
     useCropUiStore.getState().start(state.itemId);
@@ -293,6 +301,16 @@ export function ContextMenu({
   ) as Record<`note-color-${NoteColor}`, Entry>;
   const entries: Record<ContextMenuItemId, Entry> = {
     ...colorEntries,
+    'add-favorite': {
+      id: 'add-favorite',
+      label: en.contextMenu.addFavorite,
+      onSelect: () => setFavorite(true),
+    },
+    'remove-favorite': {
+      id: 'remove-favorite',
+      label: en.contextMenu.removeFavorite,
+      onSelect: () => setFavorite(false),
+    },
     'adjust-crop': { id: 'adjust-crop', label: en.crop.adjust, onSelect: adjustCrop },
     'reset-crop': { id: 'reset-crop', label: en.crop.reset, onSelect: resetCrop },
     'description-add': {

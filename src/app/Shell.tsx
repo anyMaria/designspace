@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
+  Star,
   Shuffle,
   Waypoints,
   MousePointer2,
@@ -148,6 +149,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   useSearchBinding(engine, platform);
   useConnectionsBinding(engine, platform);
   useManualConnectionsBinding(engine, platform);
+  const favoritesOnly = useSearchStore((s) => !!s.filter.favorite);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
   const listExpanded = useListStore((s) => s.expanded);
   useEscape(listExpanded, () => useListStore.getState().setExpanded(false), {
@@ -302,6 +304,12 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         <SuggestionsTray platform={platform} />
         <Dock>
           <AddMenu platform={platform} engine={engine} />
+          <IconButton
+            icon={<Star size={20} strokeWidth={1.75} />}
+            label={en.search.favoritesToggle}
+            active={favoritesOnly}
+            onClick={() => useSearchStore.getState().toggleFavorite()}
+          />
           <span style={{ position: 'relative' }}>
             <IconButton
               icon={<Search size={20} strokeWidth={1.75} />}

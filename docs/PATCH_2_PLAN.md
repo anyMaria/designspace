@@ -776,7 +776,7 @@ Mockup: `library-trash.png` (bottom).
 delete an item → toast "Open Trash" → the Trash shows it → Restore → it is back on the map. `trashActions.test.ts`: restore
 picks the current space's placement.
 
-### C6 · Favourites show `[ ]`
+### C6 · Favourites show `[x]`
 **Files:** `src/canvas/Engine.ts`, new `src/canvas/favoriteBadge.ts`, `src/canvas/itemCards.ts` (+ test),
 `src/canvas/contextMenuItems.ts` (+ test), `src/canvas/ContextMenu.tsx`, `src/features/list/ListPanel.tsx`,
 `src/features/search/SearchBar.tsx` (or the dock), `src/design/tokens.ts`, `en.ts`.

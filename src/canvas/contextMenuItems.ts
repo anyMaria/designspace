@@ -4,6 +4,8 @@ import { noteColorNames, type NoteColor } from '@/design/tokens';
 
 export type ContextMenuItemId =
   | 'copy-image'
+  | 'add-favorite'
+  | 'remove-favorite'
   | 'adjust-crop'
   | 'reset-crop'
   | 'show-in-explorer'
@@ -42,6 +44,9 @@ export function contextMenuItemIds(
   }
   if (items.length === 1 && items[0]?.kind === 'image') ids.push('copy-image');
   if (items.length === 1 && ctx.cropped) ids.push('adjust-crop', 'reset-crop');
+  // Favourites: media items only (Patch 2 · C6).
+  if (items.length > 0 && items.every((i) => MEDIA_KINDS.has(i.kind)))
+    ids.push(items.every((i) => i.favorite) ? 'remove-favorite' : 'add-favorite');
   if (items.length > 0 && items.every((i) => !!i.filePath)) ids.push('show-in-explorer');
   ids.push('bring-to-front', 'send-to-back');
   if (items.length >= 2) ids.push('tidy-up');

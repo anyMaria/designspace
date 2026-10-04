@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Frame, SlidersHorizontal, X } from 'lucide-react';
+import { Frame, SlidersHorizontal, Star, X } from 'lucide-react';
 import type { Engine } from '@/canvas/Engine';
 import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
@@ -168,6 +168,20 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
             {en.search.count(matchedCount, total)}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <button
+              type="button"
+              className="ds-chip"
+              aria-pressed={!!filter.favorite}
+              style={
+                filter.favorite
+                  ? { background: 'var(--accent)', color: 'var(--on-accent)' }
+                  : undefined
+              }
+              onClick={() => useSearchStore.getState().toggleFavorite()}
+            >
+              <Star size={14} strokeWidth={1.75} style={{ marginRight: 4 }} />
+              {en.search.favoritesToggle}
+            </button>
             {active && (
               <>
                 <Button variant="ghost" onClick={frameResults}>

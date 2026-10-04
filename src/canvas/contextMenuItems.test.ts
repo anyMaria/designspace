@@ -114,4 +114,15 @@ describe('description entries', () => {
       contextMenuItemIds([item({}), item({ id: 'b' })], { onBoard: false, cropped: true }),
     ).not.toContain('adjust-crop');
   });
+
+  it('offers Add to favorites, or Remove when every item already is one (media items only)', () => {
+    expect(contextMenuItemIds([item({})], ctx)).toContain('add-favorite');
+    expect(contextMenuItemIds([item({ favorite: true })], ctx)).toContain('remove-favorite');
+    expect(
+      contextMenuItemIds([item({ favorite: true }), item({ id: 'b', favorite: false })], ctx),
+    ).toContain('add-favorite');
+    expect(contextMenuItemIds([item({ kind: 'note', filePath: null })], ctx)).not.toContain(
+      'add-favorite',
+    );
+  });
 });

@@ -49,3 +49,18 @@ describe('itemToCard (links)', () => {
     expect(card.thumbUrl128).toBe('media://cache/t128/l1');
   });
 });
+
+describe('itemToCard (favourites and crop)', () => {
+  it('carries the favourite flag and the crop focus', () => {
+    const card = itemToCard(
+      link({ status: 'ok', favorite: true }),
+      { ...placement, cropX: 0.25, cropY: 0.75 },
+      platform,
+    );
+    expect(card.favorite).toBe(true);
+    expect(card).toMatchObject({ cropX: 0.25, cropY: 0.75 });
+    expect(itemToCard(link({ status: 'ok', favorite: false }), placement, platform).favorite).toBe(
+      false,
+    );
+  });
+});

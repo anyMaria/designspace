@@ -42,6 +42,11 @@ test('the Details panel classifies a selected item: Type, Vibe, Favorite', async
   await page.getByRole('switch', { name: 'Favorite' }).click();
   await page.waitForTimeout(200);
 
+  // The context menu now offers to remove it from the favourites (Patch 2 · C6).
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Remove from favorites' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
   await page.screenshot({ path: 'test-results/details-panel-classified.png' });
 
   expect(errors, errors.join('\n')).toEqual([]);

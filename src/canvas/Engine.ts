@@ -28,6 +28,11 @@ import { attachCanvasInput, type Tool, type WheelMode } from './input';
 import { hitTest, normalizeRect, rectSelect } from './selection';
 import { cardUvToImageUv, coverFrame, dragCropFocus, isWholeTexture } from './coverCrop';
 import {
+  createFavoriteBadge,
+  FAVORITE_BADGE_INSET,
+  FAVORITE_BADGE_MIN_ZOOM,
+} from './favoriteBadge';
+import {
   ALL_HANDLES,
   cursorForHandle,
   isCornerHandle,
@@ -93,6 +98,8 @@ export interface ItemCard {
   swatchName: string | null;
   /** Patch 1 · D1: a note's paper colour (drives `decor/noteDecor.ts`); `null` for other kinds. */
   noteColor: NoteColor | null;
+  /** Patch 2 · C6: drawn with a star badge in its top-left corner. */
+  favorite: boolean;
   /** Patch 2 · C3: the crop focus (0–1) of a picture the owner has cropped; null = not cropped. */
   cropX: number | null;
   cropY: number | null;
@@ -229,6 +236,8 @@ export class Engine {
   private noteLabels = new Map<string, Text>(); // §2.11 — a note card's plain-text snippet
   // §2.4 — a video card's "▶ mm:ss" duration badge, or a PDF card's "PDF · N p" page-count badge.
   private cornerBadges = new Map<string, Text>();
+  /** Patch 2 · C6: the star badge of a favourite card, same lifecycle as `cornerBadges`. */
+  private favBadges = new Map<string, Container>();
   /** Cards that draw themselves (swatches/palettes now, notes in D1): their sprite is never shown,
    * this container is. Keyed by item id. */
   private decor = new Map<string, Container>();
@@ -463,6 +472,8 @@ export class Engine {
           badge.destroy();
           this.cornerBadges.delete(id);
         }
+        this.favBadges.get(id)?.destroy({ children: true });
+        this.favBadges.delete(id);
       }
     }
     for (const card of cards) {
@@ -664,6 +675,32 @@ export class Engine {
     const label = this.noteLabels.get(card.id);
     if (label) label.mask = isNote ? (this.noteMasks.get(card.id) ?? null) : null;
     this.syncCornerBadge(card);
+    this.syncFavoriteBadge(card);
+  }
+
+  private favoriteBadgeShown(id: string): boolean {
+    return !!this.cards.get(id)?.favorite && this.camera.zoom >= FAVORITE_BADGE_MIN_ZOOM;
+  }
+
+  /** The star badge of a favourite (Patch 2 · C6): created and removed with the favourite flag,
+   * moved with the card. Hidden by `cullItems` below 25 % zoom and while the card is. */
+  private syncFavoriteBadge(card: ItemCard): void {
+    if (!this.itemsLayer) return;
+    const existing = this.favBadges.get(card.id);
+    if (!card.favorite) {
+      if (existing) {
+        existing.destroy({ children: true });
+        this.favBadges.delete(card.id);
+      }
+      return;
+    }
+    const badge = existing ?? createFavoriteBadge();
+    if (!existing) {
+      this.itemsLayer.addChild(badge);
+      this.favBadges.set(card.id, badge);
+    }
+    badge.position.set(card.x + FAVORITE_BADGE_INSET, card.y + FAVORITE_BADGE_INSET);
+    badge.zIndex = card.z + 0.6;
   }
 
   /** The "▶ mm:ss" duration badge or "PDF · N p" page-count badge (§2.4) at a card's bottom-right
@@ -809,6 +846,8 @@ export class Engine {
     if (label) fn(label);
     const badge = this.cornerBadges.get(id);
     if (badge) fn(badge);
+    const fav = this.favBadges.get(id);
+    if (fav) fn(fav);
   }
 
   private setCardAlpha(id: string, alpha: number): void {
@@ -883,6 +922,8 @@ export class Engine {
     this.noteLabels.clear();
     for (const badge of this.cornerBadges.values()) badge.destroy();
     this.cornerBadges.clear();
+    for (const fav of this.favBadges.values()) fav.destroy({ children: true });
+    this.favBadges.clear();
     this.cards.clear();
     this.itemIndex.clear();
     this.itemVisible.clear();
@@ -1899,6 +1940,8 @@ export class Engine {
         if (label) label.visible = false;
         const badge = this.cornerBadges.get(id);
         if (badge) badge.visible = false;
+        const fav = this.favBadges.get(id);
+        if (fav) fav.visible = false;
         const decor = this.decor.get(id);
         if (decor) decor.visible = false;
       }
@@ -1917,6 +1960,8 @@ export class Engine {
       if (label) label.visible = !hidden;
       const badge = this.cornerBadges.get(id);
       if (badge) badge.visible = !hidden;
+      const fav = this.favBadges.get(id);
+      if (fav) fav.visible = !hidden && this.favoriteBadgeShown(id);
       if (selfDrawn) {
         this.syncDecor(card); // zoom may have crossed the hex-label threshold
         const decor = this.decor.get(id);
@@ -2013,6 +2058,8 @@ export class Engine {
       if (label) label.visible = true;
       const badge = this.cornerBadges.get(id);
       if (badge) badge.visible = true;
+      const fav = this.favBadges.get(id);
+      if (fav) fav.visible = true;
     }
   }
 
