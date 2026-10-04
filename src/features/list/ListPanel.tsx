@@ -1,4 +1,4 @@
-import { thumbUrl } from '@/lib/thumbs';
+import { ListTile } from './ListTile';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -450,13 +450,7 @@ function Tile({
         background: 'var(--surface-2)',
       }}
     >
-      {item.status === 'ok' && (
-        <img
-          src={thumbUrl(platform, item, 128)}
-          alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-      )}
+      <ListTile platform={platform} item={item} />
     </button>
   );
 }

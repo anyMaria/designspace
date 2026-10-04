@@ -798,7 +798,7 @@ picks the current space's placement.
 **Tests:** `itemCards.test.ts` (favorite mapped); `contextMenuItems.test.ts` (exact list updated); e2e
 `smoke-m2-details`: toggle Favorite → right-click shows "Remove from favorites"; the List tile has the star.
 
-### C7 · Every kind has a List tile `[ ]`
+### C7 · Every kind has a List tile `[x]`
 **Files:** `src/features/list/ListPanel.tsx` (split the tile into new `src/features/list/ListTile.tsx`),
 `src/lib/color.ts` (move `readableTextColor` from `Engine.ts`), `src/lib/search.ts` (export `sourceDomain`), `components.css`.
 Mockup: `canvas.png` (bottom row).

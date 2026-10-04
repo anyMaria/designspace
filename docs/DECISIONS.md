@@ -3020,3 +3020,27 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   default when something is selected); the PDF is one page; a selection's file name is "<space> (selection)".
   `Engine.getExportRect(ids | null)` replaced the frame argument. "Frame results" (search) and the video "Set cover
   frame" are different things and stay.
+
+## Patch 2 · Phase C: everyday comfort (v0.11.0)
+
+- **C1:** one Esc listener (capture phase) with a stack of layers (`escapeStack`, `useEscape`) and base handlers (cancel a
+  pick / deselect a line → clear the selection → leave full screen). The shared `isTypingTarget` replaces five copies and
+  now also treats `<select>` as typing and ignores ranges, checkboxes and buttons. `window.onFullscreenChange` keeps
+  `uiStore.fullscreen` in step (the browser's own Esc, the OS). The Library menu (C4) leaves Esc to its name field.
+- **C2:** eight handles for pictures and notes, corners only for fonts, none for swatches/palettes. The engine publishes the
+  single selected card's on-screen rect as `data-selected-rect` on the canvas container so e2e tests need no hard-coded
+  coordinates. The connect handle now sits 22 px outside the right edge.
+- **C3:** migration `003_crop.sql`. Pictures are drawn "cover": a sub-frame of the shared texture (`coverCrop.ts`), no masks.
+  A resize that changes a picture's proportions (a side, or Shift on a corner) writes `crop_x = crop_y = 0.5` in the same
+  command. "Adjust crop" is an engine mode (`startCropMode`/`endCropMode`) driven by `cropUiStore` and `CropMode`.
+  "Pick from a photo" maps clicks on a cropped card with `cardUvToImageUv`.
+- **C4:** the Library menu is a single panel in a portal (z-index 6/7, the A11 z-index workaround is gone); `Menu` gained
+  `checked`, `secondary`, `trailing`, separator, header and custom rows.
+- **C5:** the Trash screen replaces Settings → Library → Trash; trashed boards moved there from the Boards gallery. Toasts
+  can carry a second action ("Open Trash"). `createRestoreItemCommand(platform, id, boardId?)` restores the placement of
+  the open space. Selection in the Trash is local (checkboxes).
+- **C6:** favourite badge (`favoriteBadge.ts`), "Add to / Remove from favorites" in the context menu, a ★ Favorites chip
+  in the search bar and a star toggle in the dock.
+- **C7:** `ListTile` is shared by the List panel and the Trash screen. Type-collection tiles come with F5.
+- **Not verifiable without Windows:** full-screen Esc (the Tauri `onResized` subscription), Alt-resize on Windows, the
+  resize cursors.

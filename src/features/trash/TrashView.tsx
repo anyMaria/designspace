@@ -9,7 +9,7 @@ import { useHistoryStore } from '@/commands/history';
 import { createRestoreItemCommand } from '@/commands/itemCommands';
 import { createRestoreBoardCommand } from '@/commands/boardCommands';
 import { useEscape } from '@/app/useEscape';
-import { thumbUrl } from '@/lib/thumbs';
+import { ListTile } from '@/features/list/ListTile';
 import { formatRelative } from '@/lib/relativeDate';
 import { useToastStore } from '@/state/toastStore';
 import { deleteForever, listTrashedItems } from './trashActions';
@@ -264,8 +264,6 @@ function TrashTile({
   onDelete: () => void;
 }) {
   const [hover, setHover] = useState(false);
-  const hasThumb =
-    item.status === 'ok' && ['image', 'video', 'pdf', 'font', 'link'].includes(item.kind);
   return (
     <div
       data-testid="trash-tile"
@@ -289,13 +287,7 @@ function TrashTile({
           background: 'var(--surface-2)',
         }}
       >
-        {hasThumb && (
-          <img
-            src={thumbUrl(platform, item, 128)}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        )}
+        <ListTile platform={platform} item={item} />
       </div>
       <input
         type="checkbox"

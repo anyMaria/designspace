@@ -22,6 +22,7 @@ import {
   type TextStyleOptions,
 } from 'pixi.js';
 import { Camera } from './Camera';
+import { readableTextColor } from '@/lib/color';
 import { SpatialIndex } from './spatialIndex';
 import { TextureManager } from './TextureManager';
 import { attachCanvasInput, type Tool, type WheelMode } from './input';
@@ -57,7 +58,6 @@ import type { BenchRect } from '@/platform/seed/bench';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
 import type { ItemKind } from '@/state/types';
-import { noteTextColor } from '@/design/tokens';
 import { exportRectForCards, type ExportBackground, type ExportScale } from '@/lib/exportGeometry';
 import { formatDuration } from '@/lib/formatDuration';
 
@@ -198,17 +198,6 @@ const NOTE_TEXT_FONT_SIZE_WORLD = 18;
 const VIDEO_BADGE_PADDING_WORLD = 10;
 // §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview" — the plan's own threshold.
 const VIDEO_HOVER_ZOOM_THRESHOLD = 0.6;
-
-/** Standard relative-luminance contrast pick — dark text on a light swatch, white text on a
- * dark one. Only swatches need this (see `syncNoteLabel`'s doc comment); notes' 5 colors are all
- * light enough that a fixed dark ink always works. */
-function readableTextColor(packedColor: number): number {
-  const r = (packedColor >> 16) & 0xff;
-  const g = (packedColor >> 8) & 0xff;
-  const b = packedColor & 0xff;
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? noteTextColor : 0xffffff;
-}
 
 /**
  * The framework-agnostic canvas engine — §4.6. Owns the Pixi `Application`, the camera and
