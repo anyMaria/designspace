@@ -227,7 +227,7 @@ Connections → the popover shows "Nothing shares a Vibe or Tag yet."
 **Owner checks:** hover a photo that shares a Vibe with another: a clear line (or, if they touch, both get a coloured
 outline). Open Connections with nothing classified: it tells you why and offers to turn on Movement or Type.
 
-### A2 · The library keeps its ID; missing thumbnails are re-made `[ ]`
+### A2 · The library keeps its ID; missing thumbnails are re-made `[x]`
 **Why:** a new library ID at every launch means a new, empty thumbnail folder (§0 #2).
 
 **Files:** `src-tauri/src/library.rs`, `src/platform/bootstrap.ts`, new `src/workers/missingThumbnails.ts` (+ test),

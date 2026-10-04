@@ -52,6 +52,7 @@ pub fn run() {
             media::cache_put,
             media::cache_has,
             media::cache_delete,
+            media::cache_prune_orphans,
             backups::backup_now,
             backups::backup_list,
             backups::backup_restore,

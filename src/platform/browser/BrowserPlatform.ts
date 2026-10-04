@@ -141,6 +141,7 @@ export class BrowserPlatform implements Platform {
         this.objectUrls.delete(`${STORE_CACHE}:${key}`);
       }
     },
+    pruneOrphans: (): Promise<number> => Promise.resolve(0),
   };
 
   net = {

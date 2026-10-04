@@ -22,6 +22,7 @@ const APP_COMMANDS: &[&str] = &[
     "cache_put",
     "cache_has",
     "cache_delete",
+    "cache_prune_orphans",
     "backup_now",
     "backup_list",
     "backup_restore",

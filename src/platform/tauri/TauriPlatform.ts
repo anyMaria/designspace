@@ -84,6 +84,7 @@ export class TauriPlatform implements Platform {
     delete: async (keys: string[]): Promise<void> => {
       for (const key of keys) await invoke<void>('cache_delete', { prefix: key });
     },
+    pruneOrphans: () => invoke<number>('cache_prune_orphans'),
   };
 
   net = {

@@ -9,6 +9,8 @@ import { queueAiAnalysis } from './aiQueue';
 export interface PdfQueueItem {
   itemId: string;
   relPath: string;
+  /** A re-made PDF keeps its "Set as cover" page. */
+  coverPage?: number;
 }
 
 /** Shared by `PdfIngestQueue.process` (import) and `setPdfCoverPage` ("Set as cover", §2.4) —
@@ -115,7 +117,7 @@ export class PdfIngestQueue {
 
   private async process(item: PdfQueueItem): Promise<void> {
     try {
-      await deriveAndPersist(this.platform, item.itemId, item.relPath);
+      await deriveAndPersist(this.platform, item.itemId, item.relPath, item.coverPage);
     } catch (err) {
       logger.warn(`PDF ingest failed for ${item.itemId}`, err);
       const now = new Date().toISOString();
@@ -147,19 +149,22 @@ export function getPdfIngestQueue(platform: Platform): PdfIngestQueue {
 interface PendingRow extends DbRow {
   id: string;
   file_path: string;
+  cover_page: number | null;
 }
 
 /** PDF's counterpart to `ingestQueue.ts`'s `resumePendingIngest` — kept separate to avoid a
  * circular import between the two modules; `App.tsx` calls all three at startup. */
 export async function resumePendingPdfIngest(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingRow>(
-    `SELECT id, file_path FROM items
+    `SELECT id, file_path, cover_page FROM items
      WHERE kind = 'pdf' AND deleted_at IS NULL AND file_path IS NOT NULL
        AND (status = 'pending' OR derived_v < ?)`,
     [CURRENT_DERIVED_V],
   );
   if (rows.length === 0) return 0;
-  getPdfIngestQueue(platform).enqueue(rows.map((r) => ({ itemId: r.id, relPath: r.file_path })));
+  getPdfIngestQueue(platform).enqueue(
+    rows.map((r) => ({ itemId: r.id, relPath: r.file_path, coverPage: r.cover_page ?? undefined })),
+  );
 
   return rows.length;
 }

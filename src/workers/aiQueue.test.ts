@@ -31,6 +31,7 @@ function makePlatform(overrides: Partial<Platform> = {}): Platform {
       has: vi.fn(),
       url: (key: string) => `media://cache/${key}`,
       delete: vi.fn(),
+      pruneOrphans: vi.fn().mockResolvedValue(0),
     },
     embeddings: {
       put: vi.fn().mockResolvedValue(undefined),

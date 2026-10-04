@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cache-prune-orphans"
+description = "Enables the cache_prune_orphans command without any pre-configured scope."
+commands.allow = ["cache_prune_orphans"]
+
+[[permission]]
+identifier = "deny-cache-prune-orphans"
+description = "Denies the cache_prune_orphans command without any pre-configured scope."
+commands.deny = ["cache_prune_orphans"]

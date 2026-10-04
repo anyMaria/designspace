@@ -27,6 +27,16 @@ export async function ensureLibraryReady(platform: Platform): Promise<string> {
   const { from, to } = await runMigrations(platform.db);
   if (to !== from) logger.info(`Migrated the library database from schema v${from} to v${to}`);
 
+  // The cache folder is named after this id (media.rs `cache_dir`). On a brand-new library `meta`
+  // only exists now, so store the id Rust minted. Never overwrites.
+  const libraryId = platform.library.current()?.id;
+  if (libraryId) {
+    await platform.db.execute(
+      "INSERT INTO meta (key, value) VALUES ('library_id', ?) ON CONFLICT(key) DO NOTHING",
+      [libraryId],
+    );
+  }
+
   const rows = await platform.db.select<{ id: string }>(
     "SELECT id FROM boards WHERE kind = 'library' LIMIT 1",
   );
