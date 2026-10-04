@@ -554,3 +554,11 @@
   font-weight: 700;
   color: var(--lavender);
 }
+
+/* A menu inside a popover would show two borders and two shadows: the menu draws the frame. */
+.ds-popover:has(> .ds-menu) {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}

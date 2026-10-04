@@ -417,7 +417,7 @@ click **About** in the nav, and expect the About heading to be visible (`toBeInV
 containing "Art Nouveau" and not "Dreamy" (`page.locator('#' + listId + ' option[value="Art Nouveau"]')`).
 Update any spec that relied on blur creating a value (search `blur()` near chip inputs in `tests/e2e`; press Enter instead).
 
-### A11 · Menus close on outside clicks and stay inside the window `[ ]`
+### A11 · Menus close on outside clicks and stay inside the window `[x]`
 **Files:** new `src/lib/placeMenu.ts` (+ test), `src/canvas/ContextMenu.tsx`, `src/app/Shell.tsx`,
 `src/features/boards/SpaceSwitcher.tsx`, `src/design/components/components.css`.
 

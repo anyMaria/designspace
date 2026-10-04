@@ -1,4 +1,6 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Popover, Menu } from '@/design/components';
+import { placeMenu } from '@/lib/placeMenu';
 import type { Engine } from './Engine';
 import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
@@ -49,6 +51,22 @@ export function ContextMenu({
   platform: Platform;
   onClose: () => void;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  // Measured after the first render (hidden until then), so the menu flips and clamps to the window.
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setPosition(
+      placeMenu(
+        { x: state.x, y: state.y },
+        { w: rect.width, h: rect.height },
+        { w: window.innerWidth, h: window.innerHeight },
+      ),
+    );
+  }, [state.x, state.y]);
+
   const selection = [...useLibraryStore.getState().selection];
   const ids = selection.includes(state.itemId) ? selection : [state.itemId];
   const currentBoardId = useBoardStore.getState().currentBoardId;
@@ -318,7 +336,18 @@ export function ContextMenu({
         onClick={onClose}
         onContextMenu={(e) => e.preventDefault()}
       />
-      <div style={{ position: 'fixed', left: state.x, top: state.y, zIndex: 5 }}>
+      <div
+        ref={menuRef}
+        style={{
+          position: 'fixed',
+          left: position?.x ?? state.x,
+          top: position?.y ?? state.y,
+          zIndex: 5,
+          visibility: position ? 'visible' : 'hidden',
+          maxHeight: 'calc(100vh - 16px)',
+          overflowY: 'auto',
+        }}
+      >
         <Popover>
           <Menu
             aria-label="Item"

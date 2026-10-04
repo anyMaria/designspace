@@ -36,5 +36,19 @@ test('zoom menu, minimap and item context menu all work against the seeded demo 
   await page.waitForTimeout(200);
   await page.screenshot({ path: 'test-results/context-menu.png' });
 
+  // In a short window the menu flips and clamps instead of running off the bottom (Patch 2 · A11).
+  await page.mouse.click(5, 5); // closes the open menu
+  await page.setViewportSize({ width: 1280, height: 480 });
+  await page.waitForTimeout(300);
+  const small = await canvas.boundingBox();
+  if (!small) throw new Error('canvas not found');
+  await page.mouse.click(small.x + small.width / 2, small.y + small.height / 2, {
+    button: 'right',
+  });
+  const menu = page.getByRole('menu', { name: 'Item' });
+  await expect(menu).toBeVisible();
+  const menuBox = await menu.boundingBox();
+  expect(menuBox && menuBox.y + menuBox.height).toBeLessThanOrEqual(480);
+
   expect(errors, errors.join('\n')).toEqual([]);
 });
