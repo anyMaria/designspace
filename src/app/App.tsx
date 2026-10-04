@@ -3,6 +3,7 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { getPlatform } from '@/platform';
 import { ensureLibraryReady, readDevUrlFlags } from '@/platform/bootstrap';
 import { seedDemoLibrary } from '@/platform/seed/demo';
+import { mergeFontFamilies } from '@/db/repairs/mergeFontFamilies';
 import { loadVocabulary } from '@/state/loadVocabulary';
 import { seedVocabulary } from '@/state/vocabularySeed';
 import { loadManualConnections } from '@/state/loadManualConnections';
@@ -105,6 +106,7 @@ export function App() {
           // §2.14 / §4.5: the browser dev build always has an automatic library, no onboarding.
           const library = await platform.library.open();
           const libraryBoardId = await ensureLibraryReady(platform);
+          await mergeFontFamilies(platform);
           const { seedDemo, bench } = readDevUrlFlags();
           await seedVocabulary(platform);
           if (seedDemo) await seedDemoLibrary(platform, libraryBoardId);
@@ -131,6 +133,7 @@ export function App() {
         }
         const library = await platform.library.open(recent[0].path);
         const libraryBoardId = await ensureLibraryReady(platform);
+        await mergeFontFamilies(platform);
         void platform.cache.pruneOrphans();
         await seedVocabulary(platform);
         await Promise.all([

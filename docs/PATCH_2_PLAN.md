@@ -1199,7 +1199,7 @@ italic file: italic by name); `fontFamily.test.ts` (`pickDefaultStyle` cases: Th
 the one closest to 400; variable 100–900 → 400; variable 500–900 → 500); `migrator` and `rowMapping` tests; a
 `migratedDb(5)` test (helper from D3) that an existing font item gets one `font_files` row.
 
-### F2 · Existing libraries: merge files of the same family `[ ]`
+### F2 · Existing libraries: merge files of the same family `[x]`
 **Why:** the owner's library already has one item per file. This one-off repair turns them into family items. It is
 derived (like a re-render), not a Command; the pre-migration backup from `ensureLibraryReady` is the safety net.
 
