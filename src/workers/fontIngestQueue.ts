@@ -71,6 +71,7 @@ export class FontIngestQueue {
         bytes,
         item.itemId,
         card.text ?? useSettingsStore.getState().fontPreviewText,
+        { size: card.size, wght: card.wght, styleCount: files.length },
       );
 
       await this.platform.cache.put(`t128/${item.itemId}`, new Uint8Array(t128));

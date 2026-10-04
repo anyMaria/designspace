@@ -1262,7 +1262,7 @@ Rust `find_duplicate` finds a hash stored only in `font_files`; `trashActions.te
 e2e: copy `src/design/fonts/urbanist/Urbanist-VariableFont_wght.ttf` and `Urbanist-Italic-VariableFont_wght.ttf` into
 `tests/e2e/fixtures/`; importing both creates **one** card titled "Urbanist". `smoke-m5-font` (expects "Unbounded") still passes.
 
-### F4 · Choose what the card shows `[ ]`
+### F4 · Choose what the card shows `[x]`
 **Files:** `src/lib/fontRender.ts` (`drawSpecimen`, `extractFontDerivatives`, `registerFontFace`), `src/workers/fontIngestQueue.ts`,
 `src/commands/fontCommands.ts`, `src/features/details/DetailsPanel.tsx` (new `FontCardSection.tsx`, `FontStylesSection.tsx`),
 `src/features/focus/FontFocusViewer.tsx`, `src/design/tokens.ts`, `en.ts`.

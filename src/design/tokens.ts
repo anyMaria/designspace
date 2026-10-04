@@ -186,6 +186,24 @@ export const zoomRange = {
 /** The UI font, mirrored for PixiJS and canvas drawing (tokens.css has `--font-ui`). */
 export const fonts = { ui: 'Urbanist' } as const;
 
+/** The font family card (Patch 2 · F4), in world units on a 320 × 200 card: padding, the sizes of
+ * "Aa" and the family name, the text size per option (Small / Medium / Large) and the first
+ * baselines. The 512 × 320 canvas is these numbers × 1.6. */
+export const fontSpecimen = {
+  width: 320,
+  height: 200,
+  pad: 20,
+  aaSize: 56,
+  nameSize: 20,
+  textSizes: { s: 14, m: 19, l: 26 },
+  styleLineSize: 11,
+  aaBaseline: 76,
+  nameBaseline: 112,
+  textBaseline: 146,
+  lineHeightFactor: 1.3,
+  maxTextLines: 2,
+} as const;
+
 /** Palette and swatch cards on the map, in world units (Patch 1 · C1). */
 export const paletteGeometry = {
   cell: 96,

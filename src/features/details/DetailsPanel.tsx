@@ -17,6 +17,8 @@ import {
   createSetItemTypeCommand,
 } from '@/commands/itemTermCommands';
 import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
+import { FontCardSection } from './FontCardSection';
+import { isFontCollection } from '@/lib/fontFamily';
 import { openFromPhoto } from '@/features/colorStudio/openStudio';
 import { TermCombobox, Swatch, Toggle, Button, IconButton } from '@/design/components';
 import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
@@ -192,6 +194,10 @@ export function DetailsPanel({
         defaultValue={item.title}
         onBlur={(e) => setField('title', e.target.value)}
       />
+
+      {item.kind === 'font' && !isFontCollection(item) && (
+        <FontCardSection platform={platform} item={item} />
+      )}
 
       {isMediaKind(item.kind) && (
         <Field label={en.description.field}>

@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import * as fontkit from 'fontkit';
+import type * as fontkit from 'fontkit';
 import type { Platform } from '@/platform/types';
-import type { Item } from '@/state/types';
-import type { FontVariationAxis } from '@/lib/fontRender';
-import { registerFontFace } from '@/lib/fontRender';
+import type { FontFile, Item } from '@/state/types';
+import { parseFont, readMeta, type FontMeta, type FontVariationAxis } from '@/lib/fontRender';
+import { registerFontFace, weightDescriptors } from '@/lib/fontRender';
+import { useFontFilesStore } from '@/state/fontFilesStore';
+import { useHistoryStore } from '@/commands/history';
+import { createSetFontCardCommand } from '@/commands/fontCommands';
+import { cardFile, fontCardOf } from '@/lib/fontFamily';
 import { Button } from '@/design/components';
 import { useSettingsStore } from '@/state/settingsStore';
 import { applyFontPreview } from './applyFontPreview';
 import { en } from '@/i18n/en';
 
+const NO_FILES: FontFile[] = [];
 const SIZE_WATERFALL = [12, 16, 20, 24, 32, 48, 64, 96];
 const GLYPH_GRID_LIMIT = 200;
 
@@ -29,44 +34,54 @@ function characterSetSample(font: fontkit.Font): string[] {
  * (`item.id`) means re-registering here is safe even if ingest's own temporary registration is
  * long gone by the time Focus view opens. */
 export function FontFocusViewer({ platform, item }: { platform: Platform; item: Item }) {
-  const [ready, setReady] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const previewText = useSettingsStore((s) => s.fontPreviewText);
   const [sampleText, setSampleText] = useState(previewText);
   const [glyphs, setGlyphs] = useState<string[]>([]);
   const [axisValues, setAxisValues] = useState<Record<string, number>>({});
   const fontRef = useRef<fontkit.Font | null>(null);
 
-  const meta = item.fontMeta ?? null;
-  const localFamily = item.id;
+  const files = useFontFilesStore((s) => s.files.get(item.id)) ?? NO_FILES;
+  const card = fontCardOf(item, files);
+  const [fileId, setFileId] = useState<string | null>(null);
+  const chosenFile = cardFile(card, files);
+  const file = files.find((f) => f.id === fileId) ?? chosenFile;
+  const [meta, setMeta] = useState<FontMeta | null>(item.fontMeta ?? null);
+  // One face per file, named after the item and the file (never several files under one name).
+  const localFamily = file ? `${item.id}-${file.id}` : item.id;
 
   useEffect(() => {
     let cancelled = false;
     let face: FontFace | null = null;
     void (async () => {
-      if (!item.filePath) return;
-      const res = await fetch(platform.media.originalUrl(item.filePath));
+      const path = file?.filePath ?? item.filePath;
+      if (!path) return;
+      const res = await fetch(platform.media.originalUrl(path));
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
-      face = await registerFontFace(bytes, localFamily);
+      const parsedMeta = readMeta(parseFont(bytes));
+      face = await registerFontFace(bytes, localFamily, weightDescriptors(parsedMeta));
       if (cancelled) {
         document.fonts.delete(face);
         return;
       }
-      const parsed = fontkit.create(new Uint8Array(bytes) as unknown as Buffer);
-      const font = 'fonts' in parsed ? parsed.fonts[0] : parsed;
+      const font = parseFont(bytes);
       fontRef.current = font;
+      setMeta(parsedMeta);
       setGlyphs(characterSetSample(font));
       const initialAxes: Record<string, number> = {};
-      for (const axis of meta?.variableAxes ?? []) initialAxes[axis.tag] = axis.default;
+      for (const axis of parsedMeta.variableAxes)
+        initialAxes[axis.tag] =
+          axis.tag === 'wght' && file === chosenFile ? (card.wght ?? axis.default) : axis.default;
       setAxisValues(initialAxes);
-      setReady(true);
+      setLoadedFor(file?.id ?? '');
     })();
     return () => {
       cancelled = true;
       if (face) document.fonts.delete(face);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per mount (one item per key)
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the chosen style changes
+  }, [file?.id]);
 
   const variationSettings = useMemo(
     () =>
@@ -81,7 +96,7 @@ export function FontFocusViewer({ platform, item }: { platform: Platform; item: 
     fontVariationSettings: variationSettings || undefined,
   };
 
-  if (!ready || !meta) {
+  if (loadedFor !== (file?.id ?? '') || !meta) {
     return <div style={{ color: 'var(--text-2)' }}>…</div>;
   }
 
@@ -99,6 +114,37 @@ export function FontFocusViewer({ platform, item }: { platform: Platform; item: 
       }}
       onClick={(e) => e.stopPropagation()}
     >
+      {files.length > 0 && (
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+          <select
+            aria-label={en.font.style}
+            value={file?.id ?? ''}
+            onChange={(e) => setFileId(e.target.value)}
+            style={{ flex: 1 }}
+          >
+            {files.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.styleName || f.fileName}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              if (!file) return;
+              const wght = axisValues.wght !== undefined ? Math.round(axisValues.wght) : null;
+              void useHistoryStore
+                .getState()
+                .execute(
+                  createSetFontCardCommand(platform, item.id, { ...card, fileId: file.id, wght }),
+                );
+            }}
+          >
+            {en.font.showOnCard}
+          </Button>
+        </div>
+      )}
+
       <div>
         <label
           htmlFor="ds-font-sample-input"
