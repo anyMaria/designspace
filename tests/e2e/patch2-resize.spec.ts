@@ -51,7 +51,9 @@ test('a side handle changes one dimension; corners keep proportions; Shift frees
   await importAndSelect(page);
 
   // Right side: wider, same height.
-  let { rect, origin } = await selectedRect(page);
+  const first = await selectedRect(page);
+  const origin = first.origin;
+  let rect = first.rect;
   await drag(
     page,
     { x: origin.x + rect.x + rect.w, y: origin.y + rect.y + rect.h / 2 },
