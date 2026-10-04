@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useId, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Chip } from './Chip';
 
 export interface ChipInputProps {
@@ -18,11 +18,25 @@ export function ChipInput({
   suggestions = [],
 }: ChipInputProps) {
   const [draft, setDraft] = useState('');
+  const listId = useId(); // one datalist per field, so Movement never offers Vibe's words
 
   function commit() {
     const trimmed = draft.trim();
     if (trimmed) onAdd(trimmed);
     setDraft('');
+  }
+
+  function handleChange(e: ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    // Picking an option from the list replaces the text in one step (not typing): add it at once.
+    const inputType = (e.nativeEvent as InputEvent).inputType as string | undefined;
+    const picked = inputType === undefined || inputType === 'insertReplacementText';
+    if (picked && suggestions.includes(value)) {
+      onAdd(value);
+      setDraft('');
+      return;
+    }
+    setDraft(value);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -48,13 +62,13 @@ export function ChipInput({
         className="ds-chip-input__field"
         value={draft}
         placeholder={values.length === 0 ? placeholder : undefined}
-        list={suggestions.length > 0 ? 'chip-input-suggestions' : undefined}
-        onChange={(e) => setDraft(e.target.value)}
+        list={suggestions.length > 0 ? listId : undefined}
+        onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onBlur={commit}
+        onBlur={() => setDraft('')} // leaving a field never creates a word (Patch 2 · P6)
       />
       {suggestions.length > 0 && (
-        <datalist id="chip-input-suggestions">
+        <datalist id={listId}>
           {suggestions.map((s) => (
             <option key={s} value={s} />
           ))}

@@ -31,6 +31,13 @@ test('the Details panel classifies a selected item: Type, Vibe, Favorite', async
   await page.waitForTimeout(200);
   await expect(page.getByText('Dreamy', { exact: true })).toBeVisible();
 
+  // Each word field has its own suggestions: Movement offers Art Nouveau, never Vibe's Dreamy.
+  const movementInput = page.getByPlaceholder('Add a movement…');
+  const listId = await movementInput.getAttribute('list');
+  expect(listId).toBeTruthy();
+  await expect(page.locator(`[id="${listId}"] option[value="Art Nouveau"]`)).toHaveCount(1);
+  await expect(page.locator(`[id="${listId}"] option[value="Dreamy"]`)).toHaveCount(0);
+
   // Toggle favorite.
   await page.getByRole('switch', { name: 'Favorite' }).click();
   await page.waitForTimeout(200);

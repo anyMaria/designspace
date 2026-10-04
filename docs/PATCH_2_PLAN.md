@@ -405,7 +405,7 @@ the queue stuck.
 **Tests:** `smoke-m1-settings-empty` still passes. New check in that spec: set the viewport to 1280×600, open Settings,
 click **About** in the nav, and expect the About heading to be visible (`toBeInViewport()`).
 
-### A10 · Word fields suggest their own words and never create a word on leave `[ ]`
+### A10 · Word fields suggest their own words and never create a word on leave `[x]`
 **Why:** the shared datalist (§0 #8). The full combobox comes in Phase D; this is the one-line fix for 0.9.0.
 
 **Files:** `src/design/components/ChipInput.tsx`.
