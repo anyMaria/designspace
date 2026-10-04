@@ -66,8 +66,6 @@ import { useNoteCanvasBinding } from '@/canvas/useNoteCanvasBinding';
 import { OverviewOverlay } from '@/features/overview/OverviewOverlay';
 import { DescriptionPanel } from '@/features/description/DescriptionPanel';
 import { NoteEditor } from '@/features/notes/NoteEditor';
-import { useFrameCanvasBinding } from '@/canvas/useFrameCanvasBinding';
-import { FrameRenameDialog } from '@/features/frames/FrameRenameDialog';
 import { ExportDialog } from '@/features/export/ExportDialog';
 import { useExportUiStore } from '@/state/exportUiStore';
 import { SuggestionsTray } from '@/features/boards/SuggestionsTray';
@@ -145,7 +143,6 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
   useFocusViewBinding(engine);
   useNoteCanvasBinding(engine, platform);
-  useFrameCanvasBinding(engine, platform);
   useSearchBinding(engine, platform);
   useConnectionsBinding(engine, platform);
   useManualConnectionsBinding(engine, platform);
@@ -470,7 +467,6 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       <ShortcutListOverlay />
       <ConnectionTooltip engine={engine} />
       <ConnectionLabelDialog platform={platform} />
-      <FrameRenameDialog platform={platform} />
       {engine && <ExportDialog platform={platform} engine={engine} />}
     </div>
   );

@@ -14,7 +14,6 @@ import { useHistoryStore } from '@/commands/history';
 import { createCreateNoteCommand } from '@/commands/noteCommands';
 import { noteGeometry } from '@/design/tokens';
 import { SWATCH_SIZE, createCreateSwatchCommand } from '@/commands/swatchCommands';
-import { DEFAULT_FRAME_SIZE, createCreateFrameCommand } from '@/commands/frameCommands';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
 import { LinkDialog } from './LinkDialog';
@@ -156,15 +155,6 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setLinkDialogOpen(true);
   }
 
-  function handleAddFrame(): void {
-    setOpen(false);
-    const space = currentSpace();
-    if (!space) return;
-    const point = freeCentreFor(dropPoint(), DEFAULT_FRAME_SIZE);
-    const { command } = createCreateFrameCommand(platform, space.boardId, point.x, point.y);
-    void useHistoryStore.getState().execute(command);
-  }
-
   function onFilesInputChange(e: ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
@@ -246,7 +236,6 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
                   { id: 'link', label: en.addMenu.link, onSelect: handleAddLink },
                   { id: 'note', label: en.addMenu.note, onSelect: handleAddNote },
                   { id: 'swatch', label: en.addMenu.swatch, onSelect: handleAddSwatch },
-                  { id: 'frame', label: en.addMenu.frame, onSelect: handleAddFrame },
                 ]}
               />
             </Popover>

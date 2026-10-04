@@ -167,9 +167,6 @@ describe('createDuplicateBoardCommand', () => {
     await command.do();
     expect(copy.id).not.toBe(board.id);
     expect(useBoardStore.getState().boards.get(copy.id)?.name).toBe('Original copy');
-    expect(platform.db.select).toHaveBeenCalledWith(expect.stringContaining('FROM frames'), [
-      board.id,
-    ]);
     expect(platform.db.select).toHaveBeenCalledWith(expect.stringContaining('FROM placements'), [
       board.id,
     ]);

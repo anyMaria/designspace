@@ -25,3 +25,31 @@ test('the Export dialog renders the Library map to a non-empty PNG download', as
   await expect(dialog).toBeHidden();
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('Export → Selection renders just the selected items', async ({ page }) => {
+  await page.goto('/?seed=demo');
+  await page.waitForTimeout(2500);
+
+  // Select two items with a shift-click, then export with "Selection".
+  const canvas = page.locator('canvas').first();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('canvas not found');
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(box.x + box.width / 2 + 330, box.y + box.height / 2);
+  await page.keyboard.up('Shift');
+  await page.mouse.move(box.x + 5, box.y + box.height - 5);
+
+  await page.getByRole('button', { name: 'Export…' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Export' });
+  await expect(dialog.getByRole('tab', { name: /^Selection \(\d+\)$/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+
+  const downloadPromise = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Export…' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('Library (selection).png');
+  expect(await download.path()).toBeTruthy();
+});

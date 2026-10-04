@@ -47,7 +47,6 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       thumbUrl128: null,
       thumbUrl512: null,
       noteText: noteBodyToTaggedText(item.body),
-      frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
       pageCount: null,
@@ -71,7 +70,6 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       thumbUrl128: null,
       thumbUrl512: null,
       noteText: null, // drawn by decor/paletteDecor.ts, not as a text label
-      frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
       pageCount: null,
@@ -103,7 +101,6 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       noteText: thumbReady
         ? null
         : [safeDomain(item.url), item.title || null].filter(Boolean).join('\n'),
-      frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
       pageCount: null,
@@ -141,7 +138,6 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     thumbUrl128: ready ? thumbUrl(platform, item, 128) : null,
     thumbUrl512: ready ? thumbUrl(platform, item, 512) : null,
     noteText: fallbackText,
-    frameId: placement.frameId,
     durationMs: item.kind === 'video' ? (item.durationMs ?? null) : null,
     videoUrl:
       item.kind === 'video' && item.filePath ? platform.media.originalUrl(item.filePath) : null,

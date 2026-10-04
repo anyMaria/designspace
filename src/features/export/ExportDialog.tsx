@@ -2,29 +2,28 @@ import { useMemo, useState, type ReactNode } from 'react';
 import type { Platform } from '@/platform/types';
 import type { Engine } from '@/canvas/Engine';
 import { useBoardStore } from '@/state/boardStore';
-import { useFrameStore } from '@/state/frameStore';
+import { useLibraryStore } from '@/state/libraryStore';
 import { useExportUiStore } from '@/state/exportUiStore';
 import { useToastStore } from '@/state/toastStore';
-import { exportSpace } from './exportSpace';
+import { exportSpace, type ExportArea } from './exportSpace';
 import type { ExportBackground, ExportScale } from '@/lib/exportGeometry';
-import { Dialog, Button, Tabs, Toggle } from '@/design/components';
+import { Dialog, Button, Tabs } from '@/design/components';
 import { en } from '@/i18n/en';
 
-/** §2.11 Export: PNG (whole space or one frame, 1×/2×, choice of background) or PDF (fitted, or
- * one page per frame). Opened from the top bar's "Export…" button next to the space switcher —
- * frames work on the Library map too, so this isn't board-only. */
+/** §2.11 Export: PNG (1×/2×, choice of background) or a one-page PDF, of the whole space or just
+ * the selected items. Opened from the top bar's "Export…" button next to the space switcher. */
 export function ExportDialog({ platform, engine }: { platform: Platform; engine: Engine }) {
   const open = useExportUiStore((s) => s.open);
   const boards = useBoardStore((s) => s.boards);
   const currentBoardId = useBoardStore((s) => s.currentBoardId);
-  const frames = useFrameStore((s) => s.frames);
+  const selection = useLibraryStore((s) => s.selection);
 
   const [format, setFormat] = useState<'png' | 'pdf'>('png');
-  const [frameId, setFrameId] = useState<string | null>(null);
+  // null = the owner hasn't chosen: Selection when something is selected, else the whole board.
+  const [areaChoice, setAreaChoice] = useState<ExportArea | null>(null);
   const [scale, setScale] = useState<ExportScale>(1);
   const [background, setBackground] = useState<ExportBackground>('dots');
   const [pageSize, setPageSize] = useState<'a4' | 'a3'>('a4');
-  const [onePagePerFrame, setOnePagePerFrame] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const spaceTitle = useMemo(() => {
@@ -32,7 +31,8 @@ export function ExportDialog({ platform, engine }: { platform: Platform; engine:
     return current && current.kind === 'board' ? current.name : en.spaceSwitcher.library;
   }, [boards, currentBoardId]);
 
-  const frameList = useMemo(() => [...frames.values()], [frames]);
+  const ids = useMemo(() => [...selection], [selection]);
+  const area: ExportArea = ids.length === 0 ? 'all' : (areaChoice ?? 'selection');
 
   if (!open) return null;
 
@@ -45,18 +45,19 @@ export function ExportDialog({ platform, engine }: { platform: Platform; engine:
     try {
       const result =
         format === 'png'
-          ? await exportSpace(platform, engine, spaceTitle, frameList, {
+          ? await exportSpace(platform, engine, spaceTitle, {
               format: 'png',
               scale,
               background,
-              frameId,
+              area,
+              ids,
             })
-          : await exportSpace(platform, engine, spaceTitle, frameList, {
+          : await exportSpace(platform, engine, spaceTitle, {
               format: 'pdf',
               background,
               pageSize,
-              frameId,
-              onePagePerFrame,
+              area,
+              ids,
             });
       if (result === 'saved') {
         useToastStore.getState().show(en.export.exported);
@@ -73,11 +74,6 @@ export function ExportDialog({ platform, engine }: { platform: Platform; engine:
     }
   }
 
-  const scopeTabs = [
-    { id: 'whole', label: en.export.scopeWhole },
-    ...frameList.map((f) => ({ id: f.id, label: f.title })),
-  ] as const;
-
   return (
     <Dialog title={en.export.title} onClose={close}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', width: 320 }}>
@@ -93,16 +89,17 @@ export function ExportDialog({ platform, engine }: { platform: Platform; engine:
           />
         </Field>
 
-        {frameList.length > 0 && (
-          <Field label={en.export.scope}>
-            <Tabs
-              aria-label={en.export.scope}
-              value={frameId ?? 'whole'}
-              onChange={(id) => setFrameId(id === 'whole' ? null : id)}
-              tabs={scopeTabs}
-            />
-          </Field>
-        )}
+        <Field label={en.export.area}>
+          <Tabs
+            aria-label={en.export.area}
+            value={area}
+            onChange={setAreaChoice}
+            tabs={[
+              { id: 'all', label: en.export.areaAll },
+              { id: 'selection', label: en.export.areaSelection(ids.length) },
+            ]}
+          />
+        </Field>
 
         {format === 'png' && (
           <Field label={en.export.scale}>
@@ -144,16 +141,6 @@ export function ExportDialog({ platform, engine }: { platform: Platform; engine:
                 ]}
               />
             </Field>
-            {!frameId && frameList.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <Toggle
-                  checked={onePagePerFrame}
-                  onChange={setOnePagePerFrame}
-                  label={en.export.onePagePerFrame}
-                />
-                <span>{en.export.onePagePerFrame}</span>
-              </div>
-            )}
           </>
         )}
 

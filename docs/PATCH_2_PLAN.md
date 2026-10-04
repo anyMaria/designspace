@@ -548,7 +548,7 @@ Clusters selected; moving the Spacing slider keeps the Overview open and redraws
 **Owner checks:** open the Overview: groups of related items gather around their stars and move into place; the Spacing
 slider makes them tighter or looser; click a star to see its group.
 
-### B3 · Remove Frames; export a selection instead `[ ]`
+### B3 · Remove Frames; export a selection instead `[x]`
 **Files to delete:** `src/features/frames/FrameRenameDialog.tsx`, `src/state/frameRenameStore.ts`, `src/state/frameStore.ts`,
 `src/commands/frameCommands.ts` (+ test), `src/canvas/useFrameCanvasBinding.ts`, `tests/e2e/smoke-m4-frames.spec.ts`.
 **Files to edit:** `src/canvas/Engine.ts` (the frames map, drawing, hit-testing, handles, `selectedFrameId`, the

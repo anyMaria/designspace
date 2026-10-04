@@ -3,7 +3,6 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { getPlatform } from '@/platform';
 import { ensureLibraryReady, readDevUrlFlags } from '@/platform/bootstrap';
 import { seedDemoLibrary } from '@/platform/seed/demo';
-import { loadLibraryItems, loadFramesForBoard } from '@/state/loadLibrary';
 import { loadVocabulary } from '@/state/loadVocabulary';
 import { seedVocabulary } from '@/state/vocabularySeed';
 import { loadManualConnections } from '@/state/loadManualConnections';
@@ -25,6 +24,7 @@ import { useToastStore } from '@/state/toastStore';
 import { useUiStore } from '@/state/uiStore';
 import { setFullscreen } from './fullscreen';
 import { en } from '@/i18n/en';
+import { loadLibraryItems } from '@/state/loadLibrary';
 import { useReducedMotionSync } from '@/lib/useReducedMotionSync';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
@@ -90,7 +90,6 @@ export function App() {
             loadVocabulary(platform),
             loadManualConnections(platform),
             loadBoards(platform),
-            loadFramesForBoard(platform, libraryBoardId),
             loadSettings(platform),
             loadEmbeddings(platform),
           ]);
@@ -116,7 +115,6 @@ export function App() {
           loadVocabulary(platform),
           loadManualConnections(platform),
           loadBoards(platform),
-          loadFramesForBoard(platform, libraryBoardId),
           loadSettings(platform),
           loadEmbeddings(platform),
         ]);

@@ -3014,3 +3014,9 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   tween from their My layout position (`homeX/homeY` on `OverviewNode`) the first time. Clicking a star keeps its group
   bright (others fade to 15 %); Esc clears the star first, then closes the Overview. The star's identity is
   `criterion:value` (`OverviewHub.key`), stored in `overviewStore.focusHubKey`.
+- **B3:** Frames removed (owner, Patch 2 D2). Existing frame rows stay in the database, unused: the `frames` table,
+  `placements.frame_id` and the `Frame` row type (the library export still writes frame rows, as a backup) are
+  untouched. "Duplicate board" no longer copies frames. Export has **Whole board | Selection (n)** (Selection is the
+  default when something is selected); the PDF is one page; a selection's file name is "<space> (selection)".
+  `Engine.getExportRect(ids | null)` replaced the frame argument. "Frame results" (search) and the video "Set cover
+  frame" are different things and stay.

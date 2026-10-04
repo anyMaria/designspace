@@ -10,7 +10,6 @@ import {
   createTrashCommand,
 } from '@/commands/itemCommands';
 import { createRemoveFromBoardCommand } from '@/commands/boardCommands';
-import { createDeleteFrameCommand } from '@/commands/frameCommands';
 import { useBoardStore } from '@/state/boardStore';
 import { prefersReducedMotion } from '@/lib/motion';
 import { zoomRange } from '@/design/tokens';
@@ -109,7 +108,6 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
       if (e.key === 'Escape') {
         engine!.cancelConnectPick();
         engine!.setSelectedConnectionPair(null);
-        engine!.setSelectedFrameId(null);
         useLibraryStore.getState().clearSelection();
         return;
       }
@@ -117,15 +115,6 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
       if (e.key === 'Enter' && selection.length === 1) {
         e.preventDefault();
         useFocusStore.getState().open(selection[0]);
-        return;
-      }
-
-      // A selected frame (§2.11) — deletes the frame only, un-parenting its contents.
-      if ((e.key === 'Delete' || e.key === 'Backspace') && engine!.getSelectedFrameId()) {
-        e.preventDefault();
-        const frameId = engine!.getSelectedFrameId()!;
-        engine!.setSelectedFrameId(null);
-        void useHistoryStore.getState().execute(createDeleteFrameCommand(platform, frameId));
         return;
       }
 

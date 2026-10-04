@@ -142,8 +142,8 @@ export function createRenameBoardCommand(
   };
 }
 
-/** Deep-copies the board row plus its frames and placements (new ids throughout, frame ids in
- * placements remapped to the copies). Board-scoped notes/swatches are `items` rows of their own
+/** Deep-copies the board row plus its placements (frames are no longer a feature, Patch 2 · D2:
+ * old frame rows stay in the database, unused, and are not copied). Board-scoped notes/swatches are `items` rows of their own
  * (`origin_board_id`) — M4's later Notes sub-task should extend this to clone those items too;
  * until then a duplicated board carries over any image/video/etc. placements but not board-only
  * notes, logged in DECISIONS.md so it isn't mistaken for an oversight later. */
@@ -182,38 +182,8 @@ export function createDuplicateBoardCommand(
         ],
       );
 
-      const frameRows = await platform.db.select<{
-        id: string;
-        title: string;
-        x: number;
-        y: number;
-        w: number;
-        h: number;
-        z: number;
-      }>('SELECT id, title, x, y, w, h, z FROM frames WHERE board_id = ?', [boardId]);
-      const frameIdMap = new Map<string, string>();
       const statements: DbStatement[] = [];
       const now = new Date().toISOString();
-      for (const frame of frameRows) {
-        const newFrameId = newId();
-        frameIdMap.set(frame.id, newFrameId);
-        statements.push({
-          sql: 'INSERT INTO frames (id, board_id, title, x, y, w, h, z, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          params: [
-            newFrameId,
-            copy.id,
-            frame.title,
-            frame.x,
-            frame.y,
-            frame.w,
-            frame.h,
-            frame.z,
-            now,
-            now,
-          ],
-        });
-      }
-
       const placementRows = await platform.db.select<{
         item_id: string;
         x: number;
@@ -221,22 +191,11 @@ export function createDuplicateBoardCommand(
         w: number;
         h: number;
         z: number;
-        frame_id: string | null;
-      }>('SELECT item_id, x, y, w, h, z, frame_id FROM placements WHERE board_id = ?', [boardId]);
+      }>('SELECT item_id, x, y, w, h, z FROM placements WHERE board_id = ?', [boardId]);
       for (const p of placementRows) {
         statements.push({
-          sql: 'INSERT INTO placements (board_id, item_id, x, y, w, h, z, frame_id, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          params: [
-            copy.id,
-            p.item_id,
-            p.x,
-            p.y,
-            p.w,
-            p.h,
-            p.z,
-            p.frame_id ? (frameIdMap.get(p.frame_id) ?? null) : null,
-            now,
-          ],
+          sql: 'INSERT INTO placements (board_id, item_id, x, y, w, h, z, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          params: [copy.id, p.item_id, p.x, p.y, p.w, p.h, p.z, now],
         });
       }
 

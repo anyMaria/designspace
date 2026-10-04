@@ -6,8 +6,8 @@ import { type Rect, unionRects } from './geometry';
 export type ExportBackground = 'dots' | 'plum' | 'white';
 export type ExportScale = 1 | 2;
 
-/** Padding (world units) around the union of every card's rect when exporting a whole space
- * (a single frame exports exactly its own rect, no padding). */
+/** Padding (world units) around the union of the exported cards' rects (the whole space, or the
+ * selected items). */
 export const EXPORT_PADDING_WORLD = 48;
 
 /** The world-space rect a whole-space export renders — every card's bounding box, padded.

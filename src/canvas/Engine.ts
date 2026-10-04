@@ -46,8 +46,7 @@ import {
 import type { BenchRect } from '@/platform/seed/bench';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
-import { en } from '@/i18n/en';
-import type { ItemKind, Frame } from '@/state/types';
+import type { ItemKind } from '@/state/types';
 import { noteTextColor } from '@/design/tokens';
 import { exportRectForCards, type ExportBackground, type ExportScale } from '@/lib/exportGeometry';
 import { formatDuration } from '@/lib/formatDuration';
@@ -75,10 +74,6 @@ export interface ItemCard {
    * `setLibraryItems`). Also doubles as a video's "can't play this" fallback message (§2.4) when
    * its ingest failed — `null` for every other case. */
   noteText: string | null;
-  /** §2.11 — the frame this item's placement belongs to, if any (`placement.frameId`). Lets the
-   * frame-drag interaction move a frame's contents along with it without Engine needing to know
-   * about placements directly. */
-  frameId: string | null;
   /** §2.4 video duration badge — `null` until ingest reports it (or for every non-video kind). */
   durationMs: number | null;
   /** §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview" — the *original* file's URL
@@ -120,12 +115,6 @@ interface EngineEvents {
   connectDrop: (fromId: string, toId: string) => void;
   /** A manual-criterion line/edge was double-clicked — "Double-click a line to add a label". */
   connectionLineDblClick: (pair: { fromId: string; toId: string }) => void;
-  /** §2.11 frames — dragging the title moved it (and its contents) by this total delta; resizing
-   * the handle changed its rect; double-clicking the title asks for a rename. Each fires once, on
-   * release/double-click, not per pointermove — the drag itself is a live visual-only preview. */
-  frameMove: (frameId: string, dx: number, dy: number) => void;
-  frameResize: (frameId: string, rect: { x: number; y: number; w: number; h: number }) => void;
-  frameRenameRequest: (frameId: string) => void;
 }
 
 const LINE_WIDTH_PX = connectionLineStyle.width;
@@ -183,14 +172,6 @@ const VIDEO_BADGE_PADDING_WORLD = 10;
 // §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview" — the plan's own threshold.
 const VIDEO_HOVER_ZOOM_THRESHOLD = 0.6;
 
-// §2.11 frames — a dashed outline + a title label sitting just above the top-left corner (so it
-// never overlaps whatever's placed inside), drawn in world units like the note/swatch labels.
-const FRAME_LABEL_FONT_SIZE_WORLD = 16;
-const FRAME_LABEL_GAP_WORLD = 6;
-const FRAME_STROKE_WIDTH_WORLD = 2;
-const FRAME_COLOR = 0xffffff;
-const FRAME_RESIZE_HANDLE_SCREEN_PX = 10;
-
 /** Standard relative-luminance contrast pick — dark text on a light swatch, white text on a
  * dark one. Only swatches need this (see `syncNoteLabel`'s doc comment); notes' 5 colors are all
  * light enough that a fixed dark ink always works. */
@@ -235,15 +216,6 @@ export class Engine {
   /** A note's text is clipped to its paper by this mask (a child of its decor container). */
   private noteMasks = new Map<string, Graphics>();
 
-  // §2.11 frames.
-  private frames = new Map<string, Frame>();
-  private frameGraphics = new Map<string, Graphics>();
-  private frameLabels = new Map<string, Text>();
-  private frameHandles = new Map<string, Graphics>();
-  private selectedFrameId: string | null = null;
-  private frameDragOrigin: { x: number; y: number } | null = null;
-  private frameResizeOrigin: { x: number; y: number; w: number; h: number } | null = null;
-  private frameMoveMemberOrigins = new Map<string, { x: number; y: number }>();
   private itemIndex = new SpatialIndex();
   private itemVisible = new Set<string>();
   private textureManager: TextureManager<Texture> | null = null;
@@ -316,9 +288,6 @@ export class Engine {
     connectionLineHover: new Set(),
     connectDrop: new Set(),
     connectionLineDblClick: new Set(),
-    frameMove: new Set(),
-    frameResize: new Set(),
-    frameRenameRequest: new Set(),
   };
 
   on<K extends keyof EngineEvents>(event: K, handler: EngineEvents[K]): () => void {
@@ -516,7 +485,6 @@ export class Engine {
     const resolution = (window.devicePixelRatio || 1) * this.textResolutionStep;
     for (const label of this.noteLabels.values()) label.resolution = resolution;
     for (const badge of this.cornerBadges.values()) badge.resolution = resolution;
-    for (const label of this.frameLabels.values()) label.resolution = resolution;
     this.scheduleFrame();
   }
 
@@ -689,146 +657,6 @@ export class Engine {
       this.itemsLayer.addChild(badge);
       this.cornerBadges.set(card.id, badge);
     }
-  }
-
-  /** §2.11 frames — diffs against the previous set the same way `setLibraryItems` does for
-   * cards. Frame graphics/labels/handles live in `itemsLayer` (world-space, so they pan/zoom
-   * with the content they group) but at a large negative `zIndex` offset so they always render
-   * behind every item, even one explicitly "sent to back" (which only zeroes its own z). */
-  setFrames(frames: Frame[]): void {
-    if (!this.itemsLayer) return;
-    const next = new Map(frames.map((f) => [f.id, f]));
-
-    for (const [id, graphic] of this.frameGraphics) {
-      if (!next.has(id)) {
-        graphic.destroy();
-        this.frameGraphics.delete(id);
-        this.frameLabels.get(id)?.destroy();
-        this.frameLabels.delete(id);
-        this.frameHandles.get(id)?.destroy();
-        this.frameHandles.delete(id);
-        if (this.selectedFrameId === id) this.selectedFrameId = null;
-      }
-    }
-    this.frames = next;
-    for (const frame of frames) this.drawFrame(frame);
-    this.scheduleFrame();
-  }
-
-  private drawFrame(frame: Frame): void {
-    if (!this.itemsLayer) return;
-    const zIndex = frame.z - 1_000_000;
-    const selected = this.selectedFrameId === frame.id;
-
-    let graphic = this.frameGraphics.get(frame.id);
-    if (!graphic) {
-      graphic = new Graphics();
-      this.itemsLayer.addChild(graphic);
-      this.frameGraphics.set(frame.id, graphic);
-    }
-    graphic.clear();
-    graphic
-      .rect(frame.x, frame.y, frame.w, frame.h)
-      .stroke({ width: FRAME_STROKE_WIDTH_WORLD, color: FRAME_COLOR, alpha: selected ? 1 : 0.4 });
-    graphic.zIndex = zIndex;
-
-    let label = this.frameLabels.get(frame.id);
-    const labelY = frame.y - FRAME_LABEL_FONT_SIZE_WORLD - FRAME_LABEL_GAP_WORLD;
-    if (!label) {
-      label = new Text({
-        text: frame.title,
-        style: uiTextStyle({ fontSize: FRAME_LABEL_FONT_SIZE_WORLD, fill: FRAME_COLOR }),
-      });
-      label.eventMode = 'none'; // hit-tested manually (screen-space rect), not via Pixi events
-      this.itemsLayer.addChild(label);
-      this.frameLabels.set(frame.id, label);
-    }
-    label.text = frame.title || en.frames.untitled;
-    label.position.set(frame.x, labelY);
-    label.zIndex = zIndex + 0.5;
-    label.alpha = selected ? 1 : 0.7;
-
-    let handle = this.frameHandles.get(frame.id);
-    if (selected) {
-      if (!handle) {
-        handle = new Graphics();
-        this.itemsLayer.addChild(handle);
-        this.frameHandles.set(frame.id, handle);
-      }
-      const r = FRAME_RESIZE_HANDLE_SCREEN_PX / 2 / this.camera.zoom || 1;
-      handle.clear();
-      handle
-        .rect(frame.x + frame.w - r, frame.y + frame.h - r, r * 2, r * 2)
-        .fill({ color: FRAME_COLOR });
-      handle.zIndex = zIndex + 0.5;
-    } else if (handle) {
-      handle.destroy();
-      this.frameHandles.delete(frame.id);
-    }
-  }
-
-  getSelectedFrameId(): string | null {
-    return this.selectedFrameId;
-  }
-
-  setSelectedFrameId(id: string | null): void {
-    this.selectedFrameId = id;
-    for (const frame of this.frames.values()) this.drawFrame(frame);
-    this.scheduleFrame();
-  }
-
-  /** Screen-space rect of a frame's title label — used both to hit-test a click/drag on it and,
-   * live during a drag, to redraw it without waiting for a store round-trip. */
-  private frameTitleScreenRect(
-    frame: Frame,
-  ): { x: number; y: number; w: number; h: number } | null {
-    if (!this.app) return null;
-    const { width: vw, height: vh } = this.app.screen;
-    const worldY = frame.y - FRAME_LABEL_FONT_SIZE_WORLD - FRAME_LABEL_GAP_WORLD;
-    const topLeft = this.camera.worldToScreen(frame.x, worldY, vw, vh);
-    const label = this.frameLabels.get(frame.id);
-    const textWidth = label ? label.width : frame.w * this.camera.zoom;
-    return {
-      x: topLeft.x,
-      y: topLeft.y,
-      w: Math.max(textWidth, 40),
-      h: FRAME_LABEL_FONT_SIZE_WORLD * this.camera.zoom + FRAME_LABEL_GAP_WORLD,
-    };
-  }
-
-  private frameAtScreenPoint(
-    clientX: number,
-    clientY: number,
-    left: number,
-    top: number,
-  ): Frame | null {
-    const sx = clientX - left;
-    const sy = clientY - top;
-    for (const frame of this.frames.values()) {
-      const rect = this.frameTitleScreenRect(frame);
-      if (rect && sx >= rect.x && sx <= rect.x + rect.w && sy >= rect.y && sy <= rect.y + rect.h) {
-        return frame;
-      }
-    }
-    return null;
-  }
-
-  private frameResizeHandleAt(
-    clientX: number,
-    clientY: number,
-    left: number,
-    top: number,
-  ): Frame | null {
-    if (!this.app || !this.selectedFrameId) return null;
-    const frame = this.frames.get(this.selectedFrameId);
-    if (!frame) return null;
-    const { width: vw, height: vh } = this.app.screen;
-    const corner = this.camera.worldToScreen(frame.x + frame.w, frame.y + frame.h, vw, vh);
-    const sx = clientX - left;
-    const sy = clientY - top;
-    const hit = FRAME_RESIZE_HANDLE_SCREEN_PX;
-    if (Math.abs(sx - corner.x) <= hit && Math.abs(sy - corner.y) <= hit) return frame;
-    return null;
   }
 
   /** Search Dim/Hide (§2.8): `matches` null clears the filter (everything normal again); a Set
@@ -1004,14 +832,6 @@ export class Engine {
     this.itemIndex.clear();
     this.itemVisible.clear();
     this.textureManager?.destroy();
-    for (const graphic of this.frameGraphics.values()) graphic.destroy();
-    this.frameGraphics.clear();
-    for (const label of this.frameLabels.values()) label.destroy();
-    this.frameLabels.clear();
-    for (const handle of this.frameHandles.values()) handle.destroy();
-    this.frameHandles.clear();
-    this.frames.clear();
-    this.selectedFrameId = null;
   }
 
   // -------------------------------------------------------------------------------- Selection
@@ -1062,9 +882,7 @@ export class Engine {
   }
 
   private attachSelectionInput(container: HTMLElement, opts: EngineOptions): () => void {
-    let mode: 'idle' | 'marquee' | 'move' | 'resize' | 'connect' | 'frame-move' | 'frame-resize' =
-      'idle';
-    let frameDragTotal = { dx: 0, dy: 0 };
+    let mode: 'idle' | 'marquee' | 'move' | 'resize' | 'connect' = 'idle';
     let startWorld = { x: 0, y: 0 };
     let startScreen = { x: 0, y: 0 };
     let moved = false;
@@ -1133,39 +951,6 @@ export class Engine {
         }
       }
 
-      // The resize handle on the currently-selected frame?
-      {
-        const rect = container.getBoundingClientRect();
-        const frame = this.frameResizeHandleAt(e.clientX, e.clientY, rect.left, rect.top);
-        if (frame) {
-          mode = 'frame-resize';
-          this.frameResizeOrigin = { x: frame.x, y: frame.y, w: frame.w, h: frame.h };
-          container.setPointerCapture(e.pointerId);
-          return;
-        }
-      }
-
-      // A frame's title label — click selects it, drag moves it (and its contents).
-      {
-        const rect = container.getBoundingClientRect();
-        const frame = this.frameAtScreenPoint(e.clientX, e.clientY, rect.left, rect.top);
-        if (frame) {
-          this.setSelection([]);
-          this.emit('select', []);
-          this.setSelectedFrameId(frame.id);
-          mode = 'frame-move';
-          this.frameDragOrigin = { x: frame.x, y: frame.y };
-          frameDragTotal = { dx: 0, dy: 0 };
-          this.frameMoveMemberOrigins = new Map(
-            [...this.cards.values()]
-              .filter((c) => c.frameId === frame.id)
-              .map((c) => [c.id, { x: c.x, y: c.y }]),
-          );
-          container.setPointerCapture(e.pointerId);
-          return;
-        }
-      }
-
       // Resize handle on the current single-selection?
       if (this.selection.size === 1) {
         const id = [...this.selection][0];
@@ -1185,7 +970,6 @@ export class Engine {
       const hit = hitTest(this.interactableCards(), world);
       pressed = hit ? { id: hit.id, wasSelected: this.selection.has(hit.id) } : null;
       if (hit) {
-        if (this.selectedFrameId) this.setSelectedFrameId(null);
         if (!this.selection.has(hit.id)) {
           const additive = e.shiftKey;
           this.setSelection(additive ? [...this.selection, hit.id] : [hit.id]);
@@ -1209,7 +993,6 @@ export class Engine {
           this.emit('select', []);
         }
         this.setSelectedConnectionPair(null);
-        if (this.selectedFrameId) this.setSelectedFrameId(null);
         mode = 'marquee';
         // Capture is deferred to the first real move (below), not taken here: a plain click that
         // misses every item (e.g. on a connection line or hub star, which aren't `ItemCard`s and
@@ -1293,34 +1076,6 @@ export class Engine {
           this.syncNoteLabel(card);
           this.drawSelectionOverlay();
         }
-      } else if (mode === 'frame-move' && this.frameDragOrigin) {
-        const frame = this.selectedFrameId ? this.frames.get(this.selectedFrameId) : null;
-        if (frame) {
-          const worldDx = world.x - startWorld.x;
-          const worldDy = world.y - startWorld.y;
-          frameDragTotal = { dx: worldDx, dy: worldDy };
-          frame.x = this.frameDragOrigin.x + worldDx;
-          frame.y = this.frameDragOrigin.y + worldDy;
-          this.drawFrame(frame);
-          for (const [id, origin] of this.frameMoveMemberOrigins) {
-            const sprite = this.sprites.get(id);
-            const card = this.cards.get(id);
-            if (sprite && card) {
-              sprite.position.set(origin.x + worldDx, origin.y + worldDy);
-              card.x = origin.x + worldDx;
-              card.y = origin.y + worldDy;
-              this.syncNoteLabel(card);
-            }
-          }
-        }
-      } else if (mode === 'frame-resize' && this.frameResizeOrigin && this.selectedFrameId) {
-        const frame = this.frames.get(this.selectedFrameId);
-        if (frame) {
-          const o = this.frameResizeOrigin;
-          frame.w = Math.max(40, o.w + (world.x - startWorld.x));
-          frame.h = Math.max(40, o.h + (world.y - startWorld.y));
-          this.drawFrame(frame);
-        }
       }
     };
 
@@ -1356,27 +1111,12 @@ export class Engine {
         const hit = hitTest(this.interactableCards(), world);
         this.clearConnectDragLine();
         if (hit && hit.id !== connectFromId) this.emit('connectDrop', connectFromId, hit.id);
-      } else if (mode === 'frame-move' && moved && this.selectedFrameId) {
-        this.emit('frameMove', this.selectedFrameId, frameDragTotal.dx, frameDragTotal.dy);
-      } else if (mode === 'frame-resize' && moved && this.selectedFrameId) {
-        const frame = this.frames.get(this.selectedFrameId);
-        if (frame) {
-          this.emit('frameResize', this.selectedFrameId, {
-            x: frame.x,
-            y: frame.y,
-            w: frame.w,
-            h: frame.h,
-          });
-        }
       }
       mode = 'idle';
       resizeHandle = null;
       resizeTargetId = null;
       connectFromId = null;
       this.connecting = false;
-      this.frameDragOrigin = null;
-      this.frameResizeOrigin = null;
-      this.frameMoveMemberOrigins.clear();
       this.drawConnectHandle();
       moveOrigin.clear();
       container.releasePointerCapture(e.pointerId);
@@ -1384,11 +1124,6 @@ export class Engine {
 
     const onDblClick = (e: MouseEvent) => {
       const rect = container.getBoundingClientRect();
-      const frameHit = this.frameAtScreenPoint(e.clientX, e.clientY, rect.left, rect.top);
-      if (frameHit) {
-        this.emit('frameRenameRequest', frameHit.id);
-        return;
-      }
       const { w, h } = viewport();
       const world = this.camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top, w, h);
       const hit = hitTest(this.interactableCards(), world);
@@ -2033,14 +1768,14 @@ export class Engine {
 
   // ------------------------------------------------------------------------------- §2.11 Export
 
-  /** The world-space rect a PNG/PDF export renders: a single frame's own rect, or the padded
-   * bounding box of every card in the current space. `null` when there's nothing to export. */
-  getExportRect(frameId: string | null): Rect | null {
-    if (frameId) {
-      const frame = this.frames.get(frameId);
-      return frame ? { x: frame.x, y: frame.y, w: frame.w, h: frame.h } : null;
-    }
-    return exportRectForCards([...this.cards.values()]);
+  /** The world-space rect a PNG/PDF export renders: the padded bounding box of the cards with
+   * these ids, or of every card in the current space when `ids` is null. `null` when there's
+   * nothing to export. */
+  getExportRect(ids: string[] | null): Rect | null {
+    const cards = ids
+      ? ids.map((id) => this.cards.get(id)).filter((c): c is ItemCard => !!c)
+      : [...this.cards.values()];
+    return exportRectForCards(cards);
   }
 
   /** Renders `rect` (world space) to an off-screen canvas at `scale`× — the shared step behind
