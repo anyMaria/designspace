@@ -17,7 +17,7 @@ const VIEWER_LONG_SIDE = 1400;
  * here rather than built as a separate thumbnail-strip picker component. */
 export function PdfFocusViewer({ platform, item }: { platform: Platform; item: Item }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const handleRef = useRef<OpenPdfHandle | null>(null);
+  const [doc, setDoc] = useState<OpenPdfHandle['doc'] | null>(null);
   const [page, setPage] = useState(item.coverPage ?? 1);
   const [pageCount, setPageCount] = useState(item.pageCount ?? 1);
   const [busy, setBusy] = useState(false);
@@ -27,33 +27,37 @@ export function PdfFocusViewer({ platform, item }: { platform: Platform; item: I
   // the document once for this mount's lifetime.
   useEffect(() => {
     let cancelled = false;
+    let handle: OpenPdfHandle | null = null;
     void (async () => {
-      if (!item.filePath) return;
-      const res = await fetch(platform.media.originalUrl(item.filePath));
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
-      const bytes = await res.arrayBuffer();
-      const handle = await openPdfDocument(bytes);
-      if (cancelled) {
-        void handle.destroy();
-        return;
+      try {
+        if (!item.filePath) return;
+        const res = await fetch(platform.media.originalUrl(item.filePath));
+        if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
+        const opened = await openPdfDocument(await res.arrayBuffer());
+        if (cancelled) {
+          void opened.destroy();
+          return;
+        }
+        handle = opened;
+        setPageCount(opened.doc.numPages);
+        setDoc(opened.doc); // a state change, so the render effect runs
+      } catch (err) {
+        if (!cancelled) logger.warn('Opening a PDF failed', err);
       }
-      handleRef.current = handle;
-      setPageCount(handle.doc.numPages);
     })();
     return () => {
       cancelled = true;
-      void handleRef.current?.destroy();
-      handleRef.current = null;
+      void handle?.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per mount (one item per key)
   }, []);
 
   useEffect(() => {
+    if (!doc) return;
     let cancelled = false;
     void (async () => {
-      const doc = handleRef.current?.doc;
       const canvas = canvasRef.current;
-      if (!doc || !canvas) return;
+      if (!canvas) return;
       try {
         const rendered = await renderPdfPage(doc, page, VIEWER_LONG_SIDE);
         if (cancelled) return;
@@ -72,7 +76,7 @@ export function PdfFocusViewer({ platform, item }: { platform: Platform; item: I
     return () => {
       cancelled = true;
     };
-  }, [page, pageCount]);
+  }, [doc, page]);
 
   async function handleSetCover(): Promise<void> {
     if (!item.filePath || busy) return;
@@ -118,6 +122,7 @@ export function PdfFocusViewer({ platform, item }: { platform: Platform; item: I
     >
       <canvas
         ref={canvasRef}
+        data-testid="pdf-page-canvas"
         style={{
           maxWidth: '80vw',
           maxHeight: '68vh',

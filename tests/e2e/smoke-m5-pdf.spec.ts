@@ -34,6 +34,11 @@ test('importing a PDF shows a thumbnail once ingest finishes, and Focus view pag
 
   // Focus view's PDF page canvas plus its "Page 1 of 3" nav label.
   await expect(page.getByText('Page 1 of 3')).toBeVisible();
+  // The first page is drawn without paging (the canvas keeps its default 300 px width until then).
+  const pdfCanvas = page.getByTestId('pdf-page-canvas');
+  await expect
+    .poll(() => pdfCanvas.evaluate((c: HTMLCanvasElement) => c.width), { timeout: 5000 })
+    .not.toBe(300);
 
   await page.getByRole('button', { name: 'Next page' }).click();
   await expect(page.getByText('Page 2 of 3')).toBeVisible();

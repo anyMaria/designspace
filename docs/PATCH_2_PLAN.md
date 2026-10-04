@@ -360,7 +360,7 @@ the queue stuck.
 `load` again; `onerror` sets status `error`.
 **Owner checks:** Settings → AI says "Ready" (or "Analyzing 12 of 140"), and the AI suggestion chips appear in Details.
 
-### A7 · A PDF shows its first page when opened `[ ]`
+### A7 · A PDF shows its first page when opened `[x]`
 **Files:** `src/features/focus/PdfFocusViewer.tsx`, `tests/e2e/smoke-m5-pdf.spec.ts`.
 
 **Do**
