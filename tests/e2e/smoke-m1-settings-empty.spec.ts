@@ -32,11 +32,10 @@ test('empty-state + Add opens the add menu, and Settings Canvas/Library sections
   await page.getByRole('switch', { name: 'Minimap' }).click();
   await page.screenshot({ path: 'test-results/settings-canvas.png' });
 
-  // Settings -> Library: the browser build shows the "not available" note, and Trash still works.
+  // Settings -> Library: the browser build shows the "not available" note (the Trash moved out, C5).
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.waitForTimeout(200);
   await expect(page.getByText('Not available in the browser dev build')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Trash' })).toBeVisible();
   await page.screenshot({ path: 'test-results/settings-library.png' });
 
   // A short window must not cut Settings off: About stays reachable (Patch 2 · A9).

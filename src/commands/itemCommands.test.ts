@@ -3,6 +3,7 @@ import {
   createBulkSetItemFieldCommand,
   createMoveItemsCommand,
   createResizeItemCommand,
+  createRestoreItemCommand,
   createSetCropCommand,
   createSetItemFieldCommand,
   createStackOrderCommand,
@@ -332,5 +333,45 @@ describe('createTidyUpCommand', () => {
       w: 160,
       h: 480,
     });
+  });
+});
+
+describe('createRestoreItemCommand', () => {
+  it('restores the placement of the space that is open, not the first one found', async () => {
+    const select = vi.fn((sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM items')) {
+        return Promise.resolve([
+          {
+            id: 'item1',
+            kind: 'image',
+            title: 'T',
+            status: 'ok',
+            created_at: 'x',
+            updated_at: 'x',
+          },
+        ]);
+      }
+      return Promise.resolve([
+        {
+          board_id: params?.[1] ?? 'first',
+          item_id: 'item1',
+          x: 1,
+          y: 2,
+          w: 3,
+          h: 4,
+          z: 0,
+          added_at: 'x',
+        },
+      ]);
+    });
+    const platform = {
+      db: { select, execute: vi.fn().mockResolvedValue({ changes: 1 }) },
+    } as unknown as Platform;
+    await createRestoreItemCommand(platform, 'item1', 'board-b').do();
+    expect(select).toHaveBeenCalledWith(expect.stringContaining('AND board_id = ?'), [
+      'item1',
+      'board-b',
+    ]);
+    expect(useLibraryStore.getState().placements.get('item1')?.boardId).toBe('board-b');
   });
 });

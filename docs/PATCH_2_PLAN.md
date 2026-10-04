@@ -743,7 +743,7 @@ the right edge is the blue-green background, not orange).
 pictures only. e2e (`smoke-m4-boards-gallery`, extend): open the menu → the current space has a check; New board → type
 "Moodboard" → Enter → the space switcher shows "Moodboard"; click the dock while the menu is open → the menu closes.
 
-### C5 · The Trash screen `[ ]`
+### C5 · The Trash screen `[x]`
 **Files:** new `src/features/trash/TrashView.tsx`, `src/state/boardUiStore.ts` (or a new `trashUiStore.ts`),
 `src/features/trash/trashActions.ts` (+ test), delete `src/features/trash/TrashSection.tsx`,
 `src/features/settings/LibrarySection.tsx`, `src/state/toastStore.ts`, `src/design/components/Toast.tsx`,

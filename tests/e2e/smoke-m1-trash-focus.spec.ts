@@ -30,16 +30,18 @@ test('trash + restore + Focus view all work against the seeded demo library', as
   await page.waitForTimeout(300);
   await expect(page.getByText('Moved to Trash')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByRole('button', { name: 'Library' }).click();
-  await page.waitForTimeout(300);
-  await expect(page.getByRole('heading', { name: 'Trash' })).toBeVisible();
-  await page.screenshot({ path: 'test-results/trash-section.png' });
-  await expect(page.getByRole('button', { name: 'Restore' })).toBeVisible();
-
-  await page.getByRole('button', { name: 'Restore' }).click();
-  await page.waitForTimeout(300);
-  await expect(page.getByText('Trash is empty.')).toBeVisible();
+  // The toast offers "Open Trash": the Trash screen lists the item, and Restore brings it back.
+  await page.getByRole('button', { name: 'Open Trash' }).click();
+  const trash = page.getByRole('dialog', { name: 'Trash' });
+  await expect(trash).toBeVisible();
+  await page.screenshot({ path: 'test-results/trash-view.png' });
+  await expect(trash.getByTestId('trash-tile')).toHaveCount(1);
+  await trash.getByTestId('trash-tile').click();
+  await expect(trash.getByText('1 selected')).toBeVisible();
+  await trash.getByRole('button', { name: 'Restore' }).first().click();
+  await expect(trash.getByText('Trash is empty.')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(trash).toBeHidden();
 
   expect(errors, errors.join('\n')).toEqual([]);
 });

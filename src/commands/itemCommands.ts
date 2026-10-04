@@ -260,15 +260,22 @@ export function createTrashCommand(platform: Platform, ids: string[]): Command {
  * in your library · Restore" toast for a duplicate found in the Trash). Re-reads the row from the
  * DB rather than the store — unlike `createTrashCommand`, which only ever acts on items the owner
  * already has selected, and so already loaded. */
-export function createRestoreItemCommand(platform: Platform, id: string): Command {
+export function createRestoreItemCommand(
+  platform: Platform,
+  id: string,
+  boardId: string | null = null,
+): Command {
   async function setDeleted(deletedAt: string | null): Promise<void> {
     await platform.db.execute('UPDATE items SET deleted_at = ? WHERE id = ?', [deletedAt, id]);
     if (deletedAt === null) {
       const [itemRow] = await platform.db.select<DbRow>('SELECT * FROM items WHERE id = ?', [id]);
-      const [placementRow] = await platform.db.select<DbRow>(
-        'SELECT * FROM placements WHERE item_id = ?',
-        [id],
-      );
+      // The placement on the space that is open (a restored item may sit on several boards).
+      const [placementRow] = boardId
+        ? await platform.db.select<DbRow>(
+            'SELECT * FROM placements WHERE item_id = ? AND board_id = ?',
+            [id, boardId],
+          )
+        : await platform.db.select<DbRow>('SELECT * FROM placements WHERE item_id = ?', [id]);
       if (itemRow) useLibraryStore.getState().upsertItem(rowToItem(itemRow));
       if (placementRow) useLibraryStore.getState().upsertPlacement(rowToPlacement(placementRow));
     } else {

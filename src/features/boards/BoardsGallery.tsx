@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { X, Pencil, Copy, Trash2, RotateCcw, Check } from 'lucide-react';
+import { X, Pencil, Copy, Trash2, Check } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import { useBoardStore } from '@/state/boardStore';
 import { useBoardUiStore } from '@/state/boardUiStore';
@@ -9,7 +9,6 @@ import {
   createRenameBoardCommand,
   createDuplicateBoardCommand,
   createDeleteBoardCommand,
-  createRestoreBoardCommand,
 } from '@/commands/boardCommands';
 import { useToastStore } from '@/state/toastStore';
 import { switchSpace } from './switchSpace';
@@ -37,14 +36,6 @@ export function BoardsGallery({ platform }: { platform: Platform }) {
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     [boards],
   );
-  const trashedBoards = useMemo(
-    () =>
-      [...boards.values()]
-        .filter((b) => b.kind === 'board' && b.deletedAt)
-        .sort((a, b) => (b.deletedAt ?? '').localeCompare(a.deletedAt ?? '')),
-    [boards],
-  );
-
   // Not while typing: the rename field keeps its own Esc.
   useEscape(galleryOpen, () => useBoardUiStore.getState().closeGallery());
 
@@ -87,11 +78,6 @@ export function BoardsGallery({ platform }: { platform: Platform }) {
       actionLabel: en.boards.restore,
       onAction: () => void useHistoryStore.getState().undo(),
     });
-  }
-
-  async function handleRestore(board: Board): Promise<void> {
-    await useHistoryStore.getState().execute(createRestoreBoardCommand(platform, board.id));
-    useToastStore.getState().show(en.boards.restoredBoard(board.name));
   }
 
   function openBoard(board: Board): void {
@@ -231,49 +217,6 @@ export function BoardsGallery({ platform }: { platform: Platform }) {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {trashedBoards.length > 0 && (
-        <div style={{ marginTop: 'var(--space-6)' }}>
-          <h2
-            className="font-display"
-            style={{ fontSize: 'var(--text-md)', color: 'var(--text-2)' }}
-          >
-            {en.boards.trash}
-          </h2>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-              gap: 'var(--space-4)',
-            }}
-          >
-            {trashedBoards.map((board) => (
-              <div
-                key={board.id}
-                className="ds-panel"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 'var(--space-2) var(--space-3)',
-                  opacity: 0.7,
-                }}
-              >
-                <span
-                  style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
-                >
-                  {board.name}
-                </span>
-                <IconButton
-                  icon={<RotateCcw size={16} strokeWidth={1.75} />}
-                  label={en.boards.restore}
-                  onClick={() => void handleRestore(board)}
-                />
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>

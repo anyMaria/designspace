@@ -44,6 +44,15 @@ export function ToastHost() {
                 }
               : undefined
           }
+          secondaryLabel={t.secondaryLabel}
+          onSecondary={
+            t.onSecondary
+              ? () => {
+                  t.onSecondary?.();
+                  dismiss(t.id);
+                }
+              : undefined
+          }
         />
       ))}
     </div>

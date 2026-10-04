@@ -21,6 +21,7 @@ import { openInboxTriage } from '@/features/triage/openInboxTriage';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
 import { isTypingTarget } from '@/lib/isTypingTarget';
+import { showTrashToast } from '@/features/trash/trashToast';
 import { escapeStack } from '@/app/escapeStack';
 
 /** Selection/stacking/trash/nudge/Rediscover/Favorite/Inbox-triage shortcuts that need the
@@ -184,14 +185,7 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
           .getState()
           .execute(createTrashCommand(platform, selection))
           .then(() => {
-            useToastStore
-              .getState()
-              .show(
-                selection.length > 1
-                  ? `Moved ${selection.length} items to Trash`
-                  : 'Moved to Trash',
-                { onAction: () => void useHistoryStore.getState().undo() },
-              );
+            showTrashToast(selection.length, () => void useHistoryStore.getState().undo());
           });
         return;
       }

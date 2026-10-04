@@ -1,3 +1,4 @@
+import { showTrashToast } from '@/features/trash/trashToast';
 import { thumbUrl } from '@/lib/thumbs';
 import { useMemo, useState, type ReactNode } from 'react';
 import type { Platform } from '@/platform/types';
@@ -10,7 +11,6 @@ import {
   createBulkRemoveTermCommand,
   createBulkSetTypeCommand,
 } from '@/commands/itemTermCommands';
-import { useToastStore } from '@/state/toastStore';
 import { Chip, Button } from '@/design/components';
 import { isMediaKind } from '@/lib/itemKinds';
 import { en } from '@/i18n/en';
@@ -128,10 +128,7 @@ export function BulkDetailsPanel({
       .getState()
       .execute(createTrashCommand(platform, allIds))
       .then(() => {
-        useToastStore.getState().show(`Moved ${allIds.length} items to Trash`, {
-          actionLabel: en.toasts.undo,
-          onAction: () => void useHistoryStore.getState().undo(),
-        });
+        showTrashToast(allIds.length, () => void useHistoryStore.getState().undo());
       });
   }
 

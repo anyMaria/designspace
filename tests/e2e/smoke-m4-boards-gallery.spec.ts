@@ -55,15 +55,21 @@ test('the space switcher creates a board, and the gallery renames/duplicates/del
   await renamed.getByRole('button', { name: 'Duplicate' }).click();
   await expect(page.locator('.ds-panel', { hasText: 'Mood: Autumn copy' })).toBeVisible();
 
-  // Delete the copy — it moves to the Trash section (still visible there, minus its Rename/
-  // Duplicate/Delete actions) — then restore it, which moves it back to the active grid.
+  // Delete the copy — it leaves the gallery (it is in the Trash now). Restore it from the Trash
+  // screen (Library menu → Trash), then it is back in the gallery's grid.
   const copyCard = page.locator('.ds-panel', { hasText: 'Mood: Autumn copy' }).first();
   await copyCard.getByRole('button', { name: 'Delete' }).click();
-  await expect(page.getByRole('heading', { name: 'Trash' })).toBeVisible();
-  const trashedCopy = page.locator('.ds-panel', { hasText: 'Mood: Autumn copy' }).first();
-  await expect(trashedCopy.getByRole('button', { name: 'Delete' })).toHaveCount(0);
-  await trashedCopy.getByRole('button', { name: 'Restore' }).click();
-  await expect(page.getByRole('heading', { name: 'Trash' })).toBeHidden();
+  await expect(page.locator('.ds-panel', { hasText: 'Mood: Autumn copy' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close' }).click();
+  await switcher.click();
+  await page.getByRole('menuitem', { name: /^Trash/ }).click();
+  const trash = page.getByRole('dialog', { name: 'Trash' });
+  await expect(trash.getByText('Mood: Autumn copy')).toBeVisible();
+  await trash.getByRole('button', { name: 'Restore' }).click();
+  await page.keyboard.press('Escape');
+  await expect(trash).toBeHidden();
+  await switcher.click();
+  await page.getByRole('menuitem', { name: 'All boards…' }).click();
   await expect(
     page.locator('.ds-panel', { hasText: 'Mood: Autumn copy' }).getByRole('button', {
       name: 'Delete',

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Popover, Menu } from '@/design/components';
 import { placeMenu } from '@/lib/placeMenu';
+import { showTrashToast } from '@/features/trash/trashToast';
 import { isCropped, resetCropRect } from './coverCrop';
 import { useCropUiStore } from '@/state/cropUiStore';
 import type { Engine } from './Engine';
@@ -244,12 +245,7 @@ export function ContextMenu({
       .getState()
       .execute(createTrashCommand(platform, ids))
       .then(() => {
-        useToastStore
-          .getState()
-          .show(ids.length > 1 ? `Moved ${ids.length} items to Trash` : 'Moved to Trash', {
-            actionLabel: en.toasts.undo,
-            onAction: () => void useHistoryStore.getState().undo(),
-          });
+        showTrashToast(ids.length, () => void useHistoryStore.getState().undo());
       });
   }
 

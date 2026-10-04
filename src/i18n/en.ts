@@ -350,6 +350,8 @@ export const en = {
     details: 'Details',
   },
   toasts: {
+    movedToTrash: (n: number) => (n === 1 ? 'Moved to Trash' : `Moved ${n} items to Trash`),
+    openTrash: 'Open Trash',
     undo: 'Undo',
     show: 'Show',
     restore: 'Restore',
@@ -434,6 +436,16 @@ export const en = {
   },
   trash: {
     title: 'Trash',
+    counts: (items: number, boards: number) =>
+      `${items} item${items === 1 ? '' : 's'} · ${boards} board${boards === 1 ? '' : 's'}`,
+    help: 'Things stay here for 30 days, then they\'re deleted. "Delete forever" moves the original files to the Windows Recycle Bin.',
+    selected: (n: number) => `${n} selected`,
+    selectAll: 'Select all',
+    emptyTrash: 'Empty trash…',
+    deletedWhen: (when: string) => `deleted ${when}`,
+    newestFirst: 'Newest first',
+    oldestFirst: 'Oldest first',
+    boardsHeading: 'Boards in the Trash',
     empty: 'Trash is empty.',
     emptyNow: 'Empty now',
     emptyNowConfirm: (count: number) =>
