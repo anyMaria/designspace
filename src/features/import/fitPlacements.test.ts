@@ -34,7 +34,10 @@ function placement(overrides: Partial<Placement> = {}): Placement {
     h: PLACEHOLDER_SIZE,
     z: 0,
     frameId: null,
+    cropX: null,
+    cropY: null,
     addedAt: '2026-01-01T00:00:00.000Z',
+    parentId: null,
     ...overrides,
   };
 }

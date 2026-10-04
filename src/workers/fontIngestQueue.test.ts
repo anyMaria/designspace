@@ -26,7 +26,22 @@ function makePlatform(): Platform {
       listFolder: vi.fn(),
     },
     db: {
-      select: vi.fn().mockResolvedValue([]),
+      select: vi.fn().mockImplementation((sql: string) =>
+        Promise.resolve(
+          sql.includes('font_files')
+            ? [
+                {
+                  id: 'file-1',
+                  item_id: 'f1',
+                  file_path: 'media/f1.ttf',
+                  file_name: 'f1.ttf',
+                  file_hash: 'h',
+                  created_at: 'x',
+                },
+              ]
+            : [],
+        ),
+      ),
       execute: vi.fn().mockResolvedValue({ changes: 1 }),
       batch: vi.fn().mockResolvedValue(undefined),
     },
@@ -49,8 +64,14 @@ function makeDerivatives(overrides: Partial<FontDerivatives> = {}): FontDerivati
     license: 'OFL',
     glyphCount: 230,
     variableAxes: [],
+    styleName: 'Regular',
+    weight: 400,
+    italic: false,
+    instances: null,
+    vendorId: null,
     t128: new ArrayBuffer(4),
     t512: new ArrayBuffer(4),
+    trow: new ArrayBuffer(4),
     ...overrides,
   };
 }
@@ -70,7 +91,7 @@ describe('FontIngestQueue', () => {
     const platform = makePlatform();
     const queue = new FontIngestQueue(platform);
 
-    queue.enqueue([{ itemId: 'f1', relPath: 'media/f1.woff2' }]);
+    queue.enqueue([{ itemId: 'f1' }]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -121,7 +142,7 @@ describe('FontIngestQueue', () => {
     });
     const queue = new FontIngestQueue(platform);
 
-    queue.enqueue([{ itemId: 'f1', relPath: 'media/f1.ttf' }]);
+    queue.enqueue([{ itemId: 'f1' }]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -142,10 +163,7 @@ describe('FontIngestQueue', () => {
     const platform = makePlatform();
     const queue = new FontIngestQueue(platform);
 
-    queue.enqueue([
-      { itemId: 'a', relPath: 'media/a.ttf' },
-      { itemId: 'b', relPath: 'media/b.ttf' },
-    ]);
+    queue.enqueue([{ itemId: 'a' }, { itemId: 'b' }]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -160,7 +178,7 @@ describe('FontIngestQueue', () => {
     const platform = makePlatform();
     const queue = new FontIngestQueue(platform);
 
-    queue.enqueue([{ itemId: 'f1', relPath: 'media/f1.bin' }]);
+    queue.enqueue([{ itemId: 'f1' }]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 

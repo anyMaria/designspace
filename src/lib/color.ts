@@ -4,6 +4,7 @@
  * result's families feed `colorFamily`/`weightedColorFamilies` for the Color filter and hubs.
  */
 import { converter, formatHex } from 'culori';
+import { noteTextColor } from '@/design/tokens';
 
 const toOklab = converter('oklab');
 const toOklch = converter('oklch');
@@ -191,4 +192,15 @@ export function weightedColorFamilies(palette: PaletteEntry[], threshold = 0.15)
     .filter(([, weight]) => weight >= threshold)
     .sort((a, b) => b[1] - a[1])
     .map(([family]) => family);
+}
+
+/** Standard relative-luminance contrast pick — dark text on a light swatch, white text on a
+ * dark one. Only swatches need this (notes' colours are all light enough that a fixed dark ink
+ * always works). */
+export function readableTextColor(packedColor: number): number {
+  const r = (packedColor >> 16) & 0xff;
+  const g = (packedColor >> 8) & 0xff;
+  const b = packedColor & 0xff;
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? noteTextColor : 0xffffff;
 }

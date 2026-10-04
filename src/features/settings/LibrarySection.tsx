@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Platform, LibraryInfo, BackupInfo } from '@/platform';
 import { Button } from '@/design/components';
-import { TrashSection } from '@/features/trash/TrashSection';
 import { useToastStore } from '@/state/toastStore';
 import { useSettingsStore } from '@/state/settingsStore';
 import { setBackupExtraDestination } from '@/state/loadSettings';
@@ -220,8 +219,6 @@ export function LibrarySection({
           {en.settings.library.notAvailableInBrowser}
         </p>
       )}
-
-      <TrashSection platform={platform} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { setFullscreen, toggleFullscreen } from './fullscreen';
+import { setFullscreen, toggleFullscreen, watchFullscreen } from './fullscreen';
 import { useUiStore } from '@/state/uiStore';
 import type { Platform } from '@/platform';
 
@@ -25,6 +25,23 @@ describe('fullscreen', () => {
     expect(useUiStore.getState().fullscreen).toBe(true);
     await toggleFullscreen(platform);
     expect(win.setFullscreen).toHaveBeenLastCalledWith(false);
+    expect(useUiStore.getState().fullscreen).toBe(false);
+  });
+
+  it('follows the window when it leaves full screen on its own', () => {
+    let listener: (on: boolean) => void = () => undefined;
+    const platform = {
+      window: {
+        onFullscreenChange: (cb: (on: boolean) => void) => {
+          listener = cb;
+          return () => undefined;
+        },
+      },
+    } as unknown as Platform;
+    watchFullscreen(platform);
+    listener(true);
+    expect(useUiStore.getState().fullscreen).toBe(true);
+    listener(false);
     expect(useUiStore.getState().fullscreen).toBe(false);
   });
 

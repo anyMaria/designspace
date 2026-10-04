@@ -17,11 +17,15 @@ import {
   createSetItemTypeCommand,
 } from '@/commands/itemTermCommands';
 import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
-import { ChipInput, Swatch, Toggle, Button, IconButton } from '@/design/components';
+import { FontCardSection } from './FontCardSection';
+import { isFontCollection } from '@/lib/fontFamily';
+import { openFromPhoto } from '@/features/colorStudio/openStudio';
+import { TermCombobox, Swatch, Toggle, Button, IconButton } from '@/design/components';
+import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
 import { formatBytes } from '@/lib/formatBytes';
 import { formatDuration } from '@/lib/formatDuration';
 import { findSimilarItemIds } from '@/lib/ai/findSimilar';
-import { isMediaKind } from '@/lib/itemKinds';
+import { isMediaItem } from '@/lib/itemKinds';
 import { useDescriptionStore } from '@/state/descriptionStore';
 import { en } from '@/i18n/en';
 import { SuggestionsSection } from '@/features/ai/SuggestionsSection';
@@ -45,12 +49,9 @@ export function DetailsPanel({
     () => [...terms.values()].filter((t) => t.facet === 'type').sort((a, b) => a.sort - b.sort),
     [terms],
   );
-  const vibeTerms = useMemo(() => [...terms.values()].filter((t) => t.facet === 'vibe'), [terms]);
-  const movementTerms = useMemo(
-    () => [...terms.values()].filter((t) => t.facet === 'movement'),
-    [terms],
-  );
-  const tagTerms = useMemo(() => [...terms.values()].filter((t) => t.facet === 'tag'), [terms]);
+  const vibeOptions = useTermOptions('vibe');
+  const movementOptions = useTermOptions('movement');
+  const tagOptions = useTermOptions('tag');
 
   const allItemTerms = useTermStore((s) => s.itemTerms);
   const usageCounts = useMemo(() => {
@@ -194,7 +195,11 @@ export function DetailsPanel({
         onBlur={(e) => setField('title', e.target.value)}
       />
 
-      {isMediaKind(item.kind) && (
+      {item.kind === 'font' && !isFontCollection(item) && (
+        <FontCardSection platform={platform} item={item} />
+      )}
+
+      {isMediaItem(item) && (
         <Field label={en.description.field}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             <p
@@ -249,30 +254,39 @@ export function DetailsPanel({
       </Field>
 
       <Field label={en.vocabulary.facets.vibe}>
-        <ChipInput
+        <TermCombobox
+          label={en.vocabulary.facets.vibe}
           values={vibeValues}
+          options={vibeOptions}
           onAdd={(v) => addTerm('vibe', v)}
           onRemove={(v) => removeTerm('vibe', v)}
           placeholder={en.details.vibePlaceholder}
-          suggestions={vibeTerms.map((t) => t.name)}
+          dotColor={FACET_DOT.vibe}
+          newWordLabel={FACET_NEW_WORD.vibe}
         />
       </Field>
       <Field label={en.vocabulary.facets.movement}>
-        <ChipInput
+        <TermCombobox
+          label={en.vocabulary.facets.movement}
           values={movementValues}
+          options={movementOptions}
           onAdd={(v) => addTerm('movement', v)}
           onRemove={(v) => removeTerm('movement', v)}
           placeholder={en.details.movementPlaceholder}
-          suggestions={movementTerms.map((t) => t.name)}
+          dotColor={FACET_DOT.movement}
+          newWordLabel={FACET_NEW_WORD.movement}
         />
       </Field>
       <Field label={en.vocabulary.facets.tag}>
-        <ChipInput
+        <TermCombobox
+          label={en.vocabulary.facets.tag}
           values={tagValues}
+          options={tagOptions}
           onAdd={(v) => addTerm('tag', v)}
           onRemove={(v) => removeTerm('tag', v)}
           placeholder={en.details.tagsPlaceholder}
-          suggestions={tagTerms.map((t) => t.name)}
+          dotColor={FACET_DOT.tag}
+          newWordLabel={FACET_NEW_WORD.tag}
         />
       </Field>
 
@@ -319,6 +333,15 @@ export function DetailsPanel({
               <Swatch key={p.hex} hex={p.hex} />
             ))}
           </div>
+          {item.kind === 'image' && (
+            <Button
+              variant="secondary"
+              style={{ marginTop: 'var(--space-2)' }}
+              onClick={() => openFromPhoto(item)}
+            >
+              {en.colorStudio.makePalette}
+            </Button>
+          )}
         </Field>
       )}
 

@@ -51,12 +51,34 @@ describe('deleteForever', () => {
     await deleteForever(platform, ['a']);
 
     expect(platform.media.purge).toHaveBeenCalledWith(['media/2026/01/a.jpg']);
-    expect(platform.cache.delete).toHaveBeenCalledWith(['t128/a', 't512/a']);
+    expect(platform.cache.delete).toHaveBeenCalledWith(['t128/a', 't512/a', 'trow/a']);
     const batchCalls = vi.mocked(platform.db.batch).mock.calls;
     expect(batchCalls).toHaveLength(1);
     const statements = batchCalls[0][0];
     expect(statements.some((s) => s.sql.includes('DELETE FROM placements'))).toBe(true);
     expect(statements.some((s) => s.sql.includes('DELETE FROM items'))).toBe(true);
+  });
+
+  it('purges every file of a font family (Patch 2 · F3)', async () => {
+    const platform = makePlatform({
+      db: {
+        ...makePlatform().db,
+        select: vi
+          .fn()
+          .mockImplementation((sql: string) =>
+            Promise.resolve(
+              sql.includes('font_files')
+                ? [{ file_path: 'media/f-regular.ttf' }, { file_path: 'media/f-italic.ttf' }]
+                : [{ id: 'fam', file_path: 'media/f-regular.ttf' }],
+            ),
+          ),
+      },
+    });
+    await deleteForever(platform, ['fam']);
+    expect(platform.media.purge).toHaveBeenCalledWith([
+      'media/f-regular.ttf',
+      'media/f-italic.ttf',
+    ]);
   });
 
   it('does nothing for an empty id list', async () => {
@@ -90,7 +112,8 @@ describe('purgeExpiredTrash', () => {
     const select = vi
       .fn()
       .mockResolvedValueOnce([{ id: 'old-1' }]) // the cutoff query
-      .mockResolvedValueOnce([]); // deleteForever's own file_path lookup
+      .mockResolvedValueOnce([]) // deleteForever's own file_path lookup
+      .mockResolvedValueOnce([]); // and its font_files lookup
     const platform = makePlatform({ db: { ...makePlatform().db, select } });
 
     await purgeExpiredTrash(platform);

@@ -5,6 +5,7 @@ import { justifiedRows } from '@/lib/packing';
 import { unionRects } from '@/lib/geometry';
 import type { Command } from './types';
 import type { Item } from '@/state/types';
+import { applyFreeMembers, planFreeMembers } from './fontCollectionCommands';
 
 /** Drags and resizes only update the engine while moving and commit one command on pointer-up
  * — §4.11. All three commands below follow the same do/undo shape: snapshot the previous
@@ -31,7 +32,27 @@ function applyPositions(platform: Platform, updates: PositionUpdate[]): Promise<
   return platform.db.batch(statements);
 }
 
-export function createMoveItemsCommand(platform: Platform, updates: PositionUpdate[]): Command {
+/** A collection moves with its families: add each member of a moved collection (same shift). */
+function withCollectionMembers(updates: PositionUpdate[]): PositionUpdate[] {
+  const { items, placements } = useLibraryStore.getState();
+  const have = new Set(updates.map((u) => u.id));
+  const out = [...updates];
+  for (const u of updates) {
+    const ids = items.get(u.id)?.fontCollection?.ids;
+    const from = placements.get(u.id);
+    if (!ids || !from) continue;
+    for (const memberId of ids) {
+      const m = placements.get(memberId);
+      if (!m || have.has(memberId) || m.parentId !== u.id) continue;
+      have.add(memberId);
+      out.push({ id: memberId, x: m.x + (u.x - from.x), y: m.y + (u.y - from.y) });
+    }
+  }
+  return out;
+}
+
+export function createMoveItemsCommand(platform: Platform, requested: PositionUpdate[]): Command {
+  const updates = withCollectionMembers(requested);
   const previous: PositionUpdate[] = updates.map((u) => {
     const p = useLibraryStore.getState().placements.get(u.id);
     return { id: u.id, x: p?.x ?? u.x, y: p?.y ?? u.y };
@@ -49,12 +70,34 @@ interface ResizeUpdate {
   y: number;
   w: number;
   h: number;
+  /** Only present when the resize also marks the picture as cropped (Patch 2 · C3); undo restores
+   * the previous focus. */
+  cropX?: number | null;
+  cropY?: number | null;
 }
 
 async function applyResize(platform: Platform, update: ResizeUpdate): Promise<void> {
   const placement = useLibraryStore.getState().placements.get(update.id);
   if (!placement) return;
-  useLibraryStore.getState().upsertPlacement({ ...placement, ...update });
+  const withCrop = update.cropX !== undefined || update.cropY !== undefined;
+  const cropX = update.cropX === undefined ? placement.cropX : update.cropX;
+  const cropY = update.cropY === undefined ? placement.cropY : update.cropY;
+  useLibraryStore.getState().upsertPlacement({
+    ...placement,
+    x: update.x,
+    y: update.y,
+    w: update.w,
+    h: update.h,
+    cropX,
+    cropY,
+  });
+  if (withCrop) {
+    await platform.db.execute(
+      'UPDATE placements SET x = ?, y = ?, w = ?, h = ?, crop_x = ?, crop_y = ? WHERE board_id = ? AND item_id = ?',
+      [update.x, update.y, update.w, update.h, cropX, cropY, placement.boardId, update.id],
+    );
+    return;
+  }
   await platform.db.execute(
     'UPDATE placements SET x = ?, y = ?, w = ?, h = ? WHERE board_id = ? AND item_id = ?',
     [update.x, update.y, update.w, update.h, placement.boardId, update.id],
@@ -64,12 +107,65 @@ async function applyResize(platform: Platform, update: ResizeUpdate): Promise<vo
 export function createResizeItemCommand(platform: Platform, update: ResizeUpdate): Command {
   const existing = useLibraryStore.getState().placements.get(update.id);
   const previous: ResizeUpdate = existing
-    ? { id: update.id, x: existing.x, y: existing.y, w: existing.w, h: existing.h }
+    ? {
+        id: update.id,
+        x: existing.x,
+        y: existing.y,
+        w: existing.w,
+        h: existing.h,
+        ...(update.cropX !== undefined || update.cropY !== undefined
+          ? { cropX: existing.cropX, cropY: existing.cropY }
+          : {}),
+      }
     : update;
   return {
     label: 'Resize',
     do: () => applyResize(platform, update),
     undo: () => applyResize(platform, previous),
+  };
+}
+
+interface CropState {
+  cropX: number | null;
+  cropY: number | null;
+  /** The card's rect, when the change also reshapes it ("Reset crop"). */
+  rect?: { x: number; y: number; w: number; h: number };
+}
+
+async function applyCrop(platform: Platform, itemId: string, state: CropState): Promise<void> {
+  const placement = useLibraryStore.getState().placements.get(itemId);
+  if (!placement) return;
+  const rect = state.rect ?? { x: placement.x, y: placement.y, w: placement.w, h: placement.h };
+  useLibraryStore.getState().upsertPlacement({
+    ...placement,
+    ...rect,
+    cropX: state.cropX,
+    cropY: state.cropY,
+  });
+  await platform.db.execute(
+    'UPDATE placements SET x = ?, y = ?, w = ?, h = ?, crop_x = ?, crop_y = ? WHERE board_id = ? AND item_id = ?',
+    [rect.x, rect.y, rect.w, rect.h, state.cropX, state.cropY, placement.boardId, itemId],
+  );
+}
+
+/** "Adjust crop" / "Reset crop" (Patch 2 · C3): sets the crop focus (and, for a reset, the card's
+ * rect) of one placement. Undo restores the previous focus and rect. */
+export function createSetCropCommand(
+  platform: Platform,
+  itemId: string,
+  next: CropState,
+  label = 'Adjust crop',
+): Command {
+  const p = useLibraryStore.getState().placements.get(itemId);
+  const previous: CropState = {
+    cropX: p?.cropX ?? null,
+    cropY: p?.cropY ?? null,
+    ...(next.rect && p ? { rect: { x: p.x, y: p.y, w: p.w, h: p.h } } : {}),
+  };
+  return {
+    label,
+    do: () => applyCrop(platform, itemId, next),
+    undo: () => applyCrop(platform, itemId, previous),
   };
 }
 
@@ -155,6 +251,10 @@ export function createStackOrderCommand(
  * as they were and undo/restore is exact. On the Library map, Delete/Backspace always trashes
  * (§2.2) — "Remove from board" without trashing is a Board-only distinction that lands in M4. */
 export function createTrashCommand(platform: Platform, ids: string[]): Command {
+  // Trashing a type collection frees its families (a column under it), and undo re-attaches them.
+  const freeing = planFreeMembers(
+    ids.filter((id) => !!useLibraryStore.getState().items.get(id)?.fontCollection),
+  );
   async function setDeleted(deletedAt: string | null): Promise<void> {
     const statements = [];
     for (const id of ids) {
@@ -172,12 +272,16 @@ export function createTrashCommand(platform: Platform, ids: string[]): Command {
   return {
     label: ids.length > 1 ? `Move ${ids.length} items to Trash` : 'Move to Trash',
     do: async () => {
+      await applyFreeMembers(platform, freeing, 'after');
       await setDeleted(new Date().toISOString());
       // Trashed items leave the selection (undo doesn't restore it; nothing else does either).
       const { selection, setSelection } = useLibraryStore.getState();
       setSelection([...selection].filter((id) => !ids.includes(id)));
     },
-    undo: () => setDeleted(null),
+    undo: async () => {
+      await setDeleted(null);
+      await applyFreeMembers(platform, freeing, 'before');
+    },
   };
 }
 
@@ -185,15 +289,22 @@ export function createTrashCommand(platform: Platform, ids: string[]): Command {
  * in your library · Restore" toast for a duplicate found in the Trash). Re-reads the row from the
  * DB rather than the store — unlike `createTrashCommand`, which only ever acts on items the owner
  * already has selected, and so already loaded. */
-export function createRestoreItemCommand(platform: Platform, id: string): Command {
+export function createRestoreItemCommand(
+  platform: Platform,
+  id: string,
+  boardId: string | null = null,
+): Command {
   async function setDeleted(deletedAt: string | null): Promise<void> {
     await platform.db.execute('UPDATE items SET deleted_at = ? WHERE id = ?', [deletedAt, id]);
     if (deletedAt === null) {
       const [itemRow] = await platform.db.select<DbRow>('SELECT * FROM items WHERE id = ?', [id]);
-      const [placementRow] = await platform.db.select<DbRow>(
-        'SELECT * FROM placements WHERE item_id = ?',
-        [id],
-      );
+      // The placement on the space that is open (a restored item may sit on several boards).
+      const [placementRow] = boardId
+        ? await platform.db.select<DbRow>(
+            'SELECT * FROM placements WHERE item_id = ? AND board_id = ?',
+            [id, boardId],
+          )
+        : await platform.db.select<DbRow>('SELECT * FROM placements WHERE item_id = ?', [id]);
       if (itemRow) useLibraryStore.getState().upsertItem(rowToItem(itemRow));
       if (placementRow) useLibraryStore.getState().upsertPlacement(rowToPlacement(placementRow));
     } else {

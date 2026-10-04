@@ -71,6 +71,9 @@ export function createCreateNoteCommand(
     h: noteGeometry.defaultH,
     z: 0,
     frameId: null,
+    cropX: null,
+    cropY: null,
+    parentId: null,
     addedAt: now,
   };
 

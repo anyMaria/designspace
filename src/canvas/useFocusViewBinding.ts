@@ -3,6 +3,7 @@ import type { Engine } from './Engine';
 import { useFocusStore } from '@/state/focusStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useUiStore } from '@/state/uiStore';
+import { openEditPalette } from '@/features/colorStudio/openStudio';
 
 /** Double-click on an image, video, PDF, font or link opens Focus view (§2.2, §2.12); double-click
  * on empty canvas creates a note (`useNoteCanvasBinding`, M4), and double-click on a note opens
@@ -13,6 +14,11 @@ export function useFocusViewBinding(engine: Engine | null): void {
     return engine.on('dblclick', (id) => {
       if (!id) return;
       const item = useLibraryStore.getState().items.get(id);
+      // A type collection has no Focus view: double-click opens its Details (Patch 2 · F5).
+      if (item?.kind === 'font' && item.fontCollection) {
+        useUiStore.setState({ panelOpen: true, panelTab: 'details' });
+        return;
+      }
       if (
         item?.kind === 'image' ||
         item?.kind === 'video' ||
@@ -21,9 +27,8 @@ export function useFocusViewBinding(engine: Engine | null): void {
         item?.kind === 'link'
       )
         useFocusStore.getState().open(id);
-      // A swatch or palette has no Focus view: its editor lives in the Details panel (C4).
-      else if (item?.kind === 'swatch')
-        useUiStore.setState({ panelOpen: true, panelTab: 'details' });
+      // A swatch or palette has no Focus view: it opens in the Color studio (Patch 2 · E7).
+      else if (item?.kind === 'swatch') openEditPalette(item);
     });
   }, [engine]);
 }

@@ -134,6 +134,8 @@ export class BrowserPlatform implements Platform {
       }
     },
     listFolder: (): Promise<FolderListing> => notSupported('media.listFolder'),
+    readImage: (): Promise<ArrayBuffer> => notSupported('media.readImage'),
+    readPdf: (): Promise<ArrayBuffer> => notSupported('media.readPdf'),
   };
 
   cache = {
@@ -252,6 +254,11 @@ export class BrowserPlatform implements Platform {
       } else if (!on && document.fullscreenElement !== null) {
         await document.exitFullscreen();
       }
+    },
+    onFullscreenChange: (cb: (on: boolean) => void): (() => void) => {
+      const handler = () => cb(document.fullscreenElement !== null);
+      document.addEventListener('fullscreenchange', handler);
+      return () => document.removeEventListener('fullscreenchange', handler);
     },
   };
 

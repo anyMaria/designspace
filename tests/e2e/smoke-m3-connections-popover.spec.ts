@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('the Connections popover opens, toggles criteria (with the 3-active cap), and switches mode/strength/constellations', async ({
+test('the Connections popover opens, toggles criteria (with the 3-active cap), and switches mode/strength', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -33,9 +33,6 @@ test('the Connections popover opens, toggles criteria (with the 3-active cap), a
 
   // Strength: default 1 -> 2.
   await page.getByRole('tab', { name: '2', exact: true }).click();
-
-  // Constellations switch.
-  await page.getByRole('switch', { name: '✦ Constellations' }).click();
 
   await page.keyboard.press('Escape');
   await expect(popover).toBeHidden();

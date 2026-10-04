@@ -26,6 +26,9 @@ function makePlacement(boardId: string, itemId: string): Placement {
     h: 100,
     z: 0,
     frameId: null,
+    cropX: null,
+    cropY: null,
+    parentId: null,
     addedAt: '2026-01-01T00:00:00.000Z',
   };
 }
@@ -167,9 +170,6 @@ describe('createDuplicateBoardCommand', () => {
     await command.do();
     expect(copy.id).not.toBe(board.id);
     expect(useBoardStore.getState().boards.get(copy.id)?.name).toBe('Original copy');
-    expect(platform.db.select).toHaveBeenCalledWith(expect.stringContaining('FROM frames'), [
-      board.id,
-    ]);
     expect(platform.db.select).toHaveBeenCalledWith(expect.stringContaining('FROM placements'), [
       board.id,
     ]);
@@ -230,17 +230,21 @@ describe('createAddToBoardCommand', () => {
     expect(placement?.boardId).toBe('board-1');
     expect(placement?.w).toBe(320);
     expect(placement?.h).toBe(160); // item 'a' is 1600x800, aspect 2 → 320x160
-    expect(platform.db.execute).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO placements'),
-      expect.arrayContaining(['board-1', 'a']),
-    );
+    expect(platform.db.batch).toHaveBeenCalledWith([
+      expect.objectContaining({
+        sql: expect.stringContaining('INSERT INTO placements') as string,
+        params: expect.arrayContaining(['board-1', 'a']) as unknown[],
+      }),
+    ]);
 
     await command.undo();
     expect(useLibraryStore.getState().placements.has('a')).toBe(false);
-    expect(platform.db.execute).toHaveBeenCalledWith(
-      expect.stringContaining('DELETE FROM placements'),
-      ['board-1', 'a'],
-    );
+    expect(platform.db.batch).toHaveBeenLastCalledWith([
+      {
+        sql: 'DELETE FROM placements WHERE board_id = ? AND item_id = ?',
+        params: ['board-1', 'a'],
+      },
+    ]);
   });
 
   it('avoids landing on top of an already-occupied spot', async () => {

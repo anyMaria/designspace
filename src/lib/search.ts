@@ -36,7 +36,7 @@ export interface SearchDoc {
   description: string;
 }
 
-function sourceDomain(url: string | null): string {
+export function sourceDomain(url: string | null | undefined): string {
   if (!url) return '';
   try {
     return new URL(url).hostname.replace(/^www\./, '');

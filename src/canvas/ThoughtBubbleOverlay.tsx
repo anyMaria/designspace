@@ -4,7 +4,7 @@ import { useCameraState } from './useCameraState';
 import { ThoughtBubble } from '@/design/icons/ThoughtBubble';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useDescriptionStore } from '@/state/descriptionStore';
-import { isMediaKind } from '@/lib/itemKinds';
+import { isMediaItem } from '@/lib/itemKinds';
 import { en } from '@/i18n/en';
 
 const SIZE_PX = 34;
@@ -52,7 +52,7 @@ export function ThoughtBubbleOverlay({ engine }: { engine: Engine | null }) {
   const id = openId ?? hoverId ?? lingerId;
   const item = id ? items.get(id) : undefined;
   const rect = id && engine ? engine.getScreenRect(id) : null;
-  if (!id || !item || !rect || !isMediaKind(item.kind)) return null;
+  if (!id || !item || !rect || !isMediaItem(item)) return null;
   if (rect.w < MIN_CARD_PX || rect.h < MIN_CARD_PX) return null;
 
   // Next to the top-right corner; inside the corner when that would leave the window.

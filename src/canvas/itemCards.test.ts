@@ -17,6 +17,9 @@ const placement: Placement = {
   h: 320,
   z: 0,
   frameId: null,
+  cropX: null,
+  cropY: null,
+  parentId: null,
   addedAt: '2026-01-01T00:00:00.000Z',
 };
 
@@ -45,5 +48,20 @@ describe('itemToCard (links)', () => {
     const card = itemToCard(link({ status: 'ok' }), placement, platform);
     expect(card.noteText).toBeNull();
     expect(card.thumbUrl128).toBe('media://cache/t128/l1');
+  });
+});
+
+describe('itemToCard (favourites and crop)', () => {
+  it('carries the favourite flag and the crop focus', () => {
+    const card = itemToCard(
+      link({ status: 'ok', favorite: true }),
+      { ...placement, cropX: 0.25, cropY: 0.75 },
+      platform,
+    );
+    expect(card.favorite).toBe(true);
+    expect(card).toMatchObject({ cropX: 0.25, cropY: 0.75 });
+    expect(itemToCard(link({ status: 'ok', favorite: false }), placement, platform).favorite).toBe(
+      false,
+    );
   });
 });

@@ -4,6 +4,7 @@
 import 'pixi.js/unsafe-eval';
 import { cardAlpha, connectionRelatedSet } from './cardAlpha';
 import { drawPalette, paletteDrawKey } from './decor/paletteDecor';
+import { drawFontCollection, fontCollectionDrawKey } from './decor/fontCollectionDecor';
 import { CRITERION_COLOR } from './criterionColor';
 import { drawNotePaper, notePaperKey } from './decor/noteDecor';
 import { paletteCellAt } from '@/lib/palette';
@@ -22,24 +23,34 @@ import {
   type TextStyleOptions,
 } from 'pixi.js';
 import { Camera } from './Camera';
+import { readableTextColor } from '@/lib/color';
 import { SpatialIndex } from './spatialIndex';
 import { TextureManager } from './TextureManager';
 import { attachCanvasInput, type Tool, type WheelMode } from './input';
+import { hitTest, normalizeRect, rectSelect } from './selection';
+import { cardUvToImageUv, coverFrame, dragCropFocus, isWholeTexture } from './coverCrop';
 import {
-  hitTest,
-  normalizeRect,
-  rectSelect,
+  createFavoriteBadge,
+  FAVORITE_BADGE_INSET,
+  FAVORITE_BADGE_MIN_ZOOM,
+} from './favoriteBadge';
+import {
+  ALL_HANDLES,
+  cursorForHandle,
+  isCornerHandle,
   resizeHandleAt,
-  resizeWithAspect,
+  resizePolicyFor,
+  resizeRect,
   type ResizeHandle,
-} from './selection';
+} from './resizeMath';
 import {
   canvasGeometry,
   colors,
   connectionLineStyle,
+  CONNECT_HANDLE_OFFSET_PX,
+  resizeHandles,
   criterionColors,
   fonts,
-  motion,
   noteGeometry,
   noteStyles,
   type NoteColor,
@@ -47,11 +58,7 @@ import {
 import type { BenchRect } from '@/platform/seed/bench';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
-import type { ConstellationHub } from '@/lib/constellations';
-import { easeInOut } from '@/lib/motion';
-import { en } from '@/i18n/en';
-import type { ItemKind, Frame } from '@/state/types';
-import { noteTextColor } from '@/design/tokens';
+import type { ItemKind } from '@/state/types';
 import { exportRectForCards, type ExportBackground, type ExportScale } from '@/lib/exportGeometry';
 import { formatDuration } from '@/lib/formatDuration';
 
@@ -78,10 +85,6 @@ export interface ItemCard {
    * `setLibraryItems`). Also doubles as a video's "can't play this" fallback message (§2.4) when
    * its ingest failed — `null` for every other case. */
   noteText: string | null;
-  /** §2.11 — the frame this item's placement belongs to, if any (`placement.frameId`). Lets the
-   * frame-drag interaction move a frame's contents along with it without Engine needing to know
-   * about placements directly. */
-  frameId: string | null;
   /** §2.4 video duration badge — `null` until ingest reports it (or for every non-video kind). */
   durationMs: number | null;
   /** §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview" — the *original* file's URL
@@ -96,12 +99,29 @@ export interface ItemCard {
   swatchName: string | null;
   /** Patch 1 · D1: a note's paper colour (drives `decor/noteDecor.ts`); `null` for other kinds. */
   noteColor: NoteColor | null;
+  /** Patch 2 · C6: drawn with a star badge in its top-left corner. */
+  favorite: boolean;
+  /** Patch 2 · C3: the crop focus (0–1) of a picture the owner has cropped; null = not cropped. */
+  cropX: number | null;
+  cropY: number | null;
+  /** Patch 2 · F5: the type collection this family is a row of; null otherwise. */
+  parentId?: string | null;
+  /** Patch 2 · F5: set on a type collection card (drawn by `decor/fontCollectionDecor.ts`). */
+  collection?: { title: string; count: number } | null;
 }
 
 interface EngineEvents {
   select: (ids: string[]) => void;
   move: (updates: { id: string; x: number; y: number }[]) => void;
-  resize: (update: { id: string; x: number; y: number; w: number; h: number }) => void;
+  resize: (update: {
+    id: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    cropX?: number | null;
+    cropY?: number | null;
+  }) => void;
   /** `world` is where the double-click landed, in canvas world coordinates — used to place a new
    * note when `id` is `null` (double-click on empty canvas, §2.11). */
   dblclick: (id: string | null, world: { x: number; y: number }) => void;
@@ -123,12 +143,10 @@ interface EngineEvents {
   connectDrop: (fromId: string, toId: string) => void;
   /** A manual-criterion line/edge was double-clicked — "Double-click a line to add a label". */
   connectionLineDblClick: (pair: { fromId: string; toId: string }) => void;
-  /** §2.11 frames — dragging the title moved it (and its contents) by this total delta; resizing
-   * the handle changed its rect; double-clicking the title asks for a rename. Each fires once, on
-   * release/double-click, not per pointermove — the drag itself is a live visual-only preview. */
-  frameMove: (frameId: string, dx: number, dy: number) => void;
-  frameResize: (frameId: string, rect: { x: number; y: number; w: number; h: number }) => void;
-  frameRenameRequest: (frameId: string) => void;
+  /** "Adjust crop" finished with a different focus (Patch 2 · C3). */
+  cropCommit: (update: { id: string; cropX: number; cropY: number }) => void;
+  /** "Adjust crop" ended, by any route. */
+  cropEnd: () => void;
 }
 
 const LINE_WIDTH_PX = connectionLineStyle.width;
@@ -136,6 +154,7 @@ const LINE_WIDTH_HOVERED_PX = connectionLineStyle.width + 1;
 const LINE_OPACITY = connectionLineStyle.opacity;
 const TEXTURE_RETRY_MS = 5000; // a texture that failed to load is retried once after this
 const MAX_TEXTURE_ATTEMPTS = 2;
+const RESIZE_MIN_SIZE = 40; // smallest card a resize can make, in world units
 const LINE_GAP_PX = 6; // space between a picture's edge and the line that leaves it
 const LINE_OFFSET_PX = 4; // spacing between up to 3 parallel lines for the same pair
 
@@ -156,7 +175,6 @@ const CONNECT_HANDLE_RADIUS_PX = 6;
 const CONNECT_HANDLE_HIT_PX = 12;
 const DOUBLE_TAP_MS = 350;
 
-const HANDLE_SCREEN_PX = 10;
 /** Every canvas label uses the UI font; Pixi rasterises text once, so it must be loaded first
  * (CanvasView waits for it). */
 /** `<b>`, `<i>` and `<dshash>` (a hashtag) in a note's tagged text (Patch 1 · D1). */
@@ -174,13 +192,6 @@ function uiTextStyle(overrides: TextStyleOptions): TextStyleOptions {
 
 const DRAG_THRESHOLD_PX = 3;
 
-// Constellations (§2.10/§4.9).
-const CONSTELLATION_CARD_LONG_SIDE = 160; // "Items show at a uniform size (long side 160)"
-const CONSTELLATION_HUB_STAR_RADIUS_PX = 14; // bigger + glowing vs. Show all's small hub stars
-const CONSTELLATION_HUB_STAR_INNER_RADIUS_PX = 6;
-const CONSTELLATION_HUB_HIT_PX = 18;
-const CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE = 13;
-
 // §2.11 note cards — the snippet is drawn in world units (a sibling of the sprite in
 // `itemsLayer`, not its child — a child would stretch/scale with `sprite.width/height` and
 // change font size as the card resizes, which a text snippet should never do).
@@ -192,25 +203,6 @@ const NOTE_TEXT_FONT_SIZE_WORLD = 18;
 const VIDEO_BADGE_PADDING_WORLD = 10;
 // §2.4 "Hovering (zoom ≥ 60%) plays a muted looping preview" — the plan's own threshold.
 const VIDEO_HOVER_ZOOM_THRESHOLD = 0.6;
-
-// §2.11 frames — a dashed outline + a title label sitting just above the top-left corner (so it
-// never overlaps whatever's placed inside), drawn in world units like the note/swatch labels.
-const FRAME_LABEL_FONT_SIZE_WORLD = 16;
-const FRAME_LABEL_GAP_WORLD = 6;
-const FRAME_STROKE_WIDTH_WORLD = 2;
-const FRAME_COLOR = 0xffffff;
-const FRAME_RESIZE_HANDLE_SCREEN_PX = 10;
-
-/** Standard relative-luminance contrast pick — dark text on a light swatch, white text on a
- * dark one. Only swatches need this (see `syncNoteLabel`'s doc comment); notes' 5 colors are all
- * light enough that a fixed dark ink always works. */
-function readableTextColor(packedColor: number): number {
-  const r = (packedColor >> 16) & 0xff;
-  const g = (packedColor >> 8) & 0xff;
-  const b = packedColor & 0xff;
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? noteTextColor : 0xffffff;
-}
 
 /**
  * The framework-agnostic canvas engine — §4.6. Owns the Pixi `Application`, the camera and
@@ -238,6 +230,8 @@ export class Engine {
   private noteLabels = new Map<string, Text>(); // §2.11 — a note card's plain-text snippet
   // §2.4 — a video card's "▶ mm:ss" duration badge, or a PDF card's "PDF · N p" page-count badge.
   private cornerBadges = new Map<string, Text>();
+  /** Patch 2 · C6: the star badge of a favourite card, same lifecycle as `cornerBadges`. */
+  private favBadges = new Map<string, Container>();
   /** Cards that draw themselves (swatches/palettes now, notes in D1): their sprite is never shown,
    * this container is. Keyed by item id. */
   private decor = new Map<string, Container>();
@@ -245,15 +239,6 @@ export class Engine {
   /** A note's text is clipped to its paper by this mask (a child of its decor container). */
   private noteMasks = new Map<string, Graphics>();
 
-  // §2.11 frames.
-  private frames = new Map<string, Frame>();
-  private frameGraphics = new Map<string, Graphics>();
-  private frameLabels = new Map<string, Text>();
-  private frameHandles = new Map<string, Graphics>();
-  private selectedFrameId: string | null = null;
-  private frameDragOrigin: { x: number; y: number } | null = null;
-  private frameResizeOrigin: { x: number; y: number; w: number; h: number } | null = null;
-  private frameMoveMemberOrigins = new Map<string, { x: number; y: number }>();
   private itemIndex = new SpatialIndex();
   private itemVisible = new Set<string>();
   private textureManager: TextureManager<Texture> | null = null;
@@ -279,6 +264,15 @@ export class Engine {
   // lines to; unset (empty array) means no connections are showing right now.
   private connectionSources: { fromId: string; candidates: ScoredCandidate[] }[] = [];
   private connectionLineGraphics: Graphics[] = [];
+  // Pictures are drawn "cover" (never stretched; Patch 2 · C3): `baseTex` is the shared texture a
+  // card currently shows, `cropTex` the cheap sub-frame of it when the card's proportions differ.
+  private baseTex = new Map<string, Texture>();
+  private cropTex = new Map<string, Texture>();
+  // "Adjust crop" mode (Patch 2 · C3): the card being adjusted, its focus when the mode started,
+  // and the dimmed whole-picture overlay.
+  private cropId: string | null = null;
+  private cropStart: { x: number; y: number } | null = null;
+  private cropOverlay: (Graphics | Sprite)[] = [];
   private texFailures = new Map<string, { attempts: number; at: number }>();
   private texRetryTimer: number | null = null;
   private hoveredConnectionLine: { fromId: string; toId: string } | null = null;
@@ -297,28 +291,6 @@ export class Engine {
   private selectedConnectionPair: { fromId: string; toId: string } | null = null;
   private lastLineTapAt: { key: string; at: number } | null = null;
   private suppressNextEmptyDblClick = false;
-
-  // Constellations (§2.10/§4.9) — `constellationMyLayout` is the real placement rect for every
-  // item, snapshotted the first time Constellations turns on and restored by "Back to my
-  // layout"; it stays set across a live re-settle (classification change while already on) so
-  // repeated re-settles never lose the true original. `constellationsOn` gates uniform item
-  // size, disables item dragging, and switches the hub overlay from Show all's small hubs to
-  // these bigger glowing ones.
-  private constellationsOn = false;
-  private constellationMyLayout: Map<
-    string,
-    { x: number; y: number; w: number; h: number }
-  > | null = null;
-  // `lib/constellations.ts` centers the hub graph on its own origin (0,0), unrelated to where
-  // the library actually sits on the map — this is the real layout's centroid at the moment
-  // Constellations first turns on, added to every hub/item position so the morph happens roughly
-  // in place instead of requiring the camera to jump somewhere else to find it.
-  private constellationOrigin = { x: 0, y: 0 };
-  private constellationHubs: ConstellationHub[] = [];
-  private constellationUnclassifiedRadius: number | null = null;
-  private constellationRaf: number | null = null;
-  private constellationOverlay: (Graphics | Text)[] = [];
-  private draggingHubId: string | null = null;
 
   private selection = new Set<string>();
   private hoveredId: string | null = null;
@@ -348,9 +320,8 @@ export class Engine {
     connectionLineHover: new Set(),
     connectDrop: new Set(),
     connectionLineDblClick: new Set(),
-    frameMove: new Set(),
-    frameResize: new Set(),
-    frameRenameRequest: new Set(),
+    cropCommit: new Set(),
+    cropEnd: new Set(),
   };
 
   on<K extends keyof EngineEvents>(event: K, handler: EngineEvents[K]): () => void {
@@ -406,8 +377,13 @@ export class Engine {
           const card = this.cards.get(id);
           if (sprite && !sprite.destroyed) {
             sprite.texture = Texture.WHITE;
-            if (card) sprite.tint = card.dominantColor;
+            if (card) {
+              sprite.tint = card.dominantColor;
+              sprite.width = card.w;
+              sprite.height = card.h;
+            }
           }
+          this.dropCropTexture(id);
           this.appliedTexKey.delete(id);
         }
         tex.destroy(true);
@@ -471,29 +447,14 @@ export class Engine {
   setLibraryItems(cards: ItemCard[]): void {
     if (!this.itemsLayer) return;
 
-    // `useEngineBindings` calls this on *every* library store change — including an ingest
-    // write to an unrelated item's palette/phash, or any other field — via an unfiltered
-    // `useLibraryStore.subscribe`. Normally that's fine (it just re-applies each item's real
-    // placement, a no-op if nothing moved). But while Constellations is on, every existing
-    // item's on-screen position is the *arranged* one, not its real placement — without this,
-    // the very next unrelated store write would silently snap it back mid-morph (or long after),
-    // which is exactly the "items can't be dragged here" guarantee applying to more than just
-    // the pointer. Preserve the current arranged rect for anything that already has a card; a
-    // genuinely new item (nothing to preserve) still lands at its real placement.
-    const patchedCards = this.constellationsOn
-      ? cards.map((c) => {
-          const current = this.cards.get(c.id);
-          return current ? { ...c, x: current.x, y: current.y, w: current.w, h: current.h } : c;
-        })
-      : cards;
-
-    const next = new Map(patchedCards.map((c) => [c.id, c]));
+    const next = new Map(cards.map((c) => [c.id, c]));
 
     for (const [id, sprite] of this.sprites) {
       if (!next.has(id)) {
         sprite.destroy();
         this.sprites.delete(id);
         this.appliedTexKey.delete(id);
+        this.dropCropTexture(id);
         this.removeDecor(id);
         const label = this.noteLabels.get(id);
         if (label) {
@@ -505,15 +466,28 @@ export class Engine {
           badge.destroy();
           this.cornerBadges.delete(id);
         }
+        this.favBadges.get(id)?.destroy({ children: true });
+        this.favBadges.delete(id);
       }
     }
-    for (const card of patchedCards) {
+    for (const card of cards) {
       const existing = this.sprites.get(card.id);
       if (existing) {
+        const prev = this.cards.get(card.id);
         existing.position.set(card.x, card.y);
         existing.width = card.w;
         existing.height = card.h;
         existing.zIndex = card.z;
+        if (
+          !prev ||
+          prev.w !== card.w ||
+          prev.h !== card.h ||
+          prev.cropX !== card.cropX ||
+          prev.cropY !== card.cropY
+        ) {
+          // `refreshCrop` reads the new card, which isn't in `this.cards` yet.
+          this.refreshCrop(card.id, card);
+        }
         // A note's or swatch's tint IS its color (never overwritten by a loaded texture, since
         // neither ever gets one — see `requestLod`), so it must track `card.dominantColor` live
         // for the color picker/Extract palette to work. An image's tint is `requestLod`'s to own
@@ -537,7 +511,7 @@ export class Engine {
     }
     this.itemsLayer.sortableChildren = true;
     this.cards = next;
-    this.itemIndex.load(patchedCards);
+    this.itemIndex.load(cards);
     this.refreshAlpha();
     this.scheduleFrame();
   }
@@ -564,13 +538,12 @@ export class Engine {
     const resolution = (window.devicePixelRatio || 1) * this.textResolutionStep;
     for (const label of this.noteLabels.values()) label.resolution = resolution;
     for (const badge of this.cornerBadges.values()) badge.resolution = resolution;
-    for (const label of this.frameLabels.values()) label.resolution = resolution;
     this.scheduleFrame();
   }
 
   /** Whether this card draws itself through a decor container instead of its sprite. */
   private isSelfDrawn(card: ItemCard): boolean {
-    return card.kind === 'swatch' || card.kind === 'note';
+    return card.kind === 'swatch' || card.kind === 'note' || !!card.collection;
   }
 
   private removeDecor(id: string): void {
@@ -615,6 +588,14 @@ export class Engine {
         this.decorKey.set(card.id, key);
         const label = this.noteLabels.get(card.id);
         if (label) label.mask = this.noteMasks.get(card.id) ?? null;
+      }
+      return;
+    }
+    if (card.collection) {
+      const key = fontCollectionDrawKey(card);
+      if (this.decorKey.get(card.id) !== key) {
+        drawFontCollection(decor, { w: card.w, h: card.h, ...card.collection });
+        this.decorKey.set(card.id, key);
       }
       return;
     }
@@ -696,6 +677,32 @@ export class Engine {
     const label = this.noteLabels.get(card.id);
     if (label) label.mask = isNote ? (this.noteMasks.get(card.id) ?? null) : null;
     this.syncCornerBadge(card);
+    this.syncFavoriteBadge(card);
+  }
+
+  private favoriteBadgeShown(id: string): boolean {
+    return !!this.cards.get(id)?.favorite && this.camera.zoom >= FAVORITE_BADGE_MIN_ZOOM;
+  }
+
+  /** The star badge of a favourite (Patch 2 · C6): created and removed with the favourite flag,
+   * moved with the card. Hidden by `cullItems` below 25 % zoom and while the card is. */
+  private syncFavoriteBadge(card: ItemCard): void {
+    if (!this.itemsLayer) return;
+    const existing = this.favBadges.get(card.id);
+    if (!card.favorite) {
+      if (existing) {
+        existing.destroy({ children: true });
+        this.favBadges.delete(card.id);
+      }
+      return;
+    }
+    const badge = existing ?? createFavoriteBadge();
+    if (!existing) {
+      this.itemsLayer.addChild(badge);
+      this.favBadges.set(card.id, badge);
+    }
+    badge.position.set(card.x + FAVORITE_BADGE_INSET, card.y + FAVORITE_BADGE_INSET);
+    badge.zIndex = card.z + 0.6;
   }
 
   /** The "▶ mm:ss" duration badge or "PDF · N p" page-count badge (§2.4) at a card's bottom-right
@@ -737,146 +744,6 @@ export class Engine {
       this.itemsLayer.addChild(badge);
       this.cornerBadges.set(card.id, badge);
     }
-  }
-
-  /** §2.11 frames — diffs against the previous set the same way `setLibraryItems` does for
-   * cards. Frame graphics/labels/handles live in `itemsLayer` (world-space, so they pan/zoom
-   * with the content they group) but at a large negative `zIndex` offset so they always render
-   * behind every item, even one explicitly "sent to back" (which only zeroes its own z). */
-  setFrames(frames: Frame[]): void {
-    if (!this.itemsLayer) return;
-    const next = new Map(frames.map((f) => [f.id, f]));
-
-    for (const [id, graphic] of this.frameGraphics) {
-      if (!next.has(id)) {
-        graphic.destroy();
-        this.frameGraphics.delete(id);
-        this.frameLabels.get(id)?.destroy();
-        this.frameLabels.delete(id);
-        this.frameHandles.get(id)?.destroy();
-        this.frameHandles.delete(id);
-        if (this.selectedFrameId === id) this.selectedFrameId = null;
-      }
-    }
-    this.frames = next;
-    for (const frame of frames) this.drawFrame(frame);
-    this.scheduleFrame();
-  }
-
-  private drawFrame(frame: Frame): void {
-    if (!this.itemsLayer) return;
-    const zIndex = frame.z - 1_000_000;
-    const selected = this.selectedFrameId === frame.id;
-
-    let graphic = this.frameGraphics.get(frame.id);
-    if (!graphic) {
-      graphic = new Graphics();
-      this.itemsLayer.addChild(graphic);
-      this.frameGraphics.set(frame.id, graphic);
-    }
-    graphic.clear();
-    graphic
-      .rect(frame.x, frame.y, frame.w, frame.h)
-      .stroke({ width: FRAME_STROKE_WIDTH_WORLD, color: FRAME_COLOR, alpha: selected ? 1 : 0.4 });
-    graphic.zIndex = zIndex;
-
-    let label = this.frameLabels.get(frame.id);
-    const labelY = frame.y - FRAME_LABEL_FONT_SIZE_WORLD - FRAME_LABEL_GAP_WORLD;
-    if (!label) {
-      label = new Text({
-        text: frame.title,
-        style: uiTextStyle({ fontSize: FRAME_LABEL_FONT_SIZE_WORLD, fill: FRAME_COLOR }),
-      });
-      label.eventMode = 'none'; // hit-tested manually (screen-space rect), not via Pixi events
-      this.itemsLayer.addChild(label);
-      this.frameLabels.set(frame.id, label);
-    }
-    label.text = frame.title || en.frames.untitled;
-    label.position.set(frame.x, labelY);
-    label.zIndex = zIndex + 0.5;
-    label.alpha = selected ? 1 : 0.7;
-
-    let handle = this.frameHandles.get(frame.id);
-    if (selected) {
-      if (!handle) {
-        handle = new Graphics();
-        this.itemsLayer.addChild(handle);
-        this.frameHandles.set(frame.id, handle);
-      }
-      const r = FRAME_RESIZE_HANDLE_SCREEN_PX / 2 / this.camera.zoom || 1;
-      handle.clear();
-      handle
-        .rect(frame.x + frame.w - r, frame.y + frame.h - r, r * 2, r * 2)
-        .fill({ color: FRAME_COLOR });
-      handle.zIndex = zIndex + 0.5;
-    } else if (handle) {
-      handle.destroy();
-      this.frameHandles.delete(frame.id);
-    }
-  }
-
-  getSelectedFrameId(): string | null {
-    return this.selectedFrameId;
-  }
-
-  setSelectedFrameId(id: string | null): void {
-    this.selectedFrameId = id;
-    for (const frame of this.frames.values()) this.drawFrame(frame);
-    this.scheduleFrame();
-  }
-
-  /** Screen-space rect of a frame's title label — used both to hit-test a click/drag on it and,
-   * live during a drag, to redraw it without waiting for a store round-trip. */
-  private frameTitleScreenRect(
-    frame: Frame,
-  ): { x: number; y: number; w: number; h: number } | null {
-    if (!this.app) return null;
-    const { width: vw, height: vh } = this.app.screen;
-    const worldY = frame.y - FRAME_LABEL_FONT_SIZE_WORLD - FRAME_LABEL_GAP_WORLD;
-    const topLeft = this.camera.worldToScreen(frame.x, worldY, vw, vh);
-    const label = this.frameLabels.get(frame.id);
-    const textWidth = label ? label.width : frame.w * this.camera.zoom;
-    return {
-      x: topLeft.x,
-      y: topLeft.y,
-      w: Math.max(textWidth, 40),
-      h: FRAME_LABEL_FONT_SIZE_WORLD * this.camera.zoom + FRAME_LABEL_GAP_WORLD,
-    };
-  }
-
-  private frameAtScreenPoint(
-    clientX: number,
-    clientY: number,
-    left: number,
-    top: number,
-  ): Frame | null {
-    const sx = clientX - left;
-    const sy = clientY - top;
-    for (const frame of this.frames.values()) {
-      const rect = this.frameTitleScreenRect(frame);
-      if (rect && sx >= rect.x && sx <= rect.x + rect.w && sy >= rect.y && sy <= rect.y + rect.h) {
-        return frame;
-      }
-    }
-    return null;
-  }
-
-  private frameResizeHandleAt(
-    clientX: number,
-    clientY: number,
-    left: number,
-    top: number,
-  ): Frame | null {
-    if (!this.app || !this.selectedFrameId) return null;
-    const frame = this.frames.get(this.selectedFrameId);
-    if (!frame) return null;
-    const { width: vw, height: vh } = this.app.screen;
-    const corner = this.camera.worldToScreen(frame.x + frame.w, frame.y + frame.h, vw, vh);
-    const sx = clientX - left;
-    const sy = clientY - top;
-    const hit = FRAME_RESIZE_HANDLE_SCREEN_PX;
-    if (Math.abs(sx - corner.x) <= hit && Math.abs(sy - corner.y) <= hit) return frame;
-    return null;
   }
 
   /** Search Dim/Hide (§2.8): `matches` null clears the filter (everything normal again); a Set
@@ -951,6 +818,11 @@ export class Engine {
     if (this.container) this.container.style.cursor = '';
   }
 
+  /** A connect pick or a point pick is waiting for a click (Esc cancels it). */
+  isPicking(): boolean {
+    return this.pickingConnectFrom !== null || this.pickingPoint !== null;
+  }
+
   getSelectedConnectionPair(): { fromId: string; toId: string } | null {
     return this.selectedConnectionPair;
   }
@@ -958,173 +830,6 @@ export class Engine {
   setSelectedConnectionPair(pair: { fromId: string; toId: string } | null): void {
     this.selectedConnectionPair = pair;
     this.scheduleFrame();
-  }
-
-  isConstellationsOn(): boolean {
-    return this.constellationsOn;
-  }
-
-  /** Shift+C / the popover's ✦ switch (§2.10). `itemPositions` are world-space *centers* from
-   * `lib/constellations.ts`; cards keep their own aspect ratio but scale so their long side is
-   * `CONSTELLATION_CARD_LONG_SIDE`. The first call snapshots every item's real placement into
-   * `constellationMyLayout` (for "Back to my layout"); a later call while already on — a live
-   * re-settle after the owner reclassifies something — reuses that same snapshot rather than
-   * re-snapshotting the (already-arranged) current positions, and tweens from wherever the cards
-   * currently are, so it reads as a smooth adjustment rather than a jump. Items outside
-   * `itemPositions` (filtered out by the active search filter) are left exactly where they are. */
-  enterConstellations(
-    itemPositions: Map<string, { x: number; y: number }>,
-    hubs: ConstellationHub[],
-    unclassifiedIds: string[],
-    reduceMotion = false,
-  ): void {
-    if (!this.constellationMyLayout) {
-      this.constellationMyLayout = new Map(
-        [...this.cards].map(([id, c]) => [id, { x: c.x, y: c.y, w: c.w, h: c.h }]),
-      );
-      const centers = [...this.constellationMyLayout.values()].map((c) => ({
-        x: c.x + c.w / 2,
-        y: c.y + c.h / 2,
-      }));
-      this.constellationOrigin = centers.length
-        ? {
-            x: centers.reduce((s, c) => s + c.x, 0) / centers.length,
-            y: centers.reduce((s, c) => s + c.y, 0) / centers.length,
-          }
-        : { x: 0, y: 0 };
-    }
-    this.constellationsOn = true;
-    const { x: ox, y: oy } = this.constellationOrigin;
-    this.constellationHubs = hubs.map((h) => ({ ...h, x: h.x + ox, y: h.y + oy }));
-    this.constellationUnclassifiedRadius =
-      unclassifiedIds.length > 0
-        ? this.constellationHubs.reduce(
-            (max, h) => Math.max(max, Math.hypot(h.x - ox, h.y - oy)),
-            0,
-          ) +
-          CONSTELLATION_CARD_LONG_SIDE * 2
-        : null;
-
-    const targets = new Map<string, { x: number; y: number; w: number; h: number }>();
-    for (const [id, pos] of itemPositions) {
-      const orig = this.constellationMyLayout.get(id) ?? this.cards.get(id);
-      if (!orig) continue;
-      const aspect = orig.h > 0 ? orig.w / orig.h : 1;
-      const w = aspect >= 1 ? CONSTELLATION_CARD_LONG_SIDE : CONSTELLATION_CARD_LONG_SIDE * aspect;
-      const h = aspect >= 1 ? CONSTELLATION_CARD_LONG_SIDE / aspect : CONSTELLATION_CARD_LONG_SIDE;
-      targets.set(id, { x: pos.x + ox - w / 2, y: pos.y + oy - h / 2, w, h });
-    }
-    this.tweenCardsTo(targets, reduceMotion);
-  }
-
-  /** "Back to my layout" — tweens every item back to its snapshotted real placement and clears
-   * the Constellations overlay once the tween finishes. */
-  exitConstellations(reduceMotion = false): void {
-    this.constellationsOn = false;
-    this.constellationHubs = [];
-    this.constellationUnclassifiedRadius = null;
-    this.draggingHubId = null;
-    if (!this.constellationMyLayout) {
-      this.scheduleFrame();
-      return;
-    }
-    const targets = this.constellationMyLayout;
-    this.constellationMyLayout = null;
-    this.tweenCardsTo(targets, reduceMotion);
-  }
-
-  /** A hub can be dragged while Constellations is on ("hubs can [be dragged], the layout
-   * re-settles around them") — moves that one hub and re-tweens only the items that belong to
-   * it, at the simple average of their (possibly several) hubs' now-current positions, the same
-   * placement rule `lib/constellations.ts` uses for the initial layout. */
-  private resettleAroundHub(hubId: string, reduceMotion: boolean): void {
-    const hub = this.constellationHubs.find((h) => h.id === hubId);
-    if (!hub) return;
-    const hubsByItem = new Map<string, ConstellationHub[]>();
-    for (const h of this.constellationHubs) {
-      for (const itemId of h.itemIds) {
-        const list = hubsByItem.get(itemId);
-        if (list) list.push(h);
-        else hubsByItem.set(itemId, [h]);
-      }
-    }
-    const targets = new Map<string, { x: number; y: number; w: number; h: number }>();
-    for (const itemId of hub.itemIds) {
-      const memberHubs = hubsByItem.get(itemId) ?? [hub];
-      const card = this.cards.get(itemId);
-      if (!card) continue;
-      const avgX = memberHubs.reduce((s, h) => s + h.x, 0) / memberHubs.length;
-      const avgY = memberHubs.reduce((s, h) => s + h.y, 0) / memberHubs.length;
-      targets.set(itemId, { x: avgX - card.w / 2, y: avgY - card.h / 2, w: card.w, h: card.h });
-    }
-    this.tweenCardsTo(targets, reduceMotion);
-  }
-
-  private tweenCardsTo(
-    targets: Map<string, { x: number; y: number; w: number; h: number }>,
-    reduceMotion: boolean,
-  ): void {
-    if (this.constellationRaf !== null) {
-      cancelAnimationFrame(this.constellationRaf);
-      this.constellationRaf = null;
-    }
-    const from = new Map(
-      [...targets.keys()].map((id) => {
-        const c = this.cards.get(id);
-        return [id, c ? { x: c.x, y: c.y, w: c.w, h: c.h } : targets.get(id)!];
-      }),
-    );
-    const applyFinal = () => {
-      this.itemIndex.load([...this.cards.values()]);
-      this.refreshAlpha();
-      this.scheduleFrame();
-    };
-    if (reduceMotion) {
-      for (const [id, target] of targets) this.applyCardRect(id, target);
-      applyFinal();
-      return;
-    }
-
-    const start = performance.now();
-    const duration = motion.constellations;
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      const e = easeInOut(t);
-      for (const [id, target] of targets) {
-        const f = from.get(id)!;
-        this.applyCardRect(id, {
-          x: f.x + (target.x - f.x) * e,
-          y: f.y + (target.y - f.y) * e,
-          w: f.w + (target.w - f.w) * e,
-          h: f.h + (target.h - f.h) * e,
-        });
-      }
-      this.scheduleFrame();
-      if (t < 1) {
-        this.constellationRaf = requestAnimationFrame(step);
-      } else {
-        this.constellationRaf = null;
-        applyFinal();
-      }
-    };
-    this.constellationRaf = requestAnimationFrame(step);
-  }
-
-  private applyCardRect(id: string, rect: { x: number; y: number; w: number; h: number }): void {
-    const card = this.cards.get(id);
-    const sprite = this.sprites.get(id);
-    if (card) {
-      card.x = rect.x;
-      card.y = rect.y;
-      card.w = rect.w;
-      card.h = rect.h;
-    }
-    if (sprite) {
-      sprite.position.set(rect.x, rect.y);
-      sprite.width = rect.w;
-      sprite.height = rect.h;
-    }
-    if (card) this.syncNoteLabel(card);
   }
 
   private refreshAlpha(): void {
@@ -1143,6 +848,8 @@ export class Engine {
     if (label) fn(label);
     const badge = this.cornerBadges.get(id);
     if (badge) fn(badge);
+    const fav = this.favBadges.get(id);
+    if (fav) fn(fav);
   }
 
   private setCardAlpha(id: string, alpha: number): void {
@@ -1197,6 +904,19 @@ export class Engine {
     );
   }
 
+  /** Dragging a type collection or any of its rows moves the collection and all its rows. */
+  private withCollectionGroup(ids: string[]): string[] {
+    const out = new Set(ids);
+    for (const id of ids) {
+      const card = this.cards.get(id);
+      const root = card?.parentId ?? (card?.collection ? id : null);
+      if (!root) continue;
+      out.add(root);
+      for (const c of this.cards.values()) if (c.parentId === root) out.add(c.id);
+    }
+    return [...out];
+  }
+
   private interactableCards(): ItemCard[] {
     const all = [...this.cards.values()];
     if (!this.searchMatches) return all;
@@ -1207,6 +927,8 @@ export class Engine {
     for (const sprite of this.sprites.values()) sprite.destroy();
     this.sprites.clear();
     this.appliedTexKey.clear();
+    for (const id of [...this.cropTex.keys()]) this.dropCropTexture(id);
+    this.baseTex.clear();
     this.texFailures.clear();
     for (const d of this.decor.values()) d.destroy({ children: true });
     this.decor.clear();
@@ -1215,18 +937,12 @@ export class Engine {
     this.noteLabels.clear();
     for (const badge of this.cornerBadges.values()) badge.destroy();
     this.cornerBadges.clear();
+    for (const fav of this.favBadges.values()) fav.destroy({ children: true });
+    this.favBadges.clear();
     this.cards.clear();
     this.itemIndex.clear();
     this.itemVisible.clear();
     this.textureManager?.destroy();
-    for (const graphic of this.frameGraphics.values()) graphic.destroy();
-    this.frameGraphics.clear();
-    for (const label of this.frameLabels.values()) label.destroy();
-    this.frameLabels.clear();
-    for (const handle of this.frameHandles.values()) handle.destroy();
-    this.frameHandles.clear();
-    this.frames.clear();
-    this.selectedFrameId = null;
   }
 
   // -------------------------------------------------------------------------------- Selection
@@ -1273,44 +989,39 @@ export class Engine {
     const card = this.cards.get(id);
     if (!card) return null;
     const { width: vw, height: vh } = this.app.screen;
-    return this.camera.worldToScreen(card.x + card.w, card.y + card.h / 2, vw, vh);
+    const edge = this.camera.worldToScreen(card.x + card.w, card.y + card.h / 2, vw, vh);
+    return { x: edge.x + CONNECT_HANDLE_OFFSET_PX, y: edge.y };
   }
 
-  /** Screen position of a Constellations hub star — `hub.x/y` are already world coordinates from
-   * `lib/constellations.ts` (or updated live while being dragged, see `resettleAroundHub`). */
-  private constellationHubScreenPos(hub: ConstellationHub): { x: number; y: number } | null {
-    if (!this.app) return null;
-    const { width: vw, height: vh } = this.app.screen;
-    return this.camera.worldToScreen(hub.x, hub.y, vw, vh);
+  /** Whether the pointer is on the strip between the hovered card's right edge and its connect
+   * handle, or on the handle itself. */
+  private overConnectHandleZone(): boolean {
+    if (!this.hoveredId || !this.lastPointer) return false;
+    const handle = this.connectHandleScreenPos(this.hoveredId);
+    const rect = this.getScreenRect(this.hoveredId);
+    if (!handle || !rect) return false;
+    const p = this.lastPointer;
+    return (
+      p.x >= rect.x + rect.w &&
+      p.x <= handle.x + CONNECT_HANDLE_HIT_PX &&
+      Math.abs(p.y - handle.y) <= CONNECT_HANDLE_HIT_PX
+    );
   }
 
-  private constellationHubAt(
-    clientX: number,
-    clientY: number,
-    rectLeft: number,
-    rectTop: number,
-  ): ConstellationHub | null {
-    for (const hub of this.constellationHubs) {
-      const pos = this.constellationHubScreenPos(hub);
-      if (!pos) continue;
-      const dx = clientX - (rectLeft + pos.x);
-      const dy = clientY - (rectTop + pos.y);
-      if (Math.hypot(dx, dy) <= CONSTELLATION_HUB_HIT_PX) return hub;
-    }
-    return null;
+  /** The resize handle of `card` under a world point (a whole edge counts, not only the pill). */
+  private resizeHandleUnder(card: ItemCard, world: { x: number; y: number }): ResizeHandle | null {
+    // A type collection and its rows are laid out by their commands, never resized by hand.
+    if (card.collection || card.parentId) return null;
+    return resizeHandleAt(card, world, {
+      tolerance: resizeHandles.hitTolerance / this.camera.zoom,
+      handles: resizePolicyFor(card.kind).handles,
+    });
   }
 
   private attachSelectionInput(container: HTMLElement, opts: EngineOptions): () => void {
-    let mode:
-      | 'idle'
-      | 'marquee'
-      | 'move'
-      | 'resize'
-      | 'connect'
-      | 'hubdrag'
-      | 'frame-move'
-      | 'frame-resize' = 'idle';
-    let frameDragTotal = { dx: 0, dy: 0 };
+    let mode: 'idle' | 'marquee' | 'move' | 'resize' | 'connect' | 'crop' = 'idle';
+    let cropDragWorld = { x: 0, y: 0 };
+    let cropFocusStart = { x: 0.5, y: 0.5 };
     let startWorld = { x: 0, y: 0 };
     let startScreen = { x: 0, y: 0 };
     let moved = false;
@@ -1319,10 +1030,10 @@ export class Engine {
     let pressed: { id: string; wasSelected: boolean } | null = null;
     let resizeHandle: ResizeHandle | null = null;
     let resizeTargetId: string | null = null;
+    let resizeStartRect = { x: 0, y: 0, w: 0, h: 0 };
+    let handleCursor = false;
     let moveOrigin = new Map<string, { x: number; y: number }>();
     let connectFromId: string | null = null;
-    let hubDragStartWorld = { x: 0, y: 0 };
-    let hubDragStartPos = { x: 0, y: 0 };
 
     const viewport = () => ({ w: this.app?.screen.width ?? 0, h: this.app?.screen.height ?? 0 });
     const toWorld = (e: PointerEvent) => {
@@ -1338,17 +1049,48 @@ export class Engine {
       startScreen = { x: e.clientX, y: e.clientY };
       moved = false;
 
+      // "Adjust crop": a press inside the card drags the picture; anywhere else finishes.
+      if (this.cropId) {
+        const cropCard = this.cards.get(this.cropId);
+        const inside =
+          !!cropCard &&
+          world.x >= cropCard.x &&
+          world.x <= cropCard.x + cropCard.w &&
+          world.y >= cropCard.y &&
+          world.y <= cropCard.y + cropCard.h;
+        if (cropCard && inside) {
+          mode = 'crop';
+          cropDragWorld = world;
+          cropFocusStart = { x: cropCard.cropX ?? 0.5, y: cropCard.cropY ?? 0.5 };
+          container.setPointerCapture(e.pointerId);
+        } else {
+          this.endCropMode();
+        }
+        return;
+      }
+
       // Picking a colour from a photo overrides normal click behaviour too.
       if (this.pickingPoint) {
         const cb = this.pickingPoint;
         this.cancelPointPick();
         const hit = hitTest(this.interactableCards(), world);
         const isPicture = hit && ['image', 'video', 'pdf', 'link'].includes(hit.kind);
-        cb(
-          hit && isPicture
-            ? { id: hit.id, u: (world.x - hit.x) / hit.w, v: (world.y - hit.y) / hit.h }
-            : null,
-        );
+        if (hit && isPicture) {
+          // On a cropped card the click is inside the visible part: map it to the whole picture.
+          const base = this.baseTex.get(hit.id);
+          const uv = base
+            ? cardUvToImageUv(
+                (world.x - hit.x) / hit.w,
+                (world.y - hit.y) / hit.h,
+                hit,
+                base.width / base.height,
+                { x: hit.cropX, y: hit.cropY },
+              )
+            : { u: (world.x - hit.x) / hit.w, v: (world.y - hit.y) / hit.h };
+          cb({ id: hit.id, u: uv.u, v: uv.v });
+        } else {
+          cb(null);
+        }
         container.setPointerCapture(e.pointerId);
         return;
       }
@@ -1362,20 +1104,6 @@ export class Engine {
         if (hit && hit.id !== fromId) this.emit('connectDrop', fromId, hit.id);
         container.setPointerCapture(e.pointerId);
         return;
-      }
-
-      // A Constellations hub star, draggable to re-settle the items around it?
-      if (this.constellationsOn) {
-        const rect = container.getBoundingClientRect();
-        const hub = this.constellationHubAt(e.clientX, e.clientY, rect.left, rect.top);
-        if (hub) {
-          mode = 'hubdrag';
-          this.draggingHubId = hub.id;
-          hubDragStartWorld = world;
-          hubDragStartPos = { x: hub.x, y: hub.y };
-          container.setPointerCapture(e.pointerId);
-          return;
-        }
       }
 
       // The connect handle on the currently-hovered item's right edge?
@@ -1395,49 +1123,18 @@ export class Engine {
         }
       }
 
-      // The resize handle on the currently-selected frame?
-      {
-        const rect = container.getBoundingClientRect();
-        const frame = this.frameResizeHandleAt(e.clientX, e.clientY, rect.left, rect.top);
-        if (frame) {
-          mode = 'frame-resize';
-          this.frameResizeOrigin = { x: frame.x, y: frame.y, w: frame.w, h: frame.h };
-          container.setPointerCapture(e.pointerId);
-          return;
-        }
-      }
-
-      // A frame's title label — click selects it, drag moves it (and its contents).
-      {
-        const rect = container.getBoundingClientRect();
-        const frame = this.frameAtScreenPoint(e.clientX, e.clientY, rect.left, rect.top);
-        if (frame) {
-          this.setSelection([]);
-          this.emit('select', []);
-          this.setSelectedFrameId(frame.id);
-          mode = 'frame-move';
-          this.frameDragOrigin = { x: frame.x, y: frame.y };
-          frameDragTotal = { dx: 0, dy: 0 };
-          this.frameMoveMemberOrigins = new Map(
-            [...this.cards.values()]
-              .filter((c) => c.frameId === frame.id)
-              .map((c) => [c.id, { x: c.x, y: c.y }]),
-          );
-          container.setPointerCapture(e.pointerId);
-          return;
-        }
-      }
-
       // Resize handle on the current single-selection?
       if (this.selection.size === 1) {
         const id = [...this.selection][0];
         const card = this.cards.get(id);
-        if (card && card.kind !== 'swatch') {
-          const handle = resizeHandleAt(card, world, HANDLE_SCREEN_PX / this.camera.zoom);
+        if (card) {
+          const handle = this.resizeHandleUnder(card, world);
           if (handle) {
             mode = 'resize';
             resizeHandle = handle;
             resizeTargetId = id;
+            resizeStartRect = { x: card.x, y: card.y, w: card.w, h: card.h };
+            e.preventDefault(); // Alt-drag must not trigger the browser's Alt behaviour
             container.setPointerCapture(e.pointerId);
             return;
           }
@@ -1447,7 +1144,6 @@ export class Engine {
       const hit = hitTest(this.interactableCards(), world);
       pressed = hit ? { id: hit.id, wasSelected: this.selection.has(hit.id) } : null;
       if (hit) {
-        if (this.selectedFrameId) this.setSelectedFrameId(null);
         if (!this.selection.has(hit.id)) {
           const additive = e.shiftKey;
           this.setSelection(additive ? [...this.selection, hit.id] : [hit.id]);
@@ -1458,24 +1154,19 @@ export class Engine {
           this.setSelection([...next]);
           this.emit('select', this.getSelection());
         }
-        // "Items can't be dragged here" (§2.10) — Constellations positions are a computed
-        // layout, not something the owner repositions by hand; selecting still works above.
-        if (!this.constellationsOn) {
-          mode = 'move';
-          moveOrigin = new Map(
-            [...this.selection].map((id) => {
-              const c = this.cards.get(id);
-              return [id, { x: c?.x ?? 0, y: c?.y ?? 0 }];
-            }),
-          );
-        }
+        mode = 'move';
+        moveOrigin = new Map(
+          this.withCollectionGroup([...this.selection]).map((id) => {
+            const c = this.cards.get(id);
+            return [id, { x: c?.x ?? 0, y: c?.y ?? 0 }];
+          }),
+        );
       } else {
         if (!e.shiftKey) {
           this.setSelection([]);
           this.emit('select', []);
         }
         this.setSelectedConnectionPair(null);
-        if (this.selectedFrameId) this.setSelectedFrameId(null);
         mode = 'marquee';
         // Capture is deferred to the first real move (below), not taken here: a plain click that
         // misses every item (e.g. on a connection line or hub star, which aren't `ItemCard`s and
@@ -1496,8 +1187,20 @@ export class Engine {
         // The pointer is on the map, so it can't be on a List row any more.
         if (this.hoverHighlightSource === 'panel') this.setHoverHighlight(null);
         const world = toWorld(e);
+        // A resize cursor while the pointer is over a handle of the selected card.
+        const only = this.selection.size === 1 ? this.cards.get([...this.selection][0]) : undefined;
+        const overHandle = only ? this.resizeHandleUnder(only, world) : null;
+        if (overHandle) {
+          container.style.cursor = cursorForHandle(overHandle);
+          handleCursor = true;
+        } else if (handleCursor) {
+          container.style.cursor = '';
+          handleCursor = false;
+        }
         const hit = hitTest(this.interactableCards(), world);
-        if (hit?.id !== this.hoveredId) {
+        // The connect handle sits outside the card: keep the card hovered while the pointer travels
+        // the gap to it and over it, or the handle would vanish before it can be grabbed.
+        if (hit?.id !== this.hoveredId && !this.overConnectHandleZone()) {
           this.hoveredId = hit?.id ?? null;
           this.emit('hover', this.hoveredId);
           this.drawConnectHandle();
@@ -1544,11 +1247,37 @@ export class Engine {
           }
         }
         this.drawSelectionOverlay();
+      } else if (mode === 'crop' && this.cropId) {
+        const card = this.cards.get(this.cropId);
+        const base = this.baseTex.get(this.cropId);
+        if (card && base) {
+          const focus = dragCropFocus(
+            cropFocusStart,
+            { x: world.x - cropDragWorld.x, y: world.y - cropDragWorld.y },
+            card,
+            base.width / base.height,
+          );
+          card.cropX = focus.x;
+          card.cropY = focus.y;
+          this.refreshCrop(card.id, card);
+          this.scheduleFrame();
+        }
       } else if (mode === 'resize' && resizeTargetId && resizeHandle) {
         const card = this.cards.get(resizeTargetId);
         const sprite = this.sprites.get(resizeTargetId);
         if (card && sprite) {
-          const next = resizeWithAspect(card, resizeHandle, world);
+          if (e.altKey) e.preventDefault();
+          const policy = resizePolicyFor(card.kind);
+          const next = resizeRect(
+            resizeStartRect,
+            resizeHandle,
+            { x: world.x - startWorld.x, y: world.y - startWorld.y },
+            {
+              keepAspect: isCornerHandle(resizeHandle) && (policy.alwaysKeepAspect || !e.shiftKey),
+              fromCenter: e.altKey,
+              minSize: RESIZE_MIN_SIZE,
+            },
+          );
           card.x = next.x;
           card.y = next.y;
           card.w = next.w;
@@ -1556,43 +1285,9 @@ export class Engine {
           sprite.position.set(next.x, next.y);
           sprite.width = next.w;
           sprite.height = next.h;
+          this.refreshCrop(card.id, card);
           this.syncNoteLabel(card);
           this.drawSelectionOverlay();
-        }
-      } else if (mode === 'frame-move' && this.frameDragOrigin) {
-        const frame = this.selectedFrameId ? this.frames.get(this.selectedFrameId) : null;
-        if (frame) {
-          const worldDx = world.x - startWorld.x;
-          const worldDy = world.y - startWorld.y;
-          frameDragTotal = { dx: worldDx, dy: worldDy };
-          frame.x = this.frameDragOrigin.x + worldDx;
-          frame.y = this.frameDragOrigin.y + worldDy;
-          this.drawFrame(frame);
-          for (const [id, origin] of this.frameMoveMemberOrigins) {
-            const sprite = this.sprites.get(id);
-            const card = this.cards.get(id);
-            if (sprite && card) {
-              sprite.position.set(origin.x + worldDx, origin.y + worldDy);
-              card.x = origin.x + worldDx;
-              card.y = origin.y + worldDy;
-              this.syncNoteLabel(card);
-            }
-          }
-        }
-      } else if (mode === 'frame-resize' && this.frameResizeOrigin && this.selectedFrameId) {
-        const frame = this.frames.get(this.selectedFrameId);
-        if (frame) {
-          const o = this.frameResizeOrigin;
-          frame.w = Math.max(40, o.w + (world.x - startWorld.x));
-          frame.h = Math.max(40, o.h + (world.y - startWorld.y));
-          this.drawFrame(frame);
-        }
-      } else if (mode === 'hubdrag' && this.draggingHubId) {
-        const hub = this.constellationHubs.find((h) => h.id === this.draggingHubId);
-        if (hub) {
-          hub.x = hubDragStartPos.x + (world.x - hubDragStartWorld.x);
-          hub.y = hubDragStartPos.y + (world.y - hubDragStartWorld.y);
-          this.scheduleFrame();
         }
       }
     };
@@ -1616,43 +1311,42 @@ export class Engine {
           if (cell !== null) this.emit('swatchCellClick', card.id, cell);
         }
       } else if (mode === 'move' && moved) {
-        const updates = [...this.selection].map((id) => {
+        const updates = [...moveOrigin.keys()].map((id) => {
           const c = this.cards.get(id);
           return { id, x: c?.x ?? 0, y: c?.y ?? 0 };
         });
         this.emit('move', updates);
       } else if (mode === 'resize' && moved && resizeTargetId) {
         const c = this.cards.get(resizeTargetId);
-        if (c) this.emit('resize', { id: resizeTargetId, x: c.x, y: c.y, w: c.w, h: c.h });
+        if (c) {
+          // Changing a picture's proportions crops it (centred, unless it already has a focus).
+          const startAspect = resizeStartRect.w / resizeStartRect.h;
+          const changed = Math.abs(c.w / c.h / startAspect - 1) > 0.01;
+          const marksCrop = resizePolicyFor(c.kind).crops && changed && c.cropX === null;
+          this.emit('resize', {
+            id: resizeTargetId,
+            x: c.x,
+            y: c.y,
+            w: c.w,
+            h: c.h,
+            ...(marksCrop ? { cropX: 0.5, cropY: 0.5 } : {}),
+          });
+        }
       } else if (mode === 'connect' && connectFromId) {
         const world = toWorld(e);
         const hit = hitTest(this.interactableCards(), world);
         this.clearConnectDragLine();
         if (hit && hit.id !== connectFromId) this.emit('connectDrop', connectFromId, hit.id);
-      } else if (mode === 'hubdrag' && this.draggingHubId && moved) {
-        this.resettleAroundHub(this.draggingHubId, false);
-      } else if (mode === 'frame-move' && moved && this.selectedFrameId) {
-        this.emit('frameMove', this.selectedFrameId, frameDragTotal.dx, frameDragTotal.dy);
-      } else if (mode === 'frame-resize' && moved && this.selectedFrameId) {
-        const frame = this.frames.get(this.selectedFrameId);
-        if (frame) {
-          this.emit('frameResize', this.selectedFrameId, {
-            x: frame.x,
-            y: frame.y,
-            w: frame.w,
-            h: frame.h,
-          });
-        }
       }
       mode = 'idle';
       resizeHandle = null;
       resizeTargetId = null;
       connectFromId = null;
-      this.draggingHubId = null;
+      if (handleCursor) {
+        container.style.cursor = '';
+        handleCursor = false;
+      }
       this.connecting = false;
-      this.frameDragOrigin = null;
-      this.frameResizeOrigin = null;
-      this.frameMoveMemberOrigins.clear();
       this.drawConnectHandle();
       moveOrigin.clear();
       container.releasePointerCapture(e.pointerId);
@@ -1660,11 +1354,6 @@ export class Engine {
 
     const onDblClick = (e: MouseEvent) => {
       const rect = container.getBoundingClientRect();
-      const frameHit = this.frameAtScreenPoint(e.clientX, e.clientY, rect.left, rect.top);
-      if (frameHit) {
-        this.emit('frameRenameRequest', frameHit.id);
-        return;
-      }
       const { w, h } = viewport();
       const world = this.camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top, w, h);
       const hit = hitTest(this.interactableCards(), world);
@@ -1822,11 +1511,21 @@ export class Engine {
     this.selectionOutline = null;
     for (const h of this.handles) h.destroy();
     this.handles = [];
+    // Tests read the single selected card's on-screen rect from this attribute (container px).
+    this.container?.removeAttribute('data-selected-rect');
 
     const selected = [...this.selection]
       .map((id) => this.cards.get(id))
       .filter((c): c is ItemCard => !!c);
     if (selected.length === 0) return;
+    if (selected.length === 1) {
+      const c = selected[0];
+      const tl = this.camera.worldToScreen(c.x, c.y, this.app.screen.width, this.app.screen.height);
+      this.container?.setAttribute(
+        'data-selected-rect',
+        JSON.stringify({ x: tl.x, y: tl.y, w: c.w * this.camera.zoom, h: c.h * this.camera.zoom }),
+      );
+    }
 
     for (const card of selected) {
       const outline = new Graphics();
@@ -1840,23 +1539,37 @@ export class Engine {
       this.handles.push(outline);
     }
 
-    if (selected.length === 1 && selected[0].kind !== 'swatch') {
-      // Swatches and palettes size themselves, so they get no resize handles.
+    if (selected.length === 1) {
       const card = selected[0];
-      const corners: [number, number][] = [
-        [card.x, card.y],
-        [card.x + card.w, card.y],
-        [card.x, card.y + card.h],
-        [card.x + card.w, card.y + card.h],
-      ];
-      for (const [wx, wy] of corners) {
-        const handle = new Graphics();
-        this.applyOverlayTransform(handle, wx, wy);
-        handle.position.x -= HANDLE_SCREEN_PX / 2;
-        handle.position.y -= HANDLE_SCREEN_PX / 2;
-        handle.rect(0, 0, HANDLE_SCREEN_PX, HANDLE_SCREEN_PX).fill(0xefe6d6);
-        this.overlayLayer.addChild(handle);
-        this.handles.push(handle);
+      const handles = card.collection || card.parentId ? [] : resizePolicyFor(card.kind).handles;
+      const { corner, sideLong, sideShort } = resizeHandles;
+      const w = card.w * this.camera.zoom;
+      const h = card.h * this.camera.zoom;
+      const origin = this.camera.worldToScreen(
+        card.x,
+        card.y,
+        this.app.screen.width,
+        this.app.screen.height,
+      );
+      for (const name of ALL_HANDLES) {
+        if (!handles.includes(name)) continue;
+        const cx = origin.x + (name.includes('w') ? 0 : name.includes('e') ? w : w / 2);
+        const cy = origin.y + (name.startsWith('n') ? 0 : name.startsWith('s') ? h : h / 2);
+        const isCorner = isCornerHandle(name);
+        // Sides are small pills lying along their edge; corners are squares with an accent border.
+        const horizontalEdge = name === 'n' || name === 's';
+        const hw = isCorner ? corner : horizontalEdge ? sideLong : sideShort;
+        const hh = isCorner ? corner : horizontalEdge ? sideShort : sideLong;
+        const g = new Graphics();
+        if (isCorner) {
+          g.rect(cx - hw / 2, cy - hh / 2, hw, hh)
+            .fill(0xffffff)
+            .stroke({ color: colors.accent, width: 1.5 });
+        } else {
+          g.roundRect(cx - hw / 2, cy - hh / 2, hw, hh, Math.min(hw, hh) / 2).fill(0xffffff);
+        }
+        this.overlayLayer.addChild(g);
+        this.handles.push(g);
       }
     }
   }
@@ -2153,98 +1866,6 @@ export class Engine {
     this.recheckHubHighlight(stars);
   }
 
-  /** Constellations' own hub rendering (§2.10: "Hubs are glowing, labeled stars"), distinct from
-   * Show all's small hub stars — bigger, with a soft halo, and draggable (see `resettleAroundHub`
-   * above). Also draws the faint "Unclassified" ring for items with no value for the active
-   * criteria. */
-  private drawConstellationOverlay(): void {
-    if (!this.overlayLayer || !this.app) return;
-    for (const g of this.constellationOverlay) g.destroy();
-    this.constellationOverlay = [];
-    const stars: { x: number; y: number; r: number }[] = [];
-    if (!this.constellationsOn) {
-      this.recheckHubHighlight(stars);
-      return;
-    }
-
-    const { width: vw, height: vh } = this.app.screen;
-
-    for (const hub of this.constellationHubs) {
-      const pos = this.camera.worldToScreen(hub.x, hub.y, vw, vh);
-      const color = CRITERION_COLOR[hub.criterion];
-
-      const glow = new Graphics()
-        .circle(pos.x, pos.y, CONSTELLATION_HUB_STAR_RADIUS_PX * 2.2)
-        .fill({ color, alpha: 0.18 });
-      this.overlayLayer.addChild(glow);
-      this.constellationOverlay.push(glow);
-
-      const star = new Graphics()
-        .star(
-          pos.x,
-          pos.y,
-          HUB_STAR_POINTS,
-          CONSTELLATION_HUB_STAR_RADIUS_PX,
-          CONSTELLATION_HUB_STAR_INNER_RADIUS_PX,
-        )
-        .fill({ color, alpha: 1 });
-      star.eventMode = 'static';
-      star.cursor = 'grab';
-      const memberSet = new Set(hub.itemIds);
-      star.on('pointerover', () => this.setHoverHighlight(memberSet, 'hub'));
-      star.on('pointerout', () => this.setHoverHighlight(null, 'hub'));
-      this.overlayLayer.addChild(star);
-      this.constellationOverlay.push(star);
-      stars.push({ x: pos.x, y: pos.y, r: CONSTELLATION_HUB_STAR_RADIUS_PX });
-
-      const label = new Text({
-        text: hub.label,
-        style: uiTextStyle({
-          fontSize: HUB_LABEL_FONT_SIZE + 1,
-          fill: 0xffffff,
-          fontWeight: '600',
-        }),
-      });
-      label.anchor.set(0.5, 0);
-      label.x = pos.x;
-      label.y = pos.y + CONSTELLATION_HUB_STAR_RADIUS_PX + 4;
-      this.overlayLayer.addChild(label);
-      this.constellationOverlay.push(label);
-    }
-
-    if (this.constellationUnclassifiedRadius !== null) {
-      const center = this.camera.worldToScreen(
-        this.constellationOrigin.x,
-        this.constellationOrigin.y,
-        vw,
-        vh,
-      );
-      const r = this.constellationUnclassifiedRadius * this.camera.zoom;
-
-      const ring = new Graphics()
-        .circle(center.x, center.y, r)
-        .stroke({ color: 0xffffff, alpha: 0.15, width: 1 });
-      this.overlayLayer.addChild(ring);
-      this.constellationOverlay.push(ring);
-
-      const label = new Text({
-        text: en.connections.unclassified,
-        style: uiTextStyle({
-          fontSize: CONSTELLATION_UNCLASSIFIED_LABEL_FONT_SIZE,
-          fill: 0xffffff,
-          fontStyle: 'italic',
-        }),
-      });
-      label.alpha = 0.6;
-      label.anchor.set(0.5, 0.5);
-      label.x = center.x + r;
-      label.y = center.y;
-      this.overlayLayer.addChild(label);
-      this.constellationOverlay.push(label);
-    }
-    this.recheckHubHighlight(stars);
-  }
-
   // ----------------------------------------------------------------------------- Camera / fly-to
 
   flyTo(rect: { x: number; y: number; w: number; h: number }, reduceMotion = false): void {
@@ -2292,11 +1913,11 @@ export class Engine {
       this.applyCameraTransform();
       this.cullBench();
       this.cullItems();
+      this.drawCropOverlay();
       this.drawSelectionOverlay();
       this.drawConnectionLines();
       this.drawHubs();
       this.drawConnectHandle();
-      this.drawConstellationOverlay();
     });
   }
 
@@ -2353,6 +1974,8 @@ export class Engine {
         if (label) label.visible = false;
         const badge = this.cornerBadges.get(id);
         if (badge) badge.visible = false;
+        const fav = this.favBadges.get(id);
+        if (fav) fav.visible = false;
         const decor = this.decor.get(id);
         if (decor) decor.visible = false;
       }
@@ -2371,6 +1994,8 @@ export class Engine {
       if (label) label.visible = !hidden;
       const badge = this.cornerBadges.get(id);
       if (badge) badge.visible = !hidden;
+      const fav = this.favBadges.get(id);
+      if (fav) fav.visible = !hidden && this.favoriteBadgeShown(id);
       if (selfDrawn) {
         this.syncDecor(card); // zoom may have crossed the hex-label threshold
         const decor = this.decor.get(id);
@@ -2402,14 +2027,14 @@ export class Engine {
 
   // ------------------------------------------------------------------------------- §2.11 Export
 
-  /** The world-space rect a PNG/PDF export renders: a single frame's own rect, or the padded
-   * bounding box of every card in the current space. `null` when there's nothing to export. */
-  getExportRect(frameId: string | null): Rect | null {
-    if (frameId) {
-      const frame = this.frames.get(frameId);
-      return frame ? { x: frame.x, y: frame.y, w: frame.w, h: frame.h } : null;
-    }
-    return exportRectForCards([...this.cards.values()]);
+  /** The world-space rect a PNG/PDF export renders: the padded bounding box of the cards with
+   * these ids, or of every card in the current space when `ids` is null. `null` when there's
+   * nothing to export. */
+  getExportRect(ids: string[] | null): Rect | null {
+    const cards = ids
+      ? ids.map((id) => this.cards.get(id)).filter((c): c is ItemCard => !!c)
+      : [...this.cards.values()];
+    return exportRectForCards(cards);
   }
 
   /** Renders `rect` (world space) to an off-screen canvas at `scale`× — the shared step behind
@@ -2467,6 +2092,8 @@ export class Engine {
       if (label) label.visible = true;
       const badge = this.cornerBadges.get(id);
       if (badge) badge.visible = true;
+      const fav = this.favBadges.get(id);
+      if (fav) fav.visible = true;
     }
   }
 
@@ -2483,7 +2110,7 @@ export class Engine {
       jobs.push(
         this.textureManager.request(key, url).then((texture) => {
           if (texture && !sprite.destroyed) {
-            sprite.texture = texture;
+            this.applyTexture(id, sprite, texture);
             sprite.tint = 0xffffff;
             this.appliedTexKey.set(id, key);
           }
@@ -2529,6 +2156,105 @@ export class Engine {
     return { key: `${wantsT512 ? 't512' : 't128'}:${card.id}:${url}`, url };
   }
 
+  /** Shows `base` on the card's sprite, cover-fitted: the whole texture when the card has the
+   * picture's proportions, otherwise a sub-frame of it (shares the GPU source) positioned by the
+   * crop focus. */
+  private applyTexture(id: string, sprite: Sprite, base: Texture, card = this.cards.get(id)): void {
+    this.baseTex.set(id, base);
+    const old = this.cropTex.get(id);
+    let next = base;
+    if (card && card.w > 0 && card.h > 0 && base !== Texture.WHITE) {
+      const f = coverFrame(base.width, base.height, card.w, card.h, card.cropX, card.cropY);
+      if (!isWholeTexture(f, base.width, base.height)) {
+        next = new Texture({ source: base.source, frame: new Rectangle(f.x, f.y, f.w, f.h) });
+      }
+    }
+    if (next === base) this.cropTex.delete(id);
+    else this.cropTex.set(id, next);
+    sprite.texture = next;
+    if (card) {
+      sprite.width = card.w;
+      sprite.height = card.h;
+    }
+    if (old && old !== next) old.destroy(false); // never the shared source
+  }
+
+  /** Enters "Adjust crop" for a picture card: its whole picture shows dimmed around the card, and
+   * dragging inside moves it. False when the card isn't a cropped-able picture or isn't loaded. */
+  startCropMode(id: string): boolean {
+    const card = this.cards.get(id);
+    if (!card || !this.baseTex.has(id) || !resizePolicyFor(card.kind).crops) return false;
+    this.cropId = id;
+    this.cropStart = { x: card.cropX ?? 0.5, y: card.cropY ?? 0.5 };
+    if (this.container) this.container.style.cursor = 'move';
+    this.scheduleFrame();
+    return true;
+  }
+
+  isCropping(): boolean {
+    return this.cropId !== null;
+  }
+
+  /** Leaves "Adjust crop" (Enter, Esc, or a click outside); emits `cropCommit` when the focus moved. */
+  endCropMode(): void {
+    const id = this.cropId;
+    if (!id) return;
+    const card = this.cards.get(id);
+    const start = this.cropStart;
+    this.cropId = null;
+    this.cropStart = null;
+    if (this.container) this.container.style.cursor = '';
+    this.scheduleFrame();
+    this.emit('cropEnd');
+    if (!card || !start) return;
+    const x = card.cropX ?? 0.5;
+    const y = card.cropY ?? 0.5;
+    if (Math.abs(x - start.x) > 1e-4 || Math.abs(y - start.y) > 1e-4) {
+      this.emit('cropCommit', { id, cropX: x, cropY: y });
+    }
+  }
+
+  /** The dimmed whole picture around the card, and the card's part outlined in white. */
+  private drawCropOverlay(): void {
+    for (const g of this.cropOverlay) g.destroy();
+    this.cropOverlay = [];
+    if (!this.cropId || !this.overlayLayer || !this.app) return;
+    const card = this.cards.get(this.cropId);
+    const base = this.baseTex.get(this.cropId);
+    if (!card || !base) return;
+    const { width: vw, height: vh } = this.app.screen;
+    const zoom = this.camera.zoom;
+    const f = coverFrame(base.width, base.height, card.w, card.h, card.cropX, card.cropY);
+    const scale = card.w / f.w; // card (world) units per texture pixel
+    const topLeft = this.camera.worldToScreen(card.x - f.x * scale, card.y - f.y * scale, vw, vh);
+    const full = new Sprite(base);
+    full.alpha = 0.32;
+    full.position.set(topLeft.x, topLeft.y);
+    full.width = base.width * scale * zoom;
+    full.height = base.height * scale * zoom;
+    const cardTopLeft = this.camera.worldToScreen(card.x, card.y, vw, vh);
+    const outline = new Graphics()
+      .rect(cardTopLeft.x, cardTopLeft.y, card.w * zoom, card.h * zoom)
+      .stroke({ color: 0xffffff, width: 2 });
+    this.overlayLayer.addChild(full);
+    this.overlayLayer.addChild(outline);
+    this.cropOverlay.push(full, outline);
+  }
+
+  /** Re-fits the picture after the card's size or crop focus changed. */
+  private refreshCrop(id: string, card: ItemCard): void {
+    const base = this.baseTex.get(id);
+    const sprite = this.sprites.get(id);
+    if (base && sprite && !sprite.destroyed) this.applyTexture(id, sprite, base, card);
+  }
+
+  private dropCropTexture(id: string): void {
+    this.baseTex.delete(id);
+    const crop = this.cropTex.get(id);
+    this.cropTex.delete(id);
+    crop?.destroy(false);
+  }
+
   private requestLod(card: ItemCard, sprite: Sprite): void {
     if (!this.textureManager) return;
     const want = this.desiredTexture(card);
@@ -2561,7 +2287,7 @@ export class Engine {
       }
       this.texFailures.delete(want.key);
       if (sprite.destroyed || this.appliedTexKey.get(card.id) !== want.key) return; // superseded
-      sprite.texture = texture;
+      this.applyTexture(card.id, sprite, texture);
       sprite.tint = 0xffffff;
     });
   }
@@ -2595,7 +2321,7 @@ export class Engine {
       const sprite = this.sprites.get(id);
       if (sprite && !sprite.destroyed) {
         this.appliedTexKey.delete(id); // so stopVideoPreview → requestLod restores the poster
-        sprite.texture = texture;
+        this.applyTexture(id, sprite, texture);
       }
     } catch {
       // Playback failed (e.g. a codec this browser can't decode) — leave the poster thumbnail
@@ -2635,12 +2361,11 @@ export class Engine {
     this.clearMarquee();
     this.selectionOutline?.destroy();
     for (const h of this.handles) h.destroy();
+    for (const g of this.cropOverlay) g.destroy();
     for (const g of this.connectionLineGraphics) g.destroy();
     for (const g of this.hubDisplayObjects) g.destroy();
     this.connectHandleGraphic?.destroy();
     this.connectDragLine?.destroy();
-    for (const g of this.constellationOverlay) g.destroy();
-    if (this.constellationRaf !== null) cancelAnimationFrame(this.constellationRaf);
     this.rectContext?.destroy();
     this.app?.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     this.app = null;

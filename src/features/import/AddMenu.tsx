@@ -6,6 +6,7 @@ import type { Engine } from '@/canvas/Engine';
 import type { Rect } from '@/lib/geometry';
 import { en } from '@/i18n/en';
 import { freeCentreFor, importFiles, importPaths } from './importItems';
+import { importFilesWithPdfChoice, importPathsWithPdfChoice } from './importWithPdfChoice';
 import { detectMediaKind } from '@/lib/fileKinds';
 import { useToastStore } from '@/state/toastStore';
 import { useAddMenuStore } from '@/state/addMenuStore';
@@ -13,15 +14,12 @@ import { useBoardStore } from '@/state/boardStore';
 import { useHistoryStore } from '@/commands/history';
 import { createCreateNoteCommand } from '@/commands/noteCommands';
 import { noteGeometry } from '@/design/tokens';
-import { SWATCH_SIZE, createCreateSwatchCommand } from '@/commands/swatchCommands';
-import { DEFAULT_FRAME_SIZE, createCreateFrameCommand } from '@/commands/frameCommands';
+import { openNewPalette } from '@/features/colorStudio/openStudio';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
 import { LinkDialog } from './LinkDialog';
 import { importLink } from './importLink';
 import { useSettingsStore } from '@/state/settingsStore';
-import { useUiStore } from '@/state/uiStore';
-import { useLibraryStore } from '@/state/libraryStore';
 import {
   ALL_SUPPORTED_EXTENSIONS,
   FONT_EXTENSIONS,
@@ -29,6 +27,8 @@ import {
   PDF_EXTENSIONS,
   VIDEO_EXTENSIONS,
 } from '@/lib/fileKinds';
+import { isTypingTarget } from '@/lib/isTypingTarget';
+import { useEscape } from '@/app/useEscape';
 
 // Windows pre-selects the first filter, so "All supported files" must come first.
 const MEDIA_FILTERS: FileFilter[] = [
@@ -47,6 +47,7 @@ export interface AddMenuProps {
 /** The dock's "+ Add" entry point (§2.3): Files…, Folder…, Paste. Ctrl+O opens Files… directly. */
 export function AddMenu({ platform, engine }: AddMenuProps) {
   const open = useAddMenuStore((s) => s.open);
+  useEscape(open, () => useAddMenuStore.getState().setOpen(false), { allowWhileTyping: true });
   const setOpen = useAddMenuStore((s) => s.setOpen);
   const [folderConfirm, setFolderConfirm] = useState<FolderConfirmState | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -64,7 +65,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setOpen(false);
     if (platform.kind === 'tauri') {
       const paths = await platform.dialogs.openFiles(MEDIA_FILTERS);
-      if (paths.length > 0) await importPaths(platform, paths, dropPoint(), flyTo);
+      if (paths.length > 0) await importPathsWithPdfChoice(platform, paths, dropPoint(), flyTo);
     } else {
       filesInputRef.current?.click();
     }
@@ -128,27 +129,9 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
       .then(() => useNoteEditStore.getState().open(item.id));
   }
 
-  function handleAddSwatch(): void {
+  function handleAddPalette(): void {
     setOpen(false);
-    const space = currentSpace();
-    if (!space) return;
-    const point = freeCentreFor(dropPoint(), { w: SWATCH_SIZE, h: SWATCH_SIZE });
-    const { command, item } = createCreateSwatchCommand(
-      platform,
-      space.boardId,
-      space.isLibraryBoard,
-      point.x,
-      point.y,
-    );
-    // Select it right away so the palette editor shows (no hex copy: that is for clicking).
-    void useHistoryStore
-      .getState()
-      .execute(command)
-      .then(() => {
-        useLibraryStore.getState().setSelection([item.id]);
-        engine?.setSelection([item.id]);
-        useUiStore.setState({ panelOpen: true, panelTab: 'details' });
-      });
+    openNewPalette();
   }
 
   function handleAddLink(): void {
@@ -156,19 +139,10 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setLinkDialogOpen(true);
   }
 
-  function handleAddFrame(): void {
-    setOpen(false);
-    const space = currentSpace();
-    if (!space) return;
-    const point = freeCentreFor(dropPoint(), DEFAULT_FRAME_SIZE);
-    const { command } = createCreateFrameCommand(platform, space.boardId, point.x, point.y);
-    void useHistoryStore.getState().execute(command);
-  }
-
   function onFilesInputChange(e: ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (files.length > 0) void importFiles(platform, files, dropPoint(), flyTo);
+    if (files.length > 0) void importFilesWithPdfChoice(platform, files, dropPoint(), flyTo);
   }
 
   function onFolderInputChange(e: ChangeEvent<HTMLInputElement>): void {
@@ -187,12 +161,6 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
   }
 
   useEffect(() => {
-    function isTypingTarget(target: EventTarget | null): boolean {
-      if (!(target instanceof HTMLElement)) return false;
-      return (
-        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
-      );
-    }
     function onKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
         e.preventDefault();
@@ -245,8 +213,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
                   { id: 'paste', label: en.addMenu.paste, onSelect: () => void handlePaste() },
                   { id: 'link', label: en.addMenu.link, onSelect: handleAddLink },
                   { id: 'note', label: en.addMenu.note, onSelect: handleAddNote },
-                  { id: 'swatch', label: en.addMenu.swatch, onSelect: handleAddSwatch },
-                  { id: 'frame', label: en.addMenu.frame, onSelect: handleAddFrame },
+                  { id: 'palette', label: en.addMenu.palette, onSelect: handleAddPalette },
                 ]}
               />
             </Popover>

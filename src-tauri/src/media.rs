@@ -49,8 +49,13 @@ fn guess_mime(name: &str, bytes: &[u8]) -> String {
 
 fn find_duplicate(conn: &Connection, hash: &str) -> rusqlite::Result<Option<(String, String)>> {
     conn.query_row(
-        "SELECT id, file_path FROM items WHERE file_hash = ?1
-         ORDER BY deleted_at IS NULL DESC, created_at DESC LIMIT 1",
+        "SELECT id, file_path FROM (
+             SELECT id, file_path, deleted_at, created_at FROM items WHERE file_hash = ?1
+             UNION ALL
+             SELECT ff.item_id, ff.file_path, i.deleted_at, ff.created_at
+               FROM font_files ff JOIN items i ON i.id = ff.item_id
+              WHERE ff.file_hash = ?1 AND ff.deleted_at IS NULL
+         ) ORDER BY deleted_at IS NULL DESC, created_at DESC LIMIT 1",
         params![hash],
         |row| Ok((row.get(0)?, row.get(1)?)),
     )
@@ -287,6 +292,65 @@ fn current_library_id(state: &State<'_, AppState>) -> AppResult<String> {
         .ok_or_else(|| AppError::new("no_library", "No library is open"))
 }
 
+const IMAGE_EXTENSIONS: [&str; 7] = ["jpg", "jpeg", "png", "webp", "gif", "avif", "bmp"];
+const MAX_IMAGE_BYTES: u64 = 64 * 1024 * 1024;
+
+/// Pure, unit-tested: only the picture formats the Color studio reads.
+fn is_allowed_image(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| IMAGE_EXTENSIONS.iter().any(|ok| e.eq_ignore_ascii_case(ok)))
+}
+
+/// Reads a picture chosen with the file dialog, for the Color studio's "From an image" tab: the
+/// bytes are used for sampling colours and are never stored in the library. Raw binary IPC.
+#[tauri::command]
+pub fn media_read_image(path: String) -> AppResult<tauri::ipc::Response> {
+    let p = Path::new(&path);
+    if !is_allowed_image(p) {
+        return Err(AppError::new(
+            "not_image",
+            "Only picture files can be read this way.",
+        ));
+    }
+    if fs::metadata(p)?.len() > MAX_IMAGE_BYTES {
+        return Err(AppError::new(
+            "too_large",
+            "This picture is larger than 64 MB.",
+        ));
+    }
+    Ok(tauri::ipc::Response::new(fs::read(p)?))
+}
+
+const MAX_PDF_BYTES: u64 = 512 * 1024 * 1024;
+
+/// Pure, unit-tested: only `.pdf` files can be read by `media_read_pdf`.
+fn is_allowed_pdf(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
+}
+
+/// Reads a PDF chosen with the file dialog so the page picker can show its pages before anything is
+/// copied into the library (Patch 2 · G2). Raw binary IPC: arrives as an `ArrayBuffer`.
+#[tauri::command]
+pub fn media_read_pdf(path: String) -> AppResult<tauri::ipc::Response> {
+    let p = Path::new(&path);
+    if !is_allowed_pdf(p) {
+        return Err(AppError::new(
+            "not_pdf",
+            "Only PDF files can be read this way.",
+        ));
+    }
+    if fs::metadata(p)?.len() > MAX_PDF_BYTES {
+        return Err(AppError::new(
+            "too_large",
+            "This PDF is larger than 512 MB.",
+        ));
+    }
+    Ok(tauri::ipc::Response::new(fs::read(p)?))
+}
+
 /// Pure, unit-tested: ULID-named direct children of `root` not in `keep`.
 fn orphan_cache_dirs(root: &Path, keep: &HashSet<String>) -> Vec<PathBuf> {
     let Ok(entries) = fs::read_dir(root) else {
@@ -369,6 +433,14 @@ mod tests {
                 file_path TEXT,
                 created_at TEXT,
                 deleted_at TEXT
+            );
+            CREATE TABLE font_files (
+                id TEXT PRIMARY KEY,
+                item_id TEXT,
+                file_path TEXT,
+                file_hash TEXT,
+                created_at TEXT,
+                deleted_at TEXT
             );",
         )
         .unwrap();
@@ -403,6 +475,30 @@ mod tests {
 
         let second = import_bytes(&conn, dir.path(), "b.jpg", b"same bytes").unwrap();
         assert_eq!(second.duplicate_of.as_deref(), Some("item1"));
+        assert_eq!(second.rel_path, first.rel_path);
+    }
+
+    #[test]
+    fn a_hash_stored_only_in_font_files_is_a_duplicate() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = Connection::open_in_memory().unwrap();
+        items_table(&conn);
+
+        let first = import_bytes(&conn, dir.path(), "a.ttf", b"font bytes").unwrap();
+        // A family item whose main file is another one; this file lives only in font_files.
+        conn.execute(
+            "INSERT INTO items (id, file_hash, file_path, created_at) VALUES ('fam', 'other', 'media/x.ttf', '2026-01-01')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO font_files (id, item_id, file_path, file_hash, created_at) VALUES ('ff1', 'fam', ?2, ?1, '2026-01-01')",
+            params![first.hash, first.rel_path],
+        )
+        .unwrap();
+
+        let second = import_bytes(&conn, dir.path(), "b.ttf", b"font bytes").unwrap();
+        assert_eq!(second.duplicate_of.as_deref(), Some("fam"));
         assert_eq!(second.rel_path, first.rel_path);
     }
 
@@ -468,5 +564,22 @@ mod tests {
         let keep = HashSet::from([kept]);
         let orphans = orphan_cache_dirs(dir.path(), &keep);
         assert_eq!(orphans, vec![dir.path().join(other)]);
+    }
+
+    #[test]
+    fn is_allowed_pdf_accepts_pdf_only() {
+        assert!(is_allowed_pdf(Path::new("C:\\docs\\Book.PDF")));
+        assert!(is_allowed_pdf(Path::new("a.pdf")));
+        assert!(!is_allowed_pdf(Path::new("a.pdf.exe")));
+        assert!(!is_allowed_pdf(Path::new("secrets.txt")));
+        assert!(!is_allowed_pdf(Path::new("pdf")));
+    }
+
+    #[test]
+    fn is_allowed_image_accepts_pictures_only() {
+        assert!(is_allowed_image(Path::new("C:\\x\\photo.JPG")));
+        assert!(is_allowed_image(Path::new("a.webp")));
+        assert!(!is_allowed_image(Path::new("a.pdf")));
+        assert!(!is_allowed_image(Path::new("a")));
     }
 }

@@ -116,6 +116,9 @@ async function createLinkRow(
     h: primary.rect.h,
     z: primary.z,
     frameId: null,
+    cropX: null,
+    cropY: null,
+    parentId: null,
     addedAt: now,
   };
   useLibraryStore.getState().upsertItem(item);

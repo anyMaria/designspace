@@ -34,7 +34,7 @@ test('importing a font shows a specimen thumbnail, and Focus view opens the type
 
   // The type tester: metadata panel shows the real family name from the font's name table, the
   // sample-text input is editable and drives the size waterfall / glyph grid live.
-  await expect(page.getByText('Unbounded', { exact: true })).toBeVisible();
+  await expect(page.getByText('Unbounded', { exact: true }).first()).toBeVisible();
   const sampleInput = page.getByLabel('Sample text');
   await expect(sampleInput).toBeVisible();
   await sampleInput.fill('Hello type');

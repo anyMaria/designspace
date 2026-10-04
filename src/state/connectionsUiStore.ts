@@ -11,17 +11,13 @@ interface ConnectionsUiState {
   activeCriteria: Criterion[];
   mode: ConnectionsMode;
   minStrength: number;
-  constellationsOn: boolean;
   /** Set once a criterion toggle is blocked by the 3-active cap, so the popover can show
    * "Up to 3 at a time. Turn one off first." and clear it itself after a moment. */
   limitHitAt: number | null;
-  /** §2.10: "Beyond that, the popover says 'Too many links. Filter first or use Constellations.'"
-   * Set by `useConnectionsBinding` whenever Show all's edge count would exceed the 5,000-line
-   * cap, so no lines are drawn until the owner filters down or turns on Constellations. */
+  /** §2.10: "Beyond that, the popover says 'Too many links. Filter first.'" Set by
+   * `useConnectionsBinding` whenever Show all's edge count would exceed the 5,000-line cap, so no
+   * lines are drawn until the owner filters down. */
   showAllOverLimit: boolean;
-  /** §4.9: "Show a subtle 'Arranging…' and keep the old view until the new one is ready" — set
-   * by `useConstellationsBinding` while the layout worker is computing. */
-  arranging: boolean;
 
   open: () => void;
   close: () => void;
@@ -29,9 +25,7 @@ interface ConnectionsUiState {
   toggleCriterion: (c: Criterion) => void;
   setMode: (mode: ConnectionsMode) => void;
   setMinStrength: (n: number) => void;
-  setConstellationsOn: (v: boolean) => void;
   setShowAllOverLimit: (v: boolean) => void;
-  setArranging: (v: boolean) => void;
 }
 
 /** Connections popover state (§2.10) — "remembered per space" in the plan, but there's only one
@@ -43,10 +37,8 @@ export const useConnectionsUiStore = create<ConnectionsUiState>((set) => ({
   activeCriteria: DEFAULT_CRITERIA,
   mode: 'hover',
   minStrength: 1,
-  constellationsOn: false,
   limitHitAt: null,
   showAllOverLimit: false,
-  arranging: false,
 
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
@@ -65,7 +57,5 @@ export const useConnectionsUiStore = create<ConnectionsUiState>((set) => ({
 
   setMode: (mode) => set({ mode }),
   setMinStrength: (n) => set({ minStrength: n }),
-  setConstellationsOn: (v) => set({ constellationsOn: v }),
   setShowAllOverLimit: (v) => set({ showAllOverLimit: v }),
-  setArranging: (v) => set({ arranging: v }),
 }));

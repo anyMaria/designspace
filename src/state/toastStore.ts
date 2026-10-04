@@ -7,6 +7,9 @@ export interface ToastItem {
    * toasts (§2.3) use "Show"/"Restore" instead. */
   actionLabel?: string;
   onAction?: () => void;
+  /** An optional second button after the first (e.g. "Open Trash"). */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
   /** ms before auto-dismiss; 0 disables it. */
   duration?: number;
 }
@@ -15,7 +18,13 @@ interface ToastState {
   toasts: ToastItem[];
   show: (
     message: string,
-    opts?: { actionLabel?: string; onAction?: () => void; duration?: number },
+    opts?: {
+      actionLabel?: string;
+      onAction?: () => void;
+      secondaryLabel?: string;
+      onSecondary?: () => void;
+      duration?: number;
+    },
   ) => string;
   dismiss: (id: string) => void;
 }
@@ -36,6 +45,8 @@ export const useToastStore = create<ToastState>((set) => ({
           message,
           actionLabel: opts?.actionLabel,
           onAction: opts?.onAction,
+          secondaryLabel: opts?.secondaryLabel,
+          onSecondary: opts?.onSecondary,
           duration: opts?.duration ?? 5000,
         },
       ],

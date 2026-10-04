@@ -7,6 +7,7 @@ import { useHistoryStore } from '@/commands/history';
 import {
   createDeleteTermCommand,
   createMergeTermsCommand,
+  createMoveTermCommand,
   createReorderTermsCommand,
   createRenameTermCommand,
   createSetAiHintCommand,
@@ -17,6 +18,8 @@ import { en } from '@/i18n/en';
 const FACETS: Facet[] = ['type', 'vibe', 'movement', 'tag'];
 
 /** Settings → Vocabularies (§2.5): rename, merge, delete, reorder, and an AI hint per value. */
+const MOVABLE_FACETS = ['vibe', 'movement', 'tag'] as const;
+
 export function VocabularySection({ platform }: { platform: Platform }) {
   const [facet, setFacet] = useState<Facet>('type');
   const terms = useTermStore((s) => s.terms);
@@ -46,6 +49,10 @@ export function VocabularySection({ platform }: { platform: Platform }) {
     void useHistoryStore
       .getState()
       .execute(createSetAiHintCommand(platform, term.id, trimmed || null));
+  }
+
+  function moveToFacet(term: Term, toFacet: 'vibe' | 'movement' | 'tag'): void {
+    void useHistoryStore.getState().execute(createMoveTermCommand(platform, term.id, toFacet));
   }
 
   function remove(term: Term): void {
@@ -95,6 +102,8 @@ export function VocabularySection({ platform }: { platform: Platform }) {
               onSetHint={(hint) => setHint(term, hint)}
               onDelete={() => remove(term)}
               onMerge={(targetId) => merge(term, targetId)}
+              moveTargets={MOVABLE_FACETS.filter((f) => f !== facet && facet !== 'type')}
+              onMoveToFacet={(f) => moveToFacet(term, f)}
             />
           ))}
         </div>
@@ -113,6 +122,8 @@ function VocabularyRow({
   onSetHint,
   onDelete,
   onMerge,
+  moveTargets,
+  onMoveToFacet,
 }: {
   term: Term;
   others: Term[];
@@ -123,6 +134,9 @@ function VocabularyRow({
   onSetHint: (hint: string) => void;
   onDelete: () => void;
   onMerge: (targetId: string) => void;
+  /** The other fields this word can move to (none for a Type). */
+  moveTargets: ('vibe' | 'movement' | 'tag')[];
+  onMoveToFacet: (facet: 'vibe' | 'movement' | 'tag') => void;
 }) {
   const [mergeTarget, setMergeTarget] = useState('');
 
@@ -182,6 +196,31 @@ function VocabularyRow({
           style={{ flex: 1, minWidth: 0, color: 'var(--text-2)' }}
           onBlur={(e) => onSetHint(e.target.value)}
         />
+        {moveTargets.length > 0 && (
+          <select
+            aria-label={`${en.vocabulary.moveTo} ${term.name}`}
+            value=""
+            onChange={(e) => {
+              const target = e.target.value as 'vibe' | 'movement' | 'tag' | '';
+              if (target) onMoveToFacet(target);
+            }}
+            style={{
+              background: 'var(--surface-1)',
+              color: 'var(--text-1)',
+              border: '1px solid var(--hairline)',
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--space-1) var(--space-2)',
+              maxWidth: 120,
+            }}
+          >
+            <option value="">{en.vocabulary.moveTo}</option>
+            {moveTargets.map((f) => (
+              <option key={f} value={f}>
+                {en.vocabulary.facets[f]}
+              </option>
+            ))}
+          </select>
+        )}
         {others.length > 0 && (
           <>
             <select

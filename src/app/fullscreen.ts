@@ -31,3 +31,9 @@ export async function toggleFullscreen(platform: Platform): Promise<void> {
   }
   await setFullscreen(platform, !current);
 }
+
+/** Keeps `uiStore.fullscreen` in step with the window, including when the OS or the browser's own
+ * Esc leaves full screen (Patch 2 · C1). Returns the unsubscribe function. */
+export function watchFullscreen(platform: Platform): () => void {
+  return platform.window.onFullscreenChange((on) => useUiStore.getState().setFullscreen(on));
+}

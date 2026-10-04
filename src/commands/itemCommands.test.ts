@@ -3,6 +3,8 @@ import {
   createBulkSetItemFieldCommand,
   createMoveItemsCommand,
   createResizeItemCommand,
+  createRestoreItemCommand,
+  createSetCropCommand,
   createSetItemFieldCommand,
   createStackOrderCommand,
   createTidyUpCommand,
@@ -52,7 +54,10 @@ function makePlacement(overrides: Partial<Placement> = {}): Placement {
     h: 240,
     z: 0,
     frameId: null,
+    cropX: null,
+    cropY: null,
     addedAt: '2026-01-01T00:00:00.000Z',
+    parentId: null,
     ...overrides,
   };
 }
@@ -121,6 +126,62 @@ describe('createResizeItemCommand', () => {
       y: 0,
       w: 320,
       h: 240,
+    });
+  });
+});
+
+describe('crop (Patch 2 · C3)', () => {
+  it('a resize that marks a crop sets the focus, and undo clears it', async () => {
+    useLibraryStore.getState().upsertPlacement(makePlacement({ x: 0, y: 0, w: 320, h: 240 }));
+    const platform = makePlatform();
+    const command = createResizeItemCommand(platform, {
+      id: 'item1',
+      x: 0,
+      y: 0,
+      w: 400,
+      h: 240,
+      cropX: 0.5,
+      cropY: 0.5,
+    });
+    await command.do();
+    expect(useLibraryStore.getState().placements.get('item1')).toMatchObject({
+      w: 400,
+      cropX: 0.5,
+      cropY: 0.5,
+    });
+    await command.undo();
+    expect(useLibraryStore.getState().placements.get('item1')).toMatchObject({
+      w: 320,
+      cropX: null,
+      cropY: null,
+    });
+  });
+
+  it('createSetCropCommand sets the focus (and the rect on a reset) and undo restores them', async () => {
+    useLibraryStore
+      .getState()
+      .upsertPlacement(makePlacement({ x: 0, y: 0, w: 400, h: 240, cropX: 0.2, cropY: 0.7 }));
+    const platform = makePlatform();
+    const command = createSetCropCommand(platform, 'item1', {
+      cropX: null,
+      cropY: null,
+      rect: { x: 10, y: 20, w: 320, h: 240 },
+    });
+    await command.do();
+    expect(useLibraryStore.getState().placements.get('item1')).toMatchObject({
+      x: 10,
+      y: 20,
+      w: 320,
+      cropX: null,
+      cropY: null,
+    });
+    await command.undo();
+    expect(useLibraryStore.getState().placements.get('item1')).toMatchObject({
+      x: 0,
+      y: 0,
+      w: 400,
+      cropX: 0.2,
+      cropY: 0.7,
     });
   });
 });
@@ -273,5 +334,45 @@ describe('createTidyUpCommand', () => {
       w: 160,
       h: 480,
     });
+  });
+});
+
+describe('createRestoreItemCommand', () => {
+  it('restores the placement of the space that is open, not the first one found', async () => {
+    const select = vi.fn((sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM items')) {
+        return Promise.resolve([
+          {
+            id: 'item1',
+            kind: 'image',
+            title: 'T',
+            status: 'ok',
+            created_at: 'x',
+            updated_at: 'x',
+          },
+        ]);
+      }
+      return Promise.resolve([
+        {
+          board_id: params?.[1] ?? 'first',
+          item_id: 'item1',
+          x: 1,
+          y: 2,
+          w: 3,
+          h: 4,
+          z: 0,
+          added_at: 'x',
+        },
+      ]);
+    });
+    const platform = {
+      db: { select, execute: vi.fn().mockResolvedValue({ changes: 1 }) },
+    } as unknown as Platform;
+    await createRestoreItemCommand(platform, 'item1', 'board-b').do();
+    expect(select).toHaveBeenCalledWith(expect.stringContaining('AND board_id = ?'), [
+      'item1',
+      'board-b',
+    ]);
+    expect(useLibraryStore.getState().placements.get('item1')?.boardId).toBe('board-b');
   });
 });

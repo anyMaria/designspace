@@ -7,10 +7,8 @@ beforeEach(() => {
     activeCriteria: ['vibe', 'tag', 'manual'],
     mode: 'hover',
     minStrength: 1,
-    constellationsOn: false,
     limitHitAt: null,
     showAllOverLimit: false,
-    arranging: false,
   });
 });
 
@@ -43,12 +41,5 @@ describe('useConnectionsUiStore', () => {
     expect(useConnectionsUiStore.getState().showAllOverLimit).toBe(true);
     useConnectionsUiStore.getState().setShowAllOverLimit(false);
     expect(useConnectionsUiStore.getState().showAllOverLimit).toBe(false);
-  });
-
-  it('setArranging toggles the "computing a layout" flag', () => {
-    useConnectionsUiStore.getState().setArranging(true);
-    expect(useConnectionsUiStore.getState().arranging).toBe(true);
-    useConnectionsUiStore.getState().setArranging(false);
-    expect(useConnectionsUiStore.getState().arranging).toBe(false);
   });
 });

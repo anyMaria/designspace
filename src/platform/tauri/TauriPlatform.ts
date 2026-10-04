@@ -72,6 +72,8 @@ export class TauriPlatform implements Platform {
     reveal: (relPath: string) => invoke<void>('media_reveal', { relPath }),
     purge: (relPaths: string[]) => invoke<void>('media_purge', { relPaths }),
     listFolder: (path: string) => invoke<FolderListing>('media_list_folder', { path }),
+    readImage: (path: string) => invoke<ArrayBuffer>('media_read_image', { path }),
+    readPdf: (path: string) => invoke<ArrayBuffer>('media_read_pdf', { path }),
   };
 
   cache = {
@@ -173,6 +175,12 @@ export class TauriPlatform implements Platform {
   window = {
     isFullscreen: (): Promise<boolean> => getCurrentWindow().isFullscreen(),
     setFullscreen: (on: boolean): Promise<void> => getCurrentWindow().setFullscreen(on),
+    onFullscreenChange: (cb: (on: boolean) => void): (() => void) => {
+      const unlisten = getCurrentWindow().onResized(() => {
+        void getCurrentWindow().isFullscreen().then(cb);
+      });
+      return () => void unlisten.then((f) => f());
+    },
   };
 
   clipboard = {

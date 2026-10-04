@@ -3004,3 +3004,122 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
 - **Not verifiable without Windows:** the library id staying stable and thumbnails being re-made, the clipboard
   permissions, the AI model files and tokenizer lookup (the CI "Check the bundled AI model files" step is the check),
   the media check, orphan-cache pruning, and the problem report's Rust half (tested only for its pure log-tail helper).
+
+## Patch 2 · Phase B: simplify (v0.10.0)
+
+- **B1:** Constellations removed (owner, Patch 2 D1); the layout code (`lib/constellations.ts`, the layout worker and
+  `runConstellationLayout`) lives on in the Overview. The motion token `constellations` is gone.
+- **B2:** the Overview opens on Clusters with the plan's new constants (`ITEM_CARD_LONG_SIDE` is gone), a Spacing slider
+  (applied on release) and nodes that settle over 600 ms (`motion.overviewSettle`, instant with reduced motion). Nodes
+  tween from their My layout position (`homeX/homeY` on `OverviewNode`) the first time. Clicking a star keeps its group
+  bright (others fade to 15 %); Esc clears the star first, then closes the Overview. The star's identity is
+  `criterion:value` (`OverviewHub.key`), stored in `overviewStore.focusHubKey`.
+- **B3:** Frames removed (owner, Patch 2 D2). Existing frame rows stay in the database, unused: the `frames` table,
+  `placements.frame_id` and the `Frame` row type (the library export still writes frame rows, as a backup) are
+  untouched. "Duplicate board" no longer copies frames. Export has **Whole board | Selection (n)** (Selection is the
+  default when something is selected); the PDF is one page; a selection's file name is "<space> (selection)".
+  `Engine.getExportRect(ids | null)` replaced the frame argument. "Frame results" (search) and the video "Set cover
+  frame" are different things and stay.
+
+## Patch 2 · Phase C: everyday comfort (v0.11.0)
+
+- **C1:** one Esc listener (capture phase) with a stack of layers (`escapeStack`, `useEscape`) and base handlers (cancel a
+  pick / deselect a line → clear the selection → leave full screen). The shared `isTypingTarget` replaces five copies and
+  now also treats `<select>` as typing and ignores ranges, checkboxes and buttons. `window.onFullscreenChange` keeps
+  `uiStore.fullscreen` in step (the browser's own Esc, the OS). The Library menu (C4) leaves Esc to its name field.
+- **C2:** eight handles for pictures and notes, corners only for fonts, none for swatches/palettes. The engine publishes the
+  single selected card's on-screen rect as `data-selected-rect` on the canvas container so e2e tests need no hard-coded
+  coordinates. The connect handle now sits 22 px outside the right edge.
+- **C3:** migration `003_crop.sql`. Pictures are drawn "cover": a sub-frame of the shared texture (`coverCrop.ts`), no masks.
+  A resize that changes a picture's proportions (a side, or Shift on a corner) writes `crop_x = crop_y = 0.5` in the same
+  command. "Adjust crop" is an engine mode (`startCropMode`/`endCropMode`) driven by `cropUiStore` and `CropMode`.
+  "Pick from a photo" maps clicks on a cropped card with `cardUvToImageUv`.
+- **C4:** the Library menu is a single panel in a portal (z-index 6/7, the A11 z-index workaround is gone); `Menu` gained
+  `checked`, `secondary`, `trailing`, separator, header and custom rows.
+- **C5:** the Trash screen replaces Settings → Library → Trash; trashed boards moved there from the Boards gallery. Toasts
+  can carry a second action ("Open Trash"). `createRestoreItemCommand(platform, id, boardId?)` restores the placement of
+  the open space. Selection in the Trash is local (checkboxes).
+- **C6:** favourite badge (`favoriteBadge.ts`), "Add to / Remove from favorites" in the context menu, a ★ Favorites chip
+  in the search bar and a star toggle in the dock.
+- **C7:** `ListTile` is shared by the List panel and the Trash screen. Type-collection tiles come with F5.
+- **Not verifiable without Windows:** full-screen Esc (the Tauri `onResized` subscription), Alt-resize on Windows, the
+  resize cursors.
+
+## Patch 2 · Phase D: word fields (v0.12.0)
+
+- **D1/D2:** `TermCombobox` replaces `ChipInput` (deleted) in Details, Triage, bulk editing and the design page; list in
+  the flow under the field, existing words first (most used first), typos forgiven ("Did you mean?"), a new word only on
+  Enter or a click on the Create row, never on leaving the field. In bulk editing the field holds the words **every**
+  selected item has; partial words ("Dreamy 5/8") stay as chips above it. The first Esc closes the list, the second
+  leaves the field (Triage's spec presses Esc twice).
+- **D3:** migration `004_vocabulary.sql` moves Psychedelic, Grunge, Punk, Y2K and Vaporwave to Vibe (only when no Vibe of
+  that name exists) and deletes an unused Contemporary. New libraries seed them as Vibes. Settings → Vocabularies has
+  "Move to…" (`createMoveTermCommand`, which merges when the target field has the same word). `src/test/migratedDb.ts`
+  runs the real migrations on in-memory SQLite for tests (reused in F).
+- **Found by e2e:** since the connect handle moved outside the card (C2), the card now stays hovered over the strip
+  between its edge and the handle (`overConnectHandleZone`), or the handle vanished before it could be grabbed.
+
+## Patch 2 · Phase E: the Color studio (v0.13.0)
+
+- **E1–E6:** a full-screen Color studio (`src/features/colorStudio/`) with four tabs: Wheel, From an image, Generate
+  and Contrast. Colour maths is pure in `src/lib/colorStudio.ts` (harmony rules on the RYB wheel, generator, WCAG
+  contrast, `nearestPassing`, colour-blind simulation, `hardToTellApart`, mood picks). Up to 10 spots; proposals history
+  is capped at 50.
+- **Liked colours are a library setting, not a Command** (`likedColors` in `settingsStore`, saved with the other
+  settings). Hearting a colour is a preference, not an edit of the owner's collection, so it is not an undo step and is
+  not part of Save/Undo. They survive closing the studio and reloading.
+- **Saving** is one undoable step: a new palette (`createCreatePaletteCommand`) or, when editing, a composite of
+  colours + name (`src/commands/composite.ts`). The picture on the From an image tab is only imported when the owner
+  ticks "Also add this image to my library".
+- **Space and overlays:** while the studio is open `overlayGate` blocks the canvas shortcuts and Space-pan, and Space
+  means "new colors" (`studioKeys.ts`). Typing in a field keeps its own keys.
+- **Reading a picture:** Rust `media_read_image` returns the bytes of an image the owner picked (allowed extensions
+  only); the browser build has no equivalent and reports `notSupported`, so open/paste/drop work through `File`.
+- **E7 (ways in):** + Add → Palette… (replaces Swatch), double-click a palette or swatch, right-click a photo →
+  Make a palette (replaces Extract palette, and now works on one photo, using its sampled colours), and a Make a palette
+  button in a photo's Details. The Details panel of a palette is now a compact view (name, click-to-copy cells, Open in
+  Color studio, Copy all). `createExtractPaletteCommand`, the old wheel/slider editor and `ColorWheel` were removed.
+  `Engine.startPointPick` and `lib/pickColor.ts` are now unused by the UI but kept (tested, tiny).
+- **Cloud limits:** the clipboard-paste path and the real image decode of large files are only checked on Windows.
+
+## Patch 2 · Phase F: font families and type collections (v0.14.0)
+
+- **F1:** migration `005_fonts.sql` adds `font_files` (one row per file), `items.font_family_key/font_card/font_collection`
+  and `placements.parent_id`. A family stays a `kind = 'font'` item; `items.file_path` points at its main file so Show in
+  Explorer and the media check keep working. A type collection is a font item with no file and
+  `font_collection = {"ids":[…]}`. `readMeta` now also reads the style name, weight, italic flag, named instances and
+  vendor id.
+- **F2:** `mergeFontFamilies` runs once at start (guarded by `meta.font_families_v`), after the pre-migration backup, and
+  folds the old "one item per file" fonts into families per group in one batch. Merged item rows are deleted (not trashed,
+  so no file goes to the Recycle Bin); terms, connections, placements per space and fields are carried over.
+- **F3:** a font dropped or picked is grouped by family key (same family in one batch, or an existing family in the
+  library: the files are added to it as styles with one undoable command). Duplicate detection also looks in
+  `font_files` (Rust `find_duplicate` + TS `findByHash`). Purging a family sends every one of its files to the Recycle
+  Bin. **Deviation:** the font card version is `FONT_DERIVED_V = 3` (not 1 as in the plan), because existing font items
+  already carry `derived_v = 2` and must be redrawn once with the new family card.
+- **F4:** the card shows the owner's chosen style, weight (variable fonts), text size and text; Details → On the card
+  edits them (one command each, the card is redrawn) and lists the family's styles written in each style. The type
+  tester has a style select and "Show on the card". One `FontFace` is registered per file, never several under one name.
+- **F5:** type collections. Right-click two or more families → Make a type collection; Add to…, Remove from collection;
+  Details lets you rename, reorder and remove. Dragging the header or any row moves the whole collection (the engine
+  expands the group; `createMoveItemsCommand` does too). Rows are the families' own cards drawn from a `trow/<id>` strip
+  (z = collection + 0.5); no resize handles on a collection or its rows; tidy-up skips them; trashing a collection frees
+  its families in the same undo step. Create-board from a selection leaves a collection out (its families go as plain
+  cards); adding a collection to a board brings its rows along.
+- **Cloud limits:** the real Windows font set (many families, WOFF2/OTF variety) is for the owner to try.
+
+## Patch 2 · Phase G: choosing PDF pages (v0.15.0)
+
+- **G1:** `parsePageRange`/`formatPageRange` (1-based text, 0-based result), `buildSinglePagePdfs` (one-page files made
+  without metadata updates, so the same page twice has identical bytes and duplicate detection works), and
+  `planBatchPlacements`/`importFiles` take layout options (`aspects`, `rowHeight`, `anchor`). The default row height for
+  a multi-item batch is now 320 (the plan's value) instead of 240, so batch placeholders are real 320 squares that
+  `fitPlacementsToAspect` can reshape.
+- **G2:** Rust `media_read_pdf` (only `.pdf`, ≤ 512 MB, raw binary IPC; `is_allowed_pdf` is unit-tested) and
+  `media.readPdf`. `pdfPickerStore` asks several PDFs one after the other. `PdfPagePicker` (wide `Dialog`): Select all /
+  None, a range field (invalid text turns red and changes nothing), page tiles drawn at their own proportions and
+  rendered lazily when scrolled into view, Add as one PDF / Add these n pages separately (or Add n pages when splitting).
+- **G3:** drop, paste and Files… ask for pages when a PDF has more than one (`importFilesWithPdfChoice`,
+  `importPathsWithPdfChoice`); Folder… and onboarding add whole files without asking. The PDF viewer's **Split into
+  pages…** opens the picker in split mode and puts the chosen pages to the right of the PDF (the original stays).
+- **Cloud limits:** the Tauri path (`readPdf` on a real Windows file) is for the owner to try.

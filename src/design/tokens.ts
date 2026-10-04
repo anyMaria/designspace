@@ -39,6 +39,12 @@ export const criterionColors = {
 } as const;
 
 /** Map connection lines (Patch 2 · A1): a dark halo under a bolder line so they read on photos. */
+/** Resize handles on a selected card, in screen px (Patch 2 · C2). */
+export const resizeHandles = { corner: 10, sideLong: 20, sideShort: 6, hitTolerance: 6 } as const;
+
+/** Where the connect handle sits outside a card's right edge, in screen px (Patch 2 · C2). */
+export const CONNECT_HANDLE_OFFSET_PX = 22;
+
 export const connectionLineStyle = {
   width: 2,
   opacity: 0.9,
@@ -165,7 +171,8 @@ export const motion = {
   panel: 200,
   overlay: 320,
   flyTo: 500,
-  constellations: 800,
+  /** The Overview's nodes pull together into a new layout (Patch 2 · B2). */
+  overviewSettle: 600,
 } as const;
 
 /** Zoom range, world %  — §2.2. */
@@ -179,6 +186,24 @@ export const zoomRange = {
 /** The UI font, mirrored for PixiJS and canvas drawing (tokens.css has `--font-ui`). */
 export const fonts = { ui: 'Urbanist' } as const;
 
+/** The font family card (Patch 2 · F4), in world units on a 320 × 200 card: padding, the sizes of
+ * "Aa" and the family name, the text size per option (Small / Medium / Large) and the first
+ * baselines. The 512 × 320 canvas is these numbers × 1.6. */
+export const fontSpecimen = {
+  width: 320,
+  height: 200,
+  pad: 20,
+  aaSize: 56,
+  nameSize: 20,
+  textSizes: { s: 14, m: 19, l: 26 },
+  styleLineSize: 11,
+  aaBaseline: 76,
+  nameBaseline: 112,
+  textBaseline: 146,
+  lineHeightFactor: 1.3,
+  maxTextLines: 2,
+} as const;
+
 /** Palette and swatch cards on the map, in world units (Patch 1 · C1). */
 export const paletteGeometry = {
   cell: 96,
@@ -191,3 +216,7 @@ export const paletteGeometry = {
   /** Hex labels inside cells only show when a cell is at least this many screen px wide. */
   labelMinCellPx: 72,
 } as const;
+
+/** The type collection card (Patch 2 · F5), in world units: width, header height, one row per
+ * family, space under the last row. */
+export const fontCollectionGeometry = { width: 360, header: 48, row: 56, padBottom: 8 } as const;

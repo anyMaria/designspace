@@ -17,6 +17,8 @@ test('importing a PDF shows a thumbnail once ingest finishes, and Focus view pag
   await page.getByRole('menuitem', { name: 'Files…' }).click();
   const chooser = await fileChooserPromise;
   await chooser.setFiles('tests/e2e/fixtures/sample.pdf');
+  // A PDF of several pages asks which pages to add (Patch 2 · G): add it as one PDF.
+  await page.getByRole('button', { name: 'Add as one PDF' }).click();
 
   // PDF ingest runs on the main thread (rasterizing a page needs a canvas) — give it room.
   await page.waitForTimeout(3000);

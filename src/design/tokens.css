@@ -95,7 +95,6 @@
   --duration-panel: 200ms;
   --duration-overlay: 320ms;
   --duration-fly-to: 500ms;
-  --duration-constellations: 800ms;
   --ease-enter: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -121,5 +120,4 @@
   --duration-panel: 0ms;
   --duration-overlay: 0ms;
   --duration-fly-to: 0ms;
-  --duration-constellations: 0ms;
 }

@@ -30,6 +30,25 @@ test('the List panel groups, sorts, virtualizes, and clicking a tile selects+fli
   await page.getByLabel('Group by').selectOption('none');
   await page.waitForTimeout(300);
 
+  // Every tile shows something (Patch 2 · C7): an <img> that loaded, or no <img> at all — never
+  // the broken-image icon.
+  // (The demo makes its thumbnails in the background, so give them time to appear.)
+  await expect
+    .poll(
+      () =>
+        page
+          .locator('button.ds-list-tile img')
+          .evaluateAll(
+            (imgs) =>
+              imgs.filter(
+                (i) =>
+                  (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth === 0,
+              ).length,
+          ),
+      { timeout: 45_000 },
+    )
+    .toBe(0);
+
   // Click a tile: selects on canvas and switches the panel to Details.
   const tile = page.locator('button.ds-list-tile').first();
   await tile.click();

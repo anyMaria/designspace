@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createDeleteTermCommand,
   createMergeTermsCommand,
+  createMoveTermCommand,
   createReorderTermsCommand,
   createRenameTermCommand,
   createSetAiHintCommand,
@@ -142,5 +143,45 @@ describe('createReorderTermsCommand', () => {
     expect(useTermStore.getState().terms.get('a')?.sort).toBe(0);
     expect(useTermStore.getState().terms.get('b')?.sort).toBe(1);
     expect(useTermStore.getState().terms.get('c')?.sort).toBe(2);
+  });
+});
+
+describe('createMoveTermCommand', () => {
+  it('moves a word to another field with a fresh sort, and undo puts it back', async () => {
+    useTermStore.setState({
+      terms: new Map([
+        [
+          'm1',
+          makeTerm({ id: 'm1', facet: 'movement', name: 'Grunge', nameNorm: 'grunge', sort: 4 }),
+        ],
+        ['v1', makeTerm({ id: 'v1', facet: 'vibe', sort: 7 })],
+      ]),
+      itemTerms: new Map(),
+    });
+    const platform = makePlatform();
+    const command = createMoveTermCommand(platform, 'm1', 'vibe');
+    await command.do();
+    expect(useTermStore.getState().terms.get('m1')).toMatchObject({ facet: 'vibe', sort: 8 });
+    expect(platform.db.execute).toHaveBeenCalledWith(
+      'UPDATE terms SET facet = ?, sort = ? WHERE id = ?',
+      ['vibe', 8, 'm1'],
+    );
+    await command.undo();
+    expect(useTermStore.getState().terms.get('m1')).toMatchObject({ facet: 'movement', sort: 4 });
+  });
+
+  it('merges instead when the target field already has a word of that name', async () => {
+    useTermStore.setState({
+      terms: new Map([
+        ['m1', makeTerm({ id: 'm1', facet: 'movement', name: 'Punk', nameNorm: 'punk' })],
+        ['v1', makeTerm({ id: 'v1', facet: 'vibe', name: 'Punk', nameNorm: 'punk' })],
+      ]),
+      itemTerms: new Map([['i1', new Set(['m1'])]]),
+    });
+    const command = createMoveTermCommand(makePlatform(), 'm1', 'vibe');
+    expect(command.label).toContain('Merge');
+    await command.do();
+    expect(useTermStore.getState().terms.has('m1')).toBe(false);
+    expect(useTermStore.getState().itemTerms.get('i1')?.has('v1')).toBe(true);
   });
 });

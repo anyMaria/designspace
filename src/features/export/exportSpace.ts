@@ -2,24 +2,25 @@ import type { Platform } from '@/platform/types';
 import type { Engine } from '@/canvas/Engine';
 import type { ExportBackground, ExportScale } from '@/lib/exportGeometry';
 import { PDF_PAGE_SIZES_PT, exportFileName, fitRectToPage } from '@/lib/exportGeometry';
-import type { Frame } from '@/state/types';
 
 export interface ExportPngOptions {
   format: 'png';
   scale: ExportScale;
   background: ExportBackground;
-  frameId: string | null;
+  area: ExportArea;
+  /** The ids to export when `area` is 'selection'. */
+  ids: string[];
 }
 
 export interface ExportPdfOptions {
   format: 'pdf';
   background: ExportBackground;
   pageSize: 'a4' | 'a3';
-  frameId: string | null;
-  /** Only meaningful (and only shown by the dialog) when `frameId` is null and the space has
-   * frames — one page per frame instead of one page for the whole space. */
-  onePagePerFrame: boolean;
+  area: ExportArea;
+  ids: string[];
 }
+
+export type ExportArea = 'all' | 'selection';
 
 export type ExportOptions = ExportPngOptions | ExportPdfOptions;
 
@@ -40,34 +41,35 @@ async function blobToBytes(blob: Blob): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-function frameTitle(frames: Frame[], frameId: string | null, fallback: string): string {
-  if (!frameId) return fallback;
-  return frames.find((f) => f.id === frameId)?.title ?? fallback;
+/** The file title: the space name, plus " (selection)" when only the selection is exported. */
+function exportTitle(spaceTitle: string, area: ExportArea): string {
+  return area === 'selection' ? `${spaceTitle} (selection)` : spaceTitle;
 }
 
 export type ExportResult = 'saved' | 'cancelled' | 'empty';
 
-/** §2.11 Export — renders the current space (or a single frame) through
+/** §2.11 Export — renders the current space (or just the selected items) through
  * `Engine.renderExportCanvas` and hands the result to the platform's Save As dialog.
- * `'empty'` means there was nothing to export (no cards, or a since-deleted frame); `'cancelled'`
+ * `'empty'` means there was nothing to export (no cards, or a selection that no longer exists); `'cancelled'`
  * means the owner closed the Save As dialog without picking a location — neither is an error. */
 export async function exportSpace(
   platform: Platform,
   engine: Engine,
   spaceTitle: string,
-  frames: Frame[],
   options: ExportOptions,
 ): Promise<ExportResult> {
   if (options.format === 'png') {
-    const rect = engine.getExportRect(options.frameId);
+    const rect = engine.getExportRect(options.area === 'selection' ? options.ids : null);
     if (!rect) return 'empty';
     const canvas = await engine.renderExportCanvas(rect, {
       scale: options.scale,
       background: options.background,
     });
     const bytes = await blobToBytes(await canvasToPngBlob(canvas));
-    const title = frameTitle(frames, options.frameId, spaceTitle);
-    const saved = await platform.dialogs.saveFile(exportFileName(title, 'png'), bytes);
+    const saved = await platform.dialogs.saveFile(
+      exportFileName(exportTitle(spaceTitle, options.area), 'png'),
+      bytes,
+    );
     return saved ? 'saved' : 'cancelled';
   }
 
@@ -75,27 +77,20 @@ export async function exportSpace(
   const page = PDF_PAGE_SIZES_PT[options.pageSize];
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [page.w, page.h] });
 
-  const framePages =
-    options.onePagePerFrame && !options.frameId && frames.length > 0
-      ? frames.map((f): string | null => f.id)
-      : [options.frameId];
-
-  let pagesAdded = 0;
-  for (const frameId of framePages) {
-    const rect = engine.getExportRect(frameId);
-    if (!rect) continue;
-    const canvas = await engine.renderExportCanvas(rect, {
-      scale: PDF_RENDER_SCALE,
-      background: options.background,
-    });
-    const fitted = fitRectToPage(rect, page);
-    if (pagesAdded > 0) doc.addPage([page.w, page.h], 'landscape');
-    doc.addImage(canvas, 'PNG', fitted.x, fitted.y, fitted.w, fitted.h);
-    pagesAdded++;
-  }
-  if (pagesAdded === 0) return 'empty';
+  // One page: the whole space, or the selection.
+  const rect = engine.getExportRect(options.area === 'selection' ? options.ids : null);
+  if (!rect) return 'empty';
+  const canvas = await engine.renderExportCanvas(rect, {
+    scale: PDF_RENDER_SCALE,
+    background: options.background,
+  });
+  const fitted = fitRectToPage(rect, page);
+  doc.addImage(canvas, 'PNG', fitted.x, fitted.y, fitted.w, fitted.h);
 
   const bytes = new Uint8Array(doc.output('arraybuffer'));
-  const saved = await platform.dialogs.saveFile(exportFileName(spaceTitle, 'pdf'), bytes);
+  const saved = await platform.dialogs.saveFile(
+    exportFileName(exportTitle(spaceTitle, options.area), 'pdf'),
+    bytes,
+  );
   return saved ? 'saved' : 'cancelled';
 }

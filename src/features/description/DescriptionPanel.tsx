@@ -13,6 +13,7 @@ import { useHistoryStore } from '@/commands/history';
 import { createSetDescriptionCommand } from '@/commands/descriptionCommands';
 import { noteExtensions, emptyNoteBody } from '@/lib/noteText';
 import { en } from '@/i18n/en';
+import { useEscape } from '@/app/useEscape';
 
 const MIN_HEIGHT_PX = 240;
 const MARGIN_PX = 16;
@@ -70,24 +71,19 @@ function DescriptionPanelInner({
     useDescriptionStore.getState().close();
   };
 
+  useEscape(true, close, { allowWhileTyping: true });
+
   // Save when the panel goes away for any reason (the bubble closing it, another item opening).
   useEffect(() => () => saveRef.current(), []);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      close();
-    };
     const onDown = (e: MouseEvent) => {
       const target = e.target as Element;
       if (target.closest?.('[data-testid="thought-bubble"]')) return; // the bubble toggles it
       if (panelRef.current && !panelRef.current.contains(target)) close();
     };
-    window.addEventListener('keydown', onKey, true);
     window.addEventListener('mousedown', onDown, true);
     return () => {
-      window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('mousedown', onDown, true);
     };
   }, []);

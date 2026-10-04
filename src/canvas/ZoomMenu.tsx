@@ -5,11 +5,13 @@ import { useCameraState } from './useCameraState';
 import { prefersReducedMotion } from '@/lib/motion';
 import { zoomRange } from '@/design/tokens';
 import { en } from '@/i18n/en';
+import { useEscape } from '@/app/useEscape';
 
 /** The dock's zoom control: a percentage that opens Zoom to fit / Zoom to selection / 100 % /
  * Zoom in / Zoom out (§2.1). */
 export function ZoomMenu({ engine }: { engine: Engine | null }) {
   const [open, setOpen] = useState(false);
+  useEscape(open, () => setOpen(false), { allowWhileTyping: true });
   const camera = useCameraState(engine);
   const pct = camera ? Math.round(camera.zoom * 100) : 100;
 

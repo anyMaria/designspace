@@ -1,5 +1,5 @@
 import * as fontkit from 'fontkit';
-import { colors, fonts } from '@/design/tokens';
+import { colors, fonts, fontSpecimen } from '@/design/tokens';
 
 /** Metadata + specimen-card rendering for font items (§2.4, §4.9). Unlike video/PDF, a font's
  * card is a fixed dark design ("large 'Aa' in the font, the family name, one sample line") rather
@@ -17,6 +17,7 @@ const THUMB_W = 128;
 const THUMB_H = 80;
 const WEBP_QUALITY = 0.82;
 import { DEFAULT_PREVIEW_TEXT } from './fontPreview';
+import { en } from '@/i18n/en';
 
 export interface FontVariationAxis {
   tag: string;
@@ -35,18 +36,28 @@ export interface FontMeta {
   license: string | null;
   glyphCount: number;
   variableAxes: FontVariationAxis[];
+  /** Patch 2 · F1 (`family` above is the family without the style, "Urbanist"): the style ("Bold Italic"), the
+   * weight class (100–900), whether it is italic, the named instances of a variable font, and the
+   * foundry id used to tell apart two unrelated families that share a name. */
+  styleName: string;
+  weight: number;
+  italic: boolean;
+  instances: Record<string, Record<string, number>> | null;
+  vendorId: string | null;
 }
 
 export interface FontDerivatives extends FontMeta {
   t128: ArrayBuffer;
   t512: ArrayBuffer;
+  /** The strip a family shows as a row of a type collection (Patch 2 · F5), transparent. */
+  trow: ArrayBuffer;
 }
 
 function toHexColor(packed: number): string {
   return `#${packed.toString(16).padStart(6, '0')}`;
 }
 
-function parseFont(bytes: ArrayBuffer): fontkit.Font {
+export function parseFont(bytes: ArrayBuffer): fontkit.Font {
   // @types/fontkit's `create()` is typed against fontkit's Node API (`Buffer`), which the
   // browser build doesn't actually need (verified in the S6 spike, docs/DECISIONS.md) — cast
   // through `unknown` rather than pull in a `buffer` polyfill just to satisfy a stale type.
@@ -54,7 +65,22 @@ function parseFont(bytes: ArrayBuffer): fontkit.Font {
   return 'fonts' in parsed ? parsed.fonts[0] : parsed;
 }
 
-function readMeta(font: fontkit.Font): FontMeta {
+/** `namedVariations` is missing from @types/fontkit: read it as unknown and narrow. */
+function namedInstances(font: fontkit.Font): Record<string, Record<string, number>> | null {
+  const raw = (font as unknown as { namedVariations?: unknown }).namedVariations;
+  if (!raw || typeof raw !== 'object') return null;
+  const out: Record<string, Record<string, number>> = {};
+  for (const [name, axes] of Object.entries(raw as Record<string, unknown>)) {
+    if (!axes || typeof axes !== 'object') continue;
+    const values: Record<string, number> = {};
+    for (const [tag, v] of Object.entries(axes as Record<string, unknown>))
+      if (typeof v === 'number') values[tag] = v;
+    out[name] = values;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+export function readMeta(font: fontkit.Font): FontMeta {
   const variableAxes = Object.entries(font.variationAxes)
     .filter((entry): entry is [string, NonNullable<(typeof entry)[1]>] => entry[1] != null)
     .map(([tag, axis]) => ({
@@ -64,8 +90,21 @@ function readMeta(font: fontkit.Font): FontMeta {
       max: axis.max,
       default: axis.default,
     }));
+  const preferredFamily = font.getName('preferredFamily', 'en') || font.familyName || 'Untitled';
+  const styleName = font.getName('preferredSubfamily', 'en') || font.subfamilyName || '';
+  const os2 = (font as unknown as { 'OS/2'?: Partial<fontkit.Font['OS/2']> })['OS/2'];
+  const vendorRaw = (os2 as { achVendID?: unknown } | undefined)?.achVendID;
+  const vendorId = typeof vendorRaw === 'string' ? vendorRaw.replace(/[\0\s]/g, '') || null : null;
   return {
-    family: font.familyName || 'Untitled',
+    family: preferredFamily,
+    styleName,
+    weight: os2?.usWeightClass ?? 400,
+    italic:
+      !!os2?.fsSelection?.italic ||
+      (font.italicAngle ?? 0) !== 0 ||
+      /italic|oblique/i.test(styleName),
+    instances: namedInstances(font),
+    vendorId,
     subfamily: font.subfamilyName || '',
     fullName: font.fullName || font.familyName || 'Untitled',
     designer: font.getName('designer', 'en') || null,
@@ -121,12 +160,42 @@ export function wrapLines(
   return lines.slice(0, maxLines);
 }
 
+/** The numbers of the specimen card for a text size (world units; see `fontSpecimen`). Pure, so
+ * the layout can be tested without a canvas. */
+export function specimenLayout(size: 's' | 'm' | 'l') {
+  const t = fontSpecimen;
+  const text = t.textSizes[size];
+  return {
+    pad: t.pad,
+    aaSize: t.aaSize,
+    nameSize: t.nameSize,
+    textSize: text,
+    styleLineSize: t.styleLineSize,
+    aaBaseline: t.aaBaseline,
+    nameBaseline: t.nameBaseline,
+    textBaseline: t.textBaseline,
+    lineHeight: Math.round(text * t.lineHeightFactor),
+    maxLines: t.maxTextLines,
+  };
+}
+
+export interface SpecimenOptions {
+  size: 's' | 'm' | 'l';
+  /** The weight to draw a variable file at (null = the file's own weight). */
+  wght: number | null;
+  /** How many styles the family has, for the "<Style> · <n> styles" line. */
+  styleCount: number;
+}
+
+const DEFAULT_OPTIONS: SpecimenOptions = { size: 'm', wght: null, styleCount: 1 };
+
 function drawSpecimen(
   localFamily: string,
   meta: FontMeta,
   w: number,
   h: number,
   previewText: string,
+  options: SpecimenOptions,
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -134,26 +203,63 @@ function drawSpecimen(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-  const scale = w / SPECIMEN_W;
+  const k = w / fontSpecimen.width; // world units → pixels
+  const L = specimenLayout(options.size);
+  const weight = options.wght !== null ? String(Math.round(options.wght)) : 'normal';
+  const face = (px: number) => `${weight} ${Math.round(px * k)}px "${localFamily}"`;
   ctx.fillStyle = toHexColor(colors.surface2);
   ctx.fillRect(0, 0, w, h);
-
-  ctx.fillStyle = toHexColor(colors.text1);
   ctx.textBaseline = 'alphabetic';
-  ctx.font = `${Math.round(160 * scale)}px "${localFamily}"`;
-  ctx.fillText('Aa', 24 * scale, 180 * scale);
-
-  ctx.font = `600 ${Math.round(24 * scale)}px ${fonts.ui}`;
   ctx.fillStyle = toHexColor(colors.text1);
-  ctx.fillText(meta.family, 24 * scale, 230 * scale, w - 48 * scale);
 
-  ctx.font = `${Math.round(16 * scale)}px "${localFamily}"`;
-  ctx.fillStyle = toHexColor(colors.text2);
-  const lineHeight = 22 * scale;
-  wrapLines((s) => ctx.measureText(s).width, previewText, w - 48 * scale, 2).forEach((l, i) =>
-    ctx.fillText(l, 24 * scale, 262 * scale + i * lineHeight),
+  ctx.font = face(L.aaSize);
+  ctx.fillText('Aa', L.pad * k, L.aaBaseline * k);
+  ctx.font = face(L.nameSize);
+  ctx.fillText(meta.family, L.pad * k, L.nameBaseline * k, w - 2 * L.pad * k);
+
+  ctx.font = face(L.textSize);
+  wrapLines((s) => ctx.measureText(s).width, previewText, w - 2 * L.pad * k, L.maxLines).forEach(
+    (line, i) => ctx.fillText(line, L.pad * k, (L.textBaseline + i * L.lineHeight) * k),
   );
 
+  // Top right, in the UI font: "<Style> · <n> styles".
+  ctx.font = `500 ${Math.round(L.styleLineSize * k)}px ${fonts.ui}`;
+  ctx.fillStyle = toHexColor(colors.text3);
+  ctx.textAlign = 'right';
+  ctx.fillText(
+    en.font.cardStyleLine(meta.styleName || meta.subfamily || '', options.styleCount),
+    w - L.pad * k,
+    (L.pad + L.styleLineSize) * k,
+    w / 2,
+  );
+  ctx.textAlign = 'left';
+
+  return canvas;
+}
+
+const ROW_W = 720;
+const ROW_H = 112; // 360 × 56 world units × 2
+
+function drawRowStrip(
+  localFamily: string,
+  meta: FontMeta,
+  options: SpecimenOptions,
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = ROW_W;
+  canvas.height = ROW_H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context unavailable');
+  const weight = options.wght !== null ? String(Math.round(options.wght)) : 'normal';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = toHexColor(colors.text1);
+  ctx.font = `${weight} 52px "${localFamily}"`;
+  ctx.fillText(meta.family, 32, ROW_H / 2 + 2, ROW_W / 2 + 120);
+  ctx.font = `500 24px ${fonts.ui}`;
+  ctx.fillStyle = toHexColor(colors.text3);
+  ctx.textAlign = 'right';
+  const n = options.styleCount;
+  ctx.fillText(`${n} style${n === 1 ? '' : 's'}`, ROW_W - 32, ROW_H / 2 + 2);
   return canvas;
 }
 
@@ -173,13 +279,25 @@ function canvasToWebp(canvas: HTMLCanvasElement): Promise<ArrayBuffer> {
   });
 }
 
+/** `{ weight: 'min max' }` for a variable file with a weight axis, else none (Patch 2 · F4). */
+export function weightDescriptors(
+  meta: Pick<FontMeta, 'variableAxes'>,
+): FontFaceDescriptors | undefined {
+  const axis = meta.variableAxes.find((a) => a.tag === 'wght');
+  return axis ? { weight: `${axis.min} ${axis.max}` } : undefined;
+}
+
 /** Registers `bytes` as a temporary, uniquely-named `FontFace` — `localFamily` should be an
  * internal id (e.g. the item id), not the font's own family name, so two different fonts that
  * happen to share a family name (or the same font imported twice) never collide in
  * `document.fonts`. Callers must eventually call the returned face's removal via
  * `document.fonts.delete`. */
-export async function registerFontFace(bytes: ArrayBuffer, localFamily: string): Promise<FontFace> {
-  const face = new FontFace(localFamily, bytes);
+export async function registerFontFace(
+  bytes: ArrayBuffer,
+  localFamily: string,
+  descriptors?: FontFaceDescriptors,
+): Promise<FontFace> {
+  const face = new FontFace(localFamily, bytes, descriptors);
   await face.load();
   document.fonts.add(face);
   return face;
@@ -192,18 +310,22 @@ export async function extractFontDerivatives(
   bytes: ArrayBuffer,
   localFamily: string,
   previewText: string = DEFAULT_PREVIEW_TEXT,
+  options: SpecimenOptions = DEFAULT_OPTIONS,
 ): Promise<FontDerivatives> {
   const font = parseFont(bytes);
   const meta = readMeta(font);
-  const face = await registerFontFace(bytes, localFamily);
+  // A variable file is registered with its weight range so `ctx.font = '650 …'` picks the real
+  // instance (Canvas 2D can't set axes).
+  const face = await registerFontFace(bytes, localFamily, weightDescriptors(meta));
   try {
     // The specimen's family-name line is drawn in the UI font; make sure it is ready.
     await document.fonts.load(`600 24px ${fonts.ui}`).catch(() => []);
-    const [t128, t512] = await Promise.all([
-      canvasToWebp(drawSpecimen(localFamily, meta, THUMB_W, THUMB_H, previewText)),
-      canvasToWebp(drawSpecimen(localFamily, meta, SPECIMEN_W, SPECIMEN_H, previewText)),
+    const [t128, t512, trow] = await Promise.all([
+      canvasToWebp(drawSpecimen(localFamily, meta, THUMB_W, THUMB_H, previewText, options)),
+      canvasToWebp(drawSpecimen(localFamily, meta, SPECIMEN_W, SPECIMEN_H, previewText, options)),
+      canvasToWebp(drawRowStrip(localFamily, meta, options)),
     ]);
-    return { ...meta, t128, t512 };
+    return { ...meta, t128, t512, trow };
   } finally {
     document.fonts.delete(face);
   }

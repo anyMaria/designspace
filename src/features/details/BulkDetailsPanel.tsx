@@ -1,5 +1,6 @@
+import { showTrashToast } from '@/features/trash/trashToast';
 import { thumbUrl } from '@/lib/thumbs';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
 import { useTermStore } from '@/state/termStore';
@@ -10,9 +11,9 @@ import {
   createBulkRemoveTermCommand,
   createBulkSetTypeCommand,
 } from '@/commands/itemTermCommands';
-import { useToastStore } from '@/state/toastStore';
-import { Chip, Button } from '@/design/components';
-import { isMediaKind } from '@/lib/itemKinds';
+import { Chip, Button, TermCombobox } from '@/design/components';
+import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
+import { isMediaItem } from '@/lib/itemKinds';
 import { en } from '@/i18n/en';
 
 /** Details panel for several selected items — §2.6 "Several items selected". Single-item editing
@@ -30,7 +31,7 @@ export function BulkDetailsPanel({
   const allIds = useMemo(() => selected.map((i) => i.id), [selected]);
   // Classification (Type, Vibe, Movement, Tags, Artist) only applies to collected media; notes and
   // palettes are left out (Patch 1 · D3).
-  const items = useMemo(() => selected.filter((i) => isMediaKind(i.kind)), [selected]);
+  const items = useMemo(() => selected.filter((i) => isMediaItem(i)), [selected]);
   const itemIds = useMemo(() => items.map((i) => i.id), [items]);
   const noteCount = selected.filter((i) => i.kind === 'note').length;
   const paletteCount = selected.filter((i) => i.kind === 'swatch').length;
@@ -82,10 +83,6 @@ export function BulkDetailsPanel({
   const artistMixed = artists.size > 1;
   const allFavorite = selected.every((i) => i.favorite);
 
-  const [draftVibe, setDraftVibe] = useState('');
-  const [draftMovement, setDraftMovement] = useState('');
-  const [draftTag, setDraftTag] = useState('');
-
   function setType(termRef: { id: string } | { name: string }): void {
     void useHistoryStore.getState().execute(createBulkSetTypeCommand(platform, itemIds, termRef));
   }
@@ -128,10 +125,7 @@ export function BulkDetailsPanel({
       .getState()
       .execute(createTrashCommand(platform, allIds))
       .then(() => {
-        useToastStore.getState().show(`Moved ${allIds.length} items to Trash`, {
-          actionLabel: en.toasts.undo,
-          onAction: () => void useHistoryStore.getState().undo(),
-        });
+        showTrashToast(allIds.length, () => void useHistoryStore.getState().undo());
       });
   }
 
@@ -155,7 +149,7 @@ export function BulkDetailsPanel({
                 flexShrink: 0,
               }}
             >
-              {isMediaKind(item.kind) && item.status === 'ok' && (
+              {isMediaItem(item) && item.status === 'ok' && (
                 <img
                   src={thumbUrl(platform, item, 128)}
                   alt=""
@@ -208,8 +202,7 @@ export function BulkDetailsPanel({
             label={en.vocabulary.facets.vibe}
             entries={vibeUnion}
             total={items.length}
-            draft={draftVibe}
-            onDraftChange={setDraftVibe}
+            facet="vibe"
             onAdd={(name) => addTerm('vibe', name)}
             onRemove={removeTerm}
             placeholder={en.details.vibePlaceholder}
@@ -218,8 +211,7 @@ export function BulkDetailsPanel({
             label={en.vocabulary.facets.movement}
             entries={movementUnion}
             total={items.length}
-            draft={draftMovement}
-            onDraftChange={setDraftMovement}
+            facet="movement"
             onAdd={(name) => addTerm('movement', name)}
             onRemove={removeTerm}
             placeholder={en.details.movementPlaceholder}
@@ -228,8 +220,7 @@ export function BulkDetailsPanel({
             label={en.vocabulary.facets.tag}
             entries={tagUnion}
             total={items.length}
-            draft={draftTag}
-            onDraftChange={setDraftTag}
+            facet="tag"
             onAdd={(name) => addTerm('tag', name)}
             onRemove={removeTerm}
             placeholder={en.details.tagsPlaceholder}
@@ -280,53 +271,53 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** A word field for several selected items: the words only some of them have ("Dreamy 5/8")
+ * stay as chips above (click one to give it to all); the field itself holds the words every
+ * selected item has and offers the facet's vocabulary (Patch 2 · D2). */
 function UnionFacetField({
   label,
+  facet,
   entries,
   total,
-  draft,
-  onDraftChange,
   onAdd,
   onRemove,
   placeholder,
 }: {
   label: string;
+  facet: 'vibe' | 'movement' | 'tag';
   entries: { term: { id: string; name: string }; count: number }[];
   total: number;
-  draft: string;
-  onDraftChange: (v: string) => void;
   onAdd: (name: string) => void;
   onRemove: (termId: string) => void;
   placeholder: string;
 }) {
-  function commit(): void {
-    const trimmed = draft.trim();
-    if (trimmed) onAdd(trimmed);
-    onDraftChange('');
-  }
-
+  const options = useTermOptions(facet);
+  const partial = entries.filter((e) => e.count < total);
+  const common = entries.filter((e) => e.count >= total);
   return (
     <Field label={label}>
-      <div className="ds-chip-input">
-        {entries.map(({ term, count }) => (
-          <Chip key={term.id} onClick={() => onAdd(term.name)} onRemove={() => onRemove(term.id)}>
-            {term.name} {count}/{total}
-          </Chip>
-        ))}
-        <input
-          className="ds-chip-input__field"
-          value={draft}
-          placeholder={entries.length === 0 ? placeholder : undefined}
-          onChange={(e) => onDraftChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              commit();
-            }
-          }}
-          onBlur={commit}
-        />
-      </div>
+      {partial.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
+          {partial.map(({ term, count }) => (
+            <Chip key={term.id} onClick={() => onAdd(term.name)} onRemove={() => onRemove(term.id)}>
+              {term.name} {count}/{total}
+            </Chip>
+          ))}
+        </div>
+      )}
+      <TermCombobox
+        label={label}
+        values={common.map((e) => e.term.name)}
+        options={options}
+        onAdd={onAdd}
+        onRemove={(name) => {
+          const entry = common.find((e) => e.term.name === name);
+          if (entry) onRemove(entry.term.id);
+        }}
+        placeholder={placeholder}
+        dotColor={FACET_DOT[facet]}
+        newWordLabel={FACET_NEW_WORD[facet]}
+      />
     </Field>
   );
 }

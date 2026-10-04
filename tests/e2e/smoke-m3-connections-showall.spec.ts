@@ -19,7 +19,7 @@ test('Show all mode draws hub stars and item-to-hub lines for a shared classific
   await page.keyboard.press('Control+a');
   await page.waitForTimeout(300);
   await page.getByPlaceholder('Add a vibe…').fill('Dreamy');
-  await page.getByPlaceholder('Add a vibe…').press('Enter');
+  await page.getByPlaceholder('Add a vibe…').press('Enter'); // Dreamy exists: Enter adds it
   await page.waitForTimeout(300);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
@@ -33,7 +33,7 @@ test('Show all mode draws hub stars and item-to-hub lines for a shared classific
   await page.waitForTimeout(500);
 
   // No "too many links" message for 60 items well under the 5,000-line cap.
-  await expect(page.getByText('Too many links. Filter first or use Constellations.')).toBeHidden();
+  await expect(page.getByText('Too many links. Filter first.')).toBeHidden();
 
   await page.screenshot({ path: 'test-results/connections-showall.png' });
 

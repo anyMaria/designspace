@@ -1,12 +1,18 @@
 import { useEffect, useRef } from 'react';
-import { colors, fonts } from '@/design/tokens';
+import { colors, fonts, motion } from '@/design/tokens';
+import { prefersReducedMotion } from '@/lib/motion';
 import { CRITERION_COLOR } from '@/canvas/criterionColor';
 import { unionRects } from '@/lib/geometry';
 import type { OverviewNodes } from './overviewStore';
 import { nodeAt, type OverviewModel } from './overviewModel';
 import { fitCamera, panBy, worldToScreen, zoomAt, type OverviewCamera } from './overviewCamera';
 
-const THUMB_LONG_SIDE = 16;
+// A node is 32 world units on its long side, drawn between 12 and 64 screen px (Patch 2 · B2).
+const NODE_WORLD_LONG_SIDE = 32;
+const NODE_MIN_PX = 12;
+const NODE_MAX_PX = 64;
+const FOCUS_FADE_ALPHA = 0.15;
+const STAR_HIT_PX = 14;
 const HOVER_LONG_SIDE = 40;
 const DOT_RADIUS = 4;
 const HIT_RADIUS = 10;
@@ -23,15 +29,29 @@ const css = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 export function OverviewCanvas({
   model,
   mode,
+  focusHubKey,
+  onFocusHub,
   onOpen,
 }: {
   model: OverviewModel;
   mode: OverviewNodes;
+  /** A clicked star (`criterion:value`): its members stay bright, everything else fades. */
+  focusHubKey: string | null;
+  onFocusHub: (key: string | null) => void;
   onOpen: (id: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const modelRef = useRef(model);
   const modeRef = useRef(mode);
+  const focusRef = useRef(focusHubKey);
+  // Settling (Patch 2 · B2): when a new layout arrives, nodes and stars tween from where they were.
+  const targets = useRef(new Map<string, { x: number; y: number }>());
+  const anim = useRef<{
+    start: number;
+    from: Map<string, { x: number; y: number }>;
+    to: Map<string, { x: number; y: number }>;
+  } | null>(null);
+  const screenHubs = useRef<{ key: string; x: number; y: number }[]>([]);
   const cameraRef = useRef<OverviewCamera>({ x: 0, y: 0, zoom: 1 });
   const hoverRef = useRef<string | null>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
@@ -44,9 +64,22 @@ export function OverviewCanvas({
   const screenNodes = useRef<{ id: string; x: number; y: number }[]>([]);
 
   const onOpenRef = useRef(onOpen);
+  const onFocusHubRef = useRef(onFocusHub);
   useEffect(() => {
     onOpenRef.current = onOpen;
-  }, [onOpen]);
+    onFocusHubRef.current = onFocusHub;
+  }, [onOpen, onFocusHub]);
+
+  // Where a node or star is drawn right now (mid-settle it is between old and new).
+  const placeOf = (id: string, now: number): { x: number; y: number } | undefined => {
+    const a = anim.current;
+    const to = targets.current.get(id);
+    if (!a || !to) return to;
+    const from = a.from.get(id) ?? to;
+    const t = Math.min(1, (now - a.start) / motion.overviewSettle);
+    const e = 1 - Math.pow(1 - t, 3); // ease-out
+    return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e };
+  };
 
   const requestDraw = () => {
     if (frame.current) return;
@@ -58,8 +91,27 @@ export function OverviewCanvas({
 
   // Keep the latest model/mode for the drawing code, and fit the camera to a new layout.
   useEffect(() => {
+    const now = performance.now();
+    const next = new Map<string, { x: number; y: number }>();
+    const from = new Map<string, { x: number; y: number }>();
+    for (const n of model.nodes) {
+      next.set(n.id, { x: n.x, y: n.y });
+      from.set(n.id, placeOf(n.id, now) ?? { x: n.homeX ?? n.x, y: n.homeY ?? n.y });
+    }
+    for (const hub of model.hubs) {
+      const key = `hub:${hub.key}`;
+      next.set(key, { x: hub.x, y: hub.y });
+      from.set(key, placeOf(key, now) ?? { x: hub.x, y: hub.y });
+    }
+    const moves = [...next].some(([id, to]) => {
+      const f = from.get(id);
+      return !!f && Math.hypot(f.x - to.x, f.y - to.y) > 0.5;
+    });
+    targets.current = next;
+    anim.current = moves && !prefersReducedMotion() ? { start: now, from, to: next } : null;
     modelRef.current = model;
     modeRef.current = mode;
+    focusRef.current = focusHubKey;
     const { w, h } = sizeRef.current;
     const first = model.nodes[0];
     const last = model.nodes[model.nodes.length - 1];
@@ -74,7 +126,7 @@ export function OverviewCanvas({
       fittedFor.current = key;
     }
     requestDraw();
-  }, [model, mode]);
+  }, [model, mode, focusHubKey]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -123,16 +175,30 @@ export function OverviewCanvas({
       const m = modelRef.current;
       const cam = cameraRef.current;
       const hover = hoverRef.current;
+      const now = performance.now();
+      const settling = anim.current !== null && now - anim.current.start < motion.overviewSettle;
+      if (anim.current && !settling) anim.current = null;
+      const focusHub = focusRef.current
+        ? m.hubs.find((hub) => hub.key === focusRef.current)
+        : undefined;
+      const focusMembers = focusHub ? new Set(focusHub.itemIds) : null;
       const point = new Map<string, { x: number; y: number }>();
       screenNodes.current = [];
       for (const n of m.nodes) {
-        const s = worldToScreen(cam, n.x, n.y, w, h);
+        const at = placeOf(n.id, now) ?? n;
+        const s = worldToScreen(cam, at.x, at.y, w, h);
         point.set(n.id, s);
         if (s.x > -40 && s.x < w + 40 && s.y > -40 && s.y < h + 40) {
           screenNodes.current.push({ id: n.id, x: s.x, y: s.y });
         }
       }
-      for (const hub of m.hubs) point.set(hub.id, worldToScreen(cam, hub.x, hub.y, w, h));
+      screenHubs.current = [];
+      for (const hub of m.hubs) {
+        const at = placeOf(`hub:${hub.key}`, now) ?? hub;
+        const s = worldToScreen(cam, at.x, at.y, w, h);
+        point.set(hub.id, s);
+        screenHubs.current.push({ key: hub.key, x: s.x, y: s.y });
+      }
 
       // Edges first.
       for (const e of m.edges) {
@@ -140,15 +206,18 @@ export function OverviewCanvas({
         const b = point.get(e.bId);
         if (!a || !b) continue;
         const touches = hover !== null && (e.aId === hover || e.bId === hover);
-        ctx.globalAlpha = e.manual
-          ? hover && !touches
-            ? 0.3
-            : 0.9
-          : touches
-            ? 0.9
-            : hover
-              ? 0.12
-              : 0.35;
+        if (focusHub) {
+          ctx.globalAlpha = e.aId === focusHub.id || e.bId === focusHub.id ? 0.9 : 0.05;
+        } else
+          ctx.globalAlpha = e.manual
+            ? hover && !touches
+              ? 0.3
+              : 0.9
+            : touches
+              ? 0.9
+              : hover
+                ? 0.12
+                : 0.35;
         ctx.strokeStyle = css(CRITERION_COLOR[e.criterion]);
         ctx.lineWidth = touches ? 1.5 : 1;
         ctx.beginPath();
@@ -163,7 +232,13 @@ export function OverviewCanvas({
         const s = point.get(n.id);
         if (!s || s.x < -40 || s.x > w + 40 || s.y < -40 || s.y > h + 40) continue;
         const isHover = n.id === hover;
-        ctx.globalAlpha = hover && !isHover ? 0.25 : 1;
+        ctx.globalAlpha = focusMembers
+          ? focusMembers.has(n.id)
+            ? 1
+            : FOCUS_FADE_ALPHA
+          : hover && !isHover
+            ? 0.25
+            : 1;
         if (!thumbs) {
           ctx.fillStyle = css(n.color);
           ctx.beginPath();
@@ -171,7 +246,11 @@ export function OverviewCanvas({
           ctx.fill();
           continue;
         }
-        const long = isHover ? HOVER_LONG_SIDE : THUMB_LONG_SIDE;
+        const baseLong = Math.min(
+          NODE_MAX_PX,
+          Math.max(NODE_MIN_PX, NODE_WORLD_LONG_SIDE * cam.zoom),
+        );
+        const long = isHover ? Math.max(HOVER_LONG_SIDE, baseLong) : baseLong;
         const nw = n.aspect >= 1 ? long : long * n.aspect;
         const nh = n.aspect >= 1 ? long / n.aspect : long;
         const x = s.x - nw / 2;
@@ -189,10 +268,10 @@ export function OverviewCanvas({
       }
 
       // Hubs: a star and an uppercase label.
-      ctx.globalAlpha = hover ? 0.5 : 1;
       for (const hub of m.hubs) {
         const s = point.get(hub.id);
         if (!s) continue;
+        ctx.globalAlpha = focusHub ? (hub === focusHub ? 1 : FOCUS_FADE_ALPHA) : hover ? 0.5 : 1;
         ctx.fillStyle = css(CRITERION_COLOR[hub.criterion]);
         ctx.beginPath();
         for (let i = 0; i < 10; i++) {
@@ -226,6 +305,7 @@ export function OverviewCanvas({
         ctx.fillText(label, hs.x, ty + 17);
       }
       ctx.globalAlpha = 1;
+      if (settling) requestDraw();
     }
     drawRef.current = draw;
 
@@ -295,6 +375,18 @@ export function OverviewCanvas({
       }
     };
     const onUp = (e: PointerEvent) => {
+      if (drag && !drag.moved) {
+        // A plain click: a star focuses its group; empty space clears the focus.
+        const p = local(e);
+        const star = screenHubs.current.find(
+          (st) => Math.hypot(st.x - p.x, st.y - p.y) <= STAR_HIT_PX,
+        );
+        if (star) {
+          onFocusHubRef.current(focusRef.current === star.key ? null : star.key);
+        } else if (!nodeAt(screenNodes.current, p.x, p.y, HIT_RADIUS)) {
+          if (focusRef.current) onFocusHubRef.current(null);
+        }
+      }
       drag = null;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     };

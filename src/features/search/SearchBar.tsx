@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Frame, SlidersHorizontal, X } from 'lucide-react';
+import { Frame, SlidersHorizontal, Star, X } from 'lucide-react';
 import type { Engine } from '@/canvas/Engine';
 import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
@@ -15,6 +15,7 @@ import type { Facet, ItemKind } from '@/state/types';
 import { useSearchResults } from './useSearchResults';
 import { Panel, SearchField, Chip, IconButton, Button, Tabs, Toggle } from '@/design/components';
 import { en } from '@/i18n/en';
+import { useEscape } from '@/app/useEscape';
 
 const KINDS: ItemKind[] = ['image', 'video', 'pdf', 'font', 'link', 'note', 'swatch'];
 const COLORS: ColorFamily[] = [
@@ -67,17 +68,9 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
     if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        useSearchStore.getState().closeOrClearText();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen]);
+  useEscape(isOpen, () => useSearchStore.getState().closeOrClearText(), {
+    allowWhileTyping: true,
+  });
 
   if (!isOpen) return null;
 
@@ -175,6 +168,20 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
             {en.search.count(matchedCount, total)}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <button
+              type="button"
+              className="ds-chip"
+              aria-pressed={!!filter.favorite}
+              style={
+                filter.favorite
+                  ? { background: 'var(--accent)', color: 'var(--on-accent)' }
+                  : undefined
+              }
+              onClick={() => useSearchStore.getState().toggleFavorite()}
+            >
+              <Star size={14} strokeWidth={1.75} style={{ marginRight: 4 }} />
+              {en.search.favoritesToggle}
+            </button>
             {active && (
               <>
                 <Button variant="ghost" onClick={frameResults}>

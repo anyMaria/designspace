@@ -98,6 +98,11 @@ export interface Platform {
     purge(relPaths: string[]): Promise<void>;
     /** Recursive folder listing for the Folder… entry point (§2.3) — Tauri only. */
     listFolder(path: string): Promise<FolderListing>;
+    /** The bytes of a picture chosen with the file dialog, for sampling colours (Color studio) —
+     * never stored in the library. Tauri only: only picture formats, at most 64 MB. */
+    readImage(path: string): Promise<ArrayBuffer>;
+    /** The bytes of a PDF picked with the file dialog (Patch 2 · G2); Tauri only. */
+    readPdf(path: string): Promise<ArrayBuffer>;
   };
 
   cache: {
@@ -169,6 +174,9 @@ export interface Platform {
   window: {
     isFullscreen(): Promise<boolean>;
     setFullscreen(on: boolean): Promise<void>;
+    /** Called whenever full screen turns on or off (also when the OS or the browser leaves it).
+     * Returns an unsubscribe function. */
+    onFullscreenChange(cb: (on: boolean) => void): () => void;
   };
 
   clipboard: {

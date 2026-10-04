@@ -24,6 +24,9 @@ const POOL_SIZE = 2;
  * Patch 1: re-derive everything once. Thumbnails never loaded on Windows before the media:// fix
  * (A1) and placements need their real shape (A4). */
 export const CURRENT_DERIVED_V = 2;
+/** Font cards have their own version so redrawing them never re-makes every picture. 3 = the
+ * family card of Patch 2 · F4 (existing font cards are redrawn once). */
+export const FONT_DERIVED_V = 3;
 
 function defaultWorkerFactory(): WorkerLike {
   return new Worker(new URL('./ingest.worker.ts', import.meta.url), { type: 'module' });

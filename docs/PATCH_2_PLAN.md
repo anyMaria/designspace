@@ -485,7 +485,7 @@ Doing this before the comfort work means nothing gets polished that is about to 
 `grep -rn -i "constellation" src tests` (B1) or `grep -rnE "useFrameStore|frameCommands|FrameRename|selectedFrame|frameMove|onePagePerFrame" src tests` (B3)
 must find only what the task says to keep.
 
-### B1 · Remove Constellations from the map `[ ]`
+### B1 · Remove Constellations from the map `[x]`
 **Files to delete:** `src/canvas/useConstellationsBinding.ts`, `tests/e2e/smoke-m3-constellations.spec.ts`.
 **Files to edit:** `src/canvas/Engine.ts` (`enterConstellations` / exit, arranged positions and the morph, hub dragging,
 the "Back to my layout" event), `src/app/Shell.tsx` (the binding and the "Back to my layout" pill),
@@ -501,7 +501,7 @@ that toggles the switch).
 **Done when:** typecheck, unit and e2e green; Shift+C does nothing; the Connections popover has no ✦ switch.
 DECISIONS: "Constellations removed (owner, Patch 2 D1); the layout code lives on in the Overview."
 
-### B2 · The Overview opens on clusters that you can actually see `[ ]`
+### B2 · The Overview opens on clusters that you can actually see `[x]`
 **Why:** measured on synthetic libraries with today's constants, items sit about 185 px (screen) from their star and stars
 are about 32 px apart: clusters overlap into one cloud (separation ratio 0.17). The constants were tuned for full-size
 cards on the map (long side 160), not for the Overview's small thumbnails.
@@ -548,7 +548,7 @@ Clusters selected; moving the Spacing slider keeps the Overview open and redraws
 **Owner checks:** open the Overview: groups of related items gather around their stars and move into place; the Spacing
 slider makes them tighter or looser; click a star to see its group.
 
-### B3 · Remove Frames; export a selection instead `[ ]`
+### B3 · Remove Frames; export a selection instead `[x]`
 **Files to delete:** `src/features/frames/FrameRenameDialog.tsx`, `src/state/frameRenameStore.ts`, `src/state/frameStore.ts`,
 `src/commands/frameCommands.ts` (+ test), `src/canvas/useFrameCanvasBinding.ts`, `tests/e2e/smoke-m4-frames.spec.ts`.
 **Files to edit:** `src/canvas/Engine.ts` (the frames map, drawing, hit-testing, handles, `selectedFrameId`, the
@@ -586,7 +586,7 @@ DECISIONS: "Frames removed (owner, Patch 2 D2). Existing frame rows stay in the 
 Library menu, a real Trash screen, visible favourites, and List tiles for every kind. Size: L. Version at the end:
 **0.11.0**. Mockups: `docs/patch-2/canvas.png`, `library-trash.png`.
 
-### C1 · One rule for Esc; Esc leaves full screen `[ ]`
+### C1 · One rule for Esc; Esc leaves full screen `[x]`
 **Why:** 13 separate Esc listeners run in no particular order (closing Settings also clears the selection), five overlays
 ignore Esc, and nothing leaves full screen.
 
@@ -641,7 +641,7 @@ selected**; press Esc again: the selection clears. Every spec in the "Esc behavi
 `patch1-overview`, `smoke-m2-list`.
 **Owner checks:** in full screen with nothing open and nothing selected, Esc leaves full screen.
 
-### C2 · Resize from every side `[ ]`
+### C2 · Resize from every side `[x]`
 **Why:** D7. Today: four corner handles, every kind keeps its proportions, no resize cursor.
 
 **Files:** new `src/canvas/resizeMath.ts` (+ test), `src/canvas/selection.ts`, `src/canvas/Engine.ts`,
@@ -671,7 +671,7 @@ right side handle 100 px right → the card is wider and the same height; drag a
 corner → proportions change; hold Alt on the right side → both left and right edges moved. Measure positions from the
 canvas bounding box (no hard-coded coordinates).
 
-### C3 · Pictures crop instead of stretching `[ ]`
+### C3 · Pictures crop instead of stretching `[x]`
 **Why:** D7: a side handle changes the proportions; a photo must never be squashed.
 
 **Files:** new `src/db/migrations/003_crop.sql`, `src/db/migrator.ts`, `src/state/types.ts`, `src/db/rowMapping.ts`
@@ -717,7 +717,7 @@ for a cropped picture. e2e (`patch2-resize.spec.ts`, extend): after the side dra
 the circle's orange (cropped, not stretched: a stretched circle would still be orange, so also check a pixel 30 px inside
 the right edge is the blue-green background, not orange).
 
-### C4 · The Library menu `[ ]`
+### C4 · The Library menu `[x]`
 **Files:** `src/features/boards/SpaceSwitcher.tsx`, new `src/features/boards/boardSummaries.ts` (+ test),
 `src/design/components/Menu.tsx`, `components.css`, `src/app/Shell.tsx`, `en.ts`. Mockup: `library-trash.png` (top).
 
@@ -743,7 +743,7 @@ the right edge is the blue-green background, not orange).
 pictures only. e2e (`smoke-m4-boards-gallery`, extend): open the menu → the current space has a check; New board → type
 "Moodboard" → Enter → the space switcher shows "Moodboard"; click the dock while the menu is open → the menu closes.
 
-### C5 · The Trash screen `[ ]`
+### C5 · The Trash screen `[x]`
 **Files:** new `src/features/trash/TrashView.tsx`, `src/state/boardUiStore.ts` (or a new `trashUiStore.ts`),
 `src/features/trash/trashActions.ts` (+ test), delete `src/features/trash/TrashSection.tsx`,
 `src/features/settings/LibrarySection.tsx`, `src/state/toastStore.ts`, `src/design/components/Toast.tsx`,
@@ -776,7 +776,7 @@ Mockup: `library-trash.png` (bottom).
 delete an item → toast "Open Trash" → the Trash shows it → Restore → it is back on the map. `trashActions.test.ts`: restore
 picks the current space's placement.
 
-### C6 · Favourites show `[ ]`
+### C6 · Favourites show `[x]`
 **Files:** `src/canvas/Engine.ts`, new `src/canvas/favoriteBadge.ts`, `src/canvas/itemCards.ts` (+ test),
 `src/canvas/contextMenuItems.ts` (+ test), `src/canvas/ContextMenu.tsx`, `src/features/list/ListPanel.tsx`,
 `src/features/search/SearchBar.tsx` (or the dock), `src/design/tokens.ts`, `en.ts`.
@@ -798,7 +798,7 @@ picks the current space's placement.
 **Tests:** `itemCards.test.ts` (favorite mapped); `contextMenuItems.test.ts` (exact list updated); e2e
 `smoke-m2-details`: toggle Favorite → right-click shows "Remove from favorites"; the List tile has the star.
 
-### C7 · Every kind has a List tile `[ ]`
+### C7 · Every kind has a List tile `[x]`
 **Files:** `src/features/list/ListPanel.tsx` (split the tile into new `src/features/list/ListTile.tsx`),
 `src/lib/color.ts` (move `readableTextColor` from `Engine.ts`), `src/lib/search.ts` (export `sourceDomain`), `components.css`.
 Mockup: `canvas.png` (bottom row).
@@ -834,7 +834,7 @@ Plus the favourite star (C6). Never render an `<img>` without a `src` (that's th
 typos are forgiven, a new word is only made on purpose, and Movement holds only movements.
 Size: M. Version at the end: **0.12.0**. Mockup: `docs/patch-2/combobox.png`.
 
-### D1 · Matching and the combobox component `[ ]`
+### D1 · Matching and the combobox component `[x]`
 **Files:** new `src/lib/termMatch.ts` (+ test), new `src/design/components/TermCombobox.tsx`, `components.css`,
 `src/design/components/index.ts`, new `src/features/details/useTermOptions.ts`, `en.ts`.
 
@@ -884,7 +884,7 @@ Size: M. Version at the end: **0.12.0**. Mockup: `docs/patch-2/combobox.png`.
 typing "grain" then Enter calls `onAdd('grain')`; ↓ from a match to Create then Enter calls `onAdd('dremy')`; blur
 calls nothing; Esc with the list open closes it and the event is `defaultPrevented`.
 
-### D2 · Use the combobox in Details, Triage and bulk editing `[ ]`
+### D2 · Use the combobox in Details, Triage and bulk editing `[x]`
 **Files:** `src/features/details/DetailsPanel.tsx`, `src/features/triage/TriageView.tsx`,
 `src/features/details/BulkDetailsPanel.tsx`, `src/features/design/DesignPage.tsx` (or wherever `DesignPage.tsx` lives:
 `grep -rn "ChipInput" src`), delete `src/design/components/ChipInput.tsx` and its export.
@@ -903,7 +903,7 @@ calls nothing; Esc with the list open closes it and the event is `defaultPrevent
 Enter (the first match or Create is highlighted). New assertion in `smoke-m2-details`: focus the Vibe field, the list shows
 "Dreamy"; type "dremy", the first row shows "Did you mean?".
 
-### D3 · Movement holds movements; words can move between fields `[ ]`
+### D3 · Movement holds movements; words can move between fields `[x]`
 **Files:** new `src/db/migrations/004_vocabulary.sql`, `src/db/migrator.ts` (+ test), `src/lib/vocabulary.ts`,
 `src/commands/vocabularyCommands.ts` (+ test), `src/features/settings/VocabularySection.tsx`, `en.ts`.
 
@@ -965,7 +965,7 @@ Mockups: `docs/patch-2/studio-generate.png` (shell + Generate) and `studio-tabs.
 **Words used below:** a **spot** is one colour of the palette being built (the columns at the bottom). The **selected spot**
 is the one the tabs edit. A **locked** spot never changes. **Liked** colours live on the shelf on the right.
 
-### E1 · Colour maths `[ ]`
+### E1 · Colour maths `[x]`
 **Files:** new `src/lib/colorStudio.ts` (+ `colorStudio.test.ts`).
 
 **Do:** copy `docs/patch-2/reference/colorStudio.ts.txt` **as is** (24 test cases, all passing at the time of writing; culori 4.0.2 only). It exports:
@@ -978,7 +978,7 @@ artist's RYB wheel like Adobe Color, so red's complement is green), `rybToHue`/`
 (both return colours **with the pixel they came from**, so eyedroppers can be placed).
 Note in `contrastInfo`: never round the ratio before comparing; display it rounded **down** to 2 decimals.
 
-### E2 · The studio shell, the palette strip and saving `[ ]`
+### E2 · The studio shell, the palette strip and saving `[x]`
 **Files:** new `src/features/colorStudio/{colorStudioStore.ts (+ test), ColorStudio.tsx, PaletteStrip.tsx, LikedShelf.tsx, studioKeys.ts}`,
 new `src/app/overlayGate.ts` (+ test), `src/canvas/input.ts`, `src/canvas/useCanvasShortcuts.ts`, `src/app/useGlobalShortcuts.ts`,
 new `src/commands/composite.ts` (+ test), `src/state/loadSettings.ts`, `src/state/settingsStore.ts`, `src/app/Shell.tsx`,
@@ -1038,7 +1038,7 @@ new `src/commands/composite.ts` (+ test), `src/state/loadSettings.ts`, `src/stat
 **Tests:** `colorStudioStore.test.ts` (setHexes keeps locked spots; add stops at 10; remove keeps one; move; dirty);
 `composite.test.ts` (order of do/undo); `overlayGate.test.ts`. e2e comes in E7 once there are ways in.
 
-### E3 · The Wheel tab `[ ]`
+### E3 · The Wheel tab `[x]`
 **Files:** new `src/features/colorStudio/WheelTab.tsx`, `src/features/palettes/ColorWheel.tsx` (reuse), `colorWheelMath.ts`.
 
 **Do**
@@ -1055,7 +1055,7 @@ new `src/commands/composite.ts` (+ test), `src/state/loadSettings.ts`, `src/stat
 **Tests:** a pure helper `applyRule(spots, baseIndex, rule)` (in the store file) unit-tested: locked spots untouched, base
 unchanged.
 
-### E4 · The From an image tab `[ ]`
+### E4 · The From an image tab `[x]`
 **Files:** new `src/features/colorStudio/ImageTab.tsx`, new `src/features/colorStudio/imagePixels.ts` (+ test),
 `src-tauri/src/media.rs`, `lib.rs`, `build.rs`, `capabilities/default.json`, `src/platform/types.ts` + both platforms.
 
@@ -1081,7 +1081,7 @@ unchanged.
 **Tests:** `imagePixels.test.ts` for the pure scale maths (`fitWithin(w, h, 512)`); the Rust command's extension check
 (unit test on a pure `is_allowed_image(path)` helper).
 
-### E5 · The Generate tab `[ ]`
+### E5 · The Generate tab `[x]`
 **Files:** new `src/features/colorStudio/GenerateTab.tsx`, `colorStudioStore.ts`.
 
 **Do**
@@ -1094,7 +1094,7 @@ unchanged.
   is highlighted with "Now"; clicking a row goes to it.
 **Tests:** store tests: generate keeps locked spots; history caps at 50; going back then generating drops the forward entries.
 
-### E6 · The Contrast tab and the colour-blind preview `[ ]`
+### E6 · The Contrast tab and the colour-blind preview `[x]`
 **Files:** new `src/features/colorStudio/ContrastTab.tsx`.
 
 **Do**
@@ -1114,7 +1114,7 @@ unchanged.
 **Tests:** a pure `hardToTellApart(hexes, threshold)` helper (in `colorStudio.ts` or next to the tab) with two near-identical
 greys → flagged.
 
-### E7 · Ways in, and retiring the old editor `[ ]`
+### E7 · Ways in, and retiring the old editor `[x]`
 **Files:** `src/features/import/AddMenu.tsx`, `src/canvas/useFocusViewBinding.ts` (double-click), `src/canvas/contextMenuItems.ts`
 (+ test), `src/canvas/ContextMenu.tsx`, `src/features/details/DetailsPanel.tsx`, `src/features/palettes/PaletteEditor.tsx`,
 `src/app/Shell.tsx`, `en.ts`, new e2e `tests/e2e/patch2-color-studio.spec.ts`, `tests/e2e/patch1-palette.spec.ts`.
@@ -1165,7 +1165,7 @@ the `kind` CHECK can't change without a table rebuild, see §2.1). Its families 
 where they belong to a collection, their placement has `parent_id = <collection id>` and their rect is computed from the
 collection's. `placements.frame_id` can't be reused (it references `frames`).
 
-### F1 · Richer font metadata and the `font_files` table `[ ]`
+### F1 · Richer font metadata and the `font_files` table `[x]`
 **Files:** `src/lib/fontRender.ts` (+ tests), new `src/db/migrations/005_fonts.sql`, `src/db/migrator.ts`,
 `src/state/types.ts`, `src/db/rowMapping.ts` (+ test), new `src/state/fontFilesStore.ts`, the library loader
 (`src/state/loadLibrary.ts`), new `src/lib/fontFamily.ts` (+ test).
@@ -1199,7 +1199,7 @@ italic file: italic by name); `fontFamily.test.ts` (`pickDefaultStyle` cases: Th
 the one closest to 400; variable 100–900 → 400; variable 500–900 → 500); `migrator` and `rowMapping` tests; a
 `migratedDb(5)` test (helper from D3) that an existing font item gets one `font_files` row.
 
-### F2 · Existing libraries: merge files of the same family `[ ]`
+### F2 · Existing libraries: merge files of the same family `[x]`
 **Why:** the owner's library already has one item per file. This one-off repair turns them into family items. It is
 derived (like a re-render), not a Command; the pre-migration backup from `ensureLibraryReady` is the safety net.
 
@@ -1232,7 +1232,7 @@ derived (like a re-render), not a Command; the pre-migration backup from `ensure
 kept. A `migratedDb(5)` integration test of the batch statements: terms unioned, connection re-pointed without a duplicate
 (either direction), placement moved or dropped per space, merged rows gone, `font_files` all on the kept item.
 
-### F3 · Importing fonts groups them into families `[ ]`
+### F3 · Importing fonts groups them into families `[x]`
 **Files:** `src/features/import/importItems.ts`, new `src/features/import/groupFontImports.ts` (+ test),
 new `src/commands/fontCommands.ts` (+ test), `src-tauri/src/media.rs` (`find_duplicate` + its test fixture),
 `src/features/trash/trashActions.ts` (+ test), `src/workers/fontIngestQueue.ts`.
@@ -1262,7 +1262,7 @@ Rust `find_duplicate` finds a hash stored only in `font_files`; `trashActions.te
 e2e: copy `src/design/fonts/urbanist/Urbanist-VariableFont_wght.ttf` and `Urbanist-Italic-VariableFont_wght.ttf` into
 `tests/e2e/fixtures/`; importing both creates **one** card titled "Urbanist". `smoke-m5-font` (expects "Unbounded") still passes.
 
-### F4 · Choose what the card shows `[ ]`
+### F4 · Choose what the card shows `[x]`
 **Files:** `src/lib/fontRender.ts` (`drawSpecimen`, `extractFontDerivatives`, `registerFontFace`), `src/workers/fontIngestQueue.ts`,
 `src/commands/fontCommands.ts`, `src/features/details/DetailsPanel.tsx` (new `FontCardSection.tsx`, `FontStylesSection.tsx`),
 `src/features/focus/FontFocusViewer.tsx`, `src/design/tokens.ts`, `en.ts`.
@@ -1293,7 +1293,7 @@ e2e: copy `src/design/fonts/urbanist/Urbanist-VariableFont_wght.ttf` and `Urbani
 (make the layout maths a pure `specimenLayout(size)` returning the font sizes and y positions) gives the numbers above.
 **Owner checks:** pick Semibold and Large on a family: the card redraws with big, readable text.
 
-### F5 · Type collections `[ ]`
+### F5 · Type collections `[x]`
 **Files:** new `src/lib/fontCollection.ts` (+ test), `src/design/tokens.ts`, new `src/canvas/decor/fontCollectionDecor.ts`,
 `src/canvas/Engine.ts`, `src/canvas/itemCards.ts`, new `src/commands/fontCollectionCommands.ts` (+ test),
 `src/commands/itemCommands.ts`, `src/commands/boardCommands.ts`, `src/canvas/contextMenuItems.ts` (+ test),
@@ -1365,7 +1365,7 @@ collection tile with "2 families"; hovering a row (after giving it a Vibe shared
 their own proportions; the PDF viewer's "Split into pages…" uses the same window. Size: M. Version at the end:
 **0.15.0**. Mockup: `docs/patch-2/pdf-picker.png`.
 
-### G1 · Page ranges, single-page files and layout by proportions (pure parts) `[ ]`
+### G1 · Page ranges, single-page files and layout by proportions (pure parts) `[x]`
 **Files:** new `src/lib/pageRange.ts` (+ test), `src/features/focus/splitPdfIntoPages.ts` (+ test),
 `src/features/import/importItems.ts` (+ test).
 
@@ -1387,7 +1387,7 @@ their own proportions; the PDF viewer's "Split into pages…" uses the same wind
 (3 pages): indices `[0,2]` → two one-page files named `sample p1.pdf`, `sample p3.pdf`; building page 1 twice gives equal
 bytes; `planBatchPlacements` with aspects `[0.707, 1.414]` gives rects of those proportions, left to right.
 
-### G2 · The page picker `[ ]`
+### G2 · The page picker `[x]`
 **Files:** `src-tauri/src/media.rs`, `lib.rs`, `build.rs`, `capabilities/default.json`, `src/platform/types.ts` + both
 platforms, new `src/state/pdfPickerStore.ts` (+ test), new `src/features/pdfPages/PdfPagePicker.tsx`, `src/app/Shell.tsx`, `en.ts`.
 
@@ -1415,7 +1415,7 @@ platforms, new `src/state/pdfPickerStore.ts` (+ test), new `src/features/pdfPage
 **Tests:** `pdfPickerStore.test.ts` (two requests are answered in order; cancel resolves null). Component behaviour is
 covered by G3's e2e.
 
-### G3 · Wire the picker into adding and splitting `[ ]`
+### G3 · Wire the picker into adding and splitting `[x]`
 **Files:** `src/features/import/useDropAndPaste.ts`, `src/features/import/AddMenu.tsx` (or wherever Files… lives),
 `src/features/import/importItems.ts`, `src/features/focus/PdfFocusViewer.tsx`, `src/features/focus/FocusView.tsx`, `src/app/Shell.tsx`.
 

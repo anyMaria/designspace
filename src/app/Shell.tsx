@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
+  Star,
   Shuffle,
   Waypoints,
   MousePointer2,
@@ -20,6 +21,9 @@ import { useSoftLimitNotice } from './useSoftLimitNotice';
 import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
 import { CanvasHoverOverlay } from '@/canvas/CanvasHoverOverlay';
+import { CropMode } from '@/features/crop/CropMode';
+import { TrashView } from '@/features/trash/TrashView';
+import { ColorStudio } from '@/features/colorStudio/ColorStudio';
 import { ThoughtBubbleOverlay } from '@/canvas/ThoughtBubbleOverlay';
 import type { Engine } from '@/canvas/Engine';
 import { useEngineBindings } from '@/canvas/useEngineBindings';
@@ -29,6 +33,7 @@ import { ContextMenu } from '@/canvas/ContextMenu';
 import { ZoomMenu } from '@/canvas/ZoomMenu';
 import { Minimap } from '@/canvas/Minimap';
 import { useFocusViewBinding } from '@/canvas/useFocusViewBinding';
+import { PdfPagePicker } from '@/features/pdfPages/PdfPagePicker';
 import { FocusView } from '@/features/focus/FocusView';
 import { useDropAndPaste } from '@/features/import/useDropAndPaste';
 import { useListDragToBoard } from '@/features/list/useListDragToBoard';
@@ -38,6 +43,7 @@ import { ImportProgressCard } from '@/features/import/ImportProgressCard';
 import { ToastHost } from '@/features/toasts/ToastHost';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
+import { FontCollectionDetails } from '@/features/details/FontCollectionDetails';
 import { PaletteEditor } from '@/features/palettes/PaletteEditor';
 import { NoteDetails } from '@/features/notes/NoteDetails';
 import { ActionsPanel } from '@/features/actions/ActionsPanel';
@@ -51,7 +57,6 @@ import { SearchBar } from '@/features/search/SearchBar';
 import { useSearchBinding } from '@/canvas/useSearchBinding';
 import { useConnectionsBinding } from '@/canvas/useConnectionsBinding';
 import { useManualConnectionsBinding } from '@/canvas/useManualConnectionsBinding';
-import { useConstellationsBinding } from '@/canvas/useConstellationsBinding';
 import { ConnectionTooltip } from '@/features/connections/ConnectionTooltip';
 import { ConnectionsPopover } from '@/features/connections/ConnectionsPopover';
 import { ConnectionLabelDialog } from '@/features/connections/ConnectionLabelDialog';
@@ -67,8 +72,6 @@ import { useNoteCanvasBinding } from '@/canvas/useNoteCanvasBinding';
 import { OverviewOverlay } from '@/features/overview/OverviewOverlay';
 import { DescriptionPanel } from '@/features/description/DescriptionPanel';
 import { NoteEditor } from '@/features/notes/NoteEditor';
-import { useFrameCanvasBinding } from '@/canvas/useFrameCanvasBinding';
-import { FrameRenameDialog } from '@/features/frames/FrameRenameDialog';
 import { ExportDialog } from '@/features/export/ExportDialog';
 import { useExportUiStore } from '@/state/exportUiStore';
 import { SuggestionsTray } from '@/features/boards/SuggestionsTray';
@@ -81,6 +84,7 @@ import {
   EmptyState,
   Button,
 } from '@/design/components';
+import { useEscape } from '@/app/useEscape';
 import { en } from '@/i18n/en';
 import { SettingsDialog } from '@/features/settings/SettingsDialog';
 
@@ -92,7 +96,6 @@ export interface ShellProps {
 }
 
 export function Shell({ platform, library, libraryBoardId, benchCount }: ShellProps) {
-  const switcherOpen = useBoardUiStore((s) => s.switcherOpen);
   useGlobalShortcuts(platform);
   useUndoRedoShortcuts();
   useSoftLimitNotice();
@@ -146,15 +149,15 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
   useFocusViewBinding(engine);
   useNoteCanvasBinding(engine, platform);
-  useFrameCanvasBinding(engine, platform);
   useSearchBinding(engine, platform);
   useConnectionsBinding(engine, platform);
   useManualConnectionsBinding(engine, platform);
-  useConstellationsBinding(engine, platform);
+  const favoritesOnly = useSearchStore((s) => !!s.filter.favorite);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
   const listExpanded = useListStore((s) => s.expanded);
-  const constellationsOn = useConnectionsUiStore((s) => s.constellationsOn);
-  const arranging = useConnectionsUiStore((s) => s.arranging);
+  useEscape(listExpanded, () => useListStore.getState().setExpanded(false), {
+    allowWhileTyping: true,
+  });
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
@@ -165,6 +168,9 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         onEngineReady={setEngine}
       />
       <CanvasHoverOverlay engine={engine} />
+      <CropMode engine={engine} platform={platform} />
+      <TrashView platform={platform} />
+      <ColorStudio platform={platform} engine={engine} />
       <ThoughtBubbleOverlay engine={engine} />
 
       {/* Library map / Board empty state — §2.14 */}
@@ -206,8 +212,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           position: 'absolute',
           top: 'var(--space-4)',
           left: 'var(--space-4)',
-          // Raised while the switcher is open, so its click-away backdrop covers the dock and panels.
-          zIndex: switcherOpen ? 6 : 1,
+          zIndex: 1,
           display: 'flex',
           gap: 'var(--space-2)',
         }}
@@ -285,40 +290,6 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         />
       </div>
 
-      {/* Constellations (§2.10): "Show a subtle 'Arranging…'" while the worker computes, then
-          "Back to my layout" for as long as it's on. */}
-      {(constellationsOn || arranging) && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'var(--space-4)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 1,
-          }}
-        >
-          <Panel
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-              padding: 'var(--space-2) var(--space-4)',
-            }}
-          >
-            {arranging ? (
-              <span style={{ color: 'var(--text-2)' }}>{en.connections.arranging}</span>
-            ) : (
-              <Button
-                variant="ghost"
-                onClick={() => useConnectionsUiStore.getState().setConstellationsOn(false)}
-              >
-                {en.connections.backToMyLayout}
-              </Button>
-            )}
-          </Panel>
-        </div>
-      )}
-
       {/* Bottom-center dock (and, above it while a board with a source filter is open, the
           suggestions tray — §2.11) — §2.1 */}
       <div
@@ -337,6 +308,12 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         <SuggestionsTray platform={platform} />
         <Dock>
           <AddMenu platform={platform} engine={engine} />
+          <IconButton
+            icon={<Star size={20} strokeWidth={1.75} />}
+            label={en.search.favoritesToggle}
+            active={favoritesOnly}
+            onClick={() => useSearchStore.getState().toggleFavorite()}
+          />
           <span style={{ position: 'relative' }}>
             <IconButton
               icon={<Search size={20} strokeWidth={1.75} />}
@@ -447,8 +424,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             <BulkDetailsPanel platform={platform} items={selectedItems} />
           ) : selectedItem?.kind === 'note' ? (
             <NoteDetails platform={platform} item={selectedItem} />
+          ) : selectedItem?.kind === 'font' && selectedItem.fontCollection ? (
+            <FontCollectionDetails platform={platform} item={selectedItem} />
           ) : selectedItem?.kind === 'swatch' ? (
-            <PaletteEditor platform={platform} item={selectedItem} engine={engine} />
+            <PaletteEditor platform={platform} item={selectedItem} />
           ) : selectedItem ? (
             <DetailsPanel platform={platform} item={selectedItem} engine={engine} />
           ) : (
@@ -498,7 +477,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           onClose={closeContextMenu}
         />
       )}
-      <FocusView platform={platform} />
+      <FocusView platform={platform} engine={engine} />
+      <PdfPagePicker />
       <DescriptionPanel platform={platform} engine={engine} />
       <OverviewOverlay platform={platform} engine={engine} />
       <NoteEditor platform={platform} engine={engine} />
@@ -508,7 +488,6 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       <ShortcutListOverlay />
       <ConnectionTooltip engine={engine} />
       <ConnectionLabelDialog platform={platform} />
-      <FrameRenameDialog platform={platform} />
       {engine && <ExportDialog platform={platform} engine={engine} />}
     </div>
   );

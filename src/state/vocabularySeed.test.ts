@@ -32,8 +32,8 @@ describe('seedVocabulary', () => {
 
     const byFacet = (facet: string) => statements.filter((s) => s.params?.[1] === facet);
     expect(byFacet('type').length).toBe(21);
-    expect(byFacet('vibe').length).toBe(24);
-    expect(byFacet('movement').length).toBe(31);
+    expect(byFacet('vibe').length).toBe(29);
+    expect(byFacet('movement').length).toBe(25);
 
     // Each facet's sort starts back at 0.
     expect(byFacet('type')[0].params?.[5]).toBe(0);

@@ -14,7 +14,7 @@ export function fitRect(
 
 /** Derived data, not a command: reshapes every placement of `itemId` that still has the untouched
  * 320×320 import placeholder, keeping it centred where it was. A placement the owner already
- * resized is left alone. */
+ * resized or cropped is left alone. */
 export async function fitPlacementsToAspect(
   platform: Platform,
   itemId: string,
@@ -24,7 +24,8 @@ export async function fitPlacementsToAspect(
   const { w, h, dx, dy } = fitRect(aspect);
   if (w === PLACEHOLDER_SIZE && h === PLACEHOLDER_SIZE) return;
   const rows = await platform.db.select<DbRow>(
-    'SELECT board_id FROM placements WHERE item_id = ? AND w = ? AND h = ?',
+    // A placement the owner cropped (`crop_x` set) keeps its shape, e.g. across a re-derive.
+    'SELECT board_id FROM placements WHERE item_id = ? AND w = ? AND h = ? AND crop_x IS NULL',
     [itemId, PLACEHOLDER_SIZE, PLACEHOLDER_SIZE],
   );
   if (rows.length === 0) return;

@@ -15,6 +15,8 @@ interface SettingsState {
   backupExtraDestination: string | null;
   /** The text every font card shows in its own font (Patch 1 · F2). */
   fontPreviewText: string;
+  /** Colours hearted in the Color studio, newest first (Patch 2 · D6). */
+  likedColors: string[];
 }
 
 export const useSettingsStore = create<SettingsState>(() => ({
@@ -22,4 +24,5 @@ export const useSettingsStore = create<SettingsState>(() => ({
   aiEnabled: true,
   backupExtraDestination: null,
   fontPreviewText: DEFAULT_PREVIEW_TEXT,
+  likedColors: [],
 }));

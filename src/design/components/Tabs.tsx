@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
+
 export interface TabsProps<T extends string> {
-  tabs: readonly { id: T; label: string }[];
+  tabs: readonly { id: T; label: string; icon?: ReactNode }[];
   value: T;
   onChange: (id: T) => void;
   'aria-label': string;
@@ -18,6 +20,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, ...rest }: TabsP
           aria-selected={tab.id === value}
           onClick={() => onChange(tab.id)}
         >
+          {tab.icon}
           {tab.label}
         </button>
       ))}

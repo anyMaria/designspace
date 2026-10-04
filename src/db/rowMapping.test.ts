@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  rowToFontFile,
   rowToItem,
   rowToItemTerm,
   rowToManualConnection,
@@ -116,6 +117,9 @@ describe('rowToItem', () => {
       url: null,
       coverPath: null,
       linkMeta: null,
+      fontFamilyKey: null,
+      fontCard: null,
+      fontCollection: null,
     });
   });
 
@@ -134,6 +138,20 @@ describe('rowToItem', () => {
     expect(item.palette).toBeNull();
     expect(item.colorFamilies).toBeNull();
     expect(item.favorite).toBe(false);
+  });
+});
+
+describe('rowToPlacement crop columns', () => {
+  const base = { board_id: 'b', item_id: 'i', x: 0, y: 0, w: 1, h: 1, z: 0, added_at: 'x' };
+  it('maps crop_x / crop_y, and null when unset', () => {
+    expect(rowToPlacement({ ...base, crop_x: 0.25, crop_y: 0.75 })).toMatchObject({
+      cropX: 0.25,
+      cropY: 0.75,
+    });
+    expect(rowToPlacement({ ...base, crop_x: null, crop_y: null })).toMatchObject({
+      cropX: null,
+      cropY: null,
+    });
   });
 });
 
@@ -159,6 +177,9 @@ describe('rowToPlacement', () => {
       h: 240,
       z: 3,
       frameId: null,
+      cropX: null,
+      cropY: null,
+      parentId: null,
       addedAt: '2026-09-27T00:00:00.000Z',
     });
   });
@@ -231,5 +252,51 @@ describe('rowToManualConnection', () => {
       created_at: '2026-09-27T00:00:00.000Z',
     });
     expect(connection.label).toBeNull();
+  });
+});
+
+describe('font rows (Patch 2 · F1)', () => {
+  it('maps a font_files row, with defaults', () => {
+    const f = rowToFontFile({
+      id: 'a',
+      item_id: 'i',
+      file_path: 'p',
+      file_name: 'n',
+      file_hash: 'h',
+      italic: 1,
+      weight: 700,
+      axes: '[{"tag":"wght","name":"W","min":100,"max":900,"default":400}]',
+      created_at: 'x',
+    });
+    expect(f).toMatchObject({ itemId: 'i', italic: true, weight: 700, styleName: '', sort: 0 });
+    expect(f.axes?.[0].tag).toBe('wght');
+    expect(f.instances).toBeNull();
+  });
+  it('maps the family columns of an item and the parent of a placement', () => {
+    const item = rowToItem({
+      id: 'i',
+      kind: 'font',
+      title: 'T',
+      status: 'ok',
+      created_at: 'x',
+      updated_at: 'x',
+      font_family_key: 'urbanist',
+      font_card: '{"fileId":"a","wght":600,"size":"l","text":null}',
+      font_collection: '{"ids":["a","b"]}',
+    });
+    expect(item.fontFamilyKey).toBe('urbanist');
+    expect(item.fontCard).toEqual({ fileId: 'a', wght: 600, size: 'l', text: null });
+    expect(item.fontCollection).toEqual({ ids: ['a', 'b'] });
+    const p = rowToPlacement({
+      board_id: 'b',
+      item_id: 'i',
+      x: 0,
+      y: 0,
+      w: 1,
+      h: 1,
+      parent_id: 'c',
+      added_at: 'x',
+    });
+    expect(p.parentId).toBe('c');
   });
 });

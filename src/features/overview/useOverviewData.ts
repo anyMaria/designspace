@@ -13,7 +13,7 @@ import {
 } from '@/lib/connections';
 import { itemColorOf } from '@/lib/itemColor';
 import { thumbUrl } from '@/lib/thumbs';
-import { isMediaKind } from '@/lib/itemKinds';
+import { isMediaItem } from '@/lib/itemKinds';
 import { logger } from '@/lib/logger';
 import {
   defaultLayoutWorkerFactory,
@@ -32,7 +32,7 @@ import {
 const HUB_CRITERIA: Criterion[] = ['type', 'vibe', 'movement', 'tag', 'color'];
 
 /** The Overview's model for the current space (Patch 1 · G2). "My layout" uses real positions;
- * "Clusters" runs the Constellations layout worker with the active criteria and caches the result
+ * "Clusters" runs the clusters layout worker with the active criteria and caches the result
  * until the items or criteria change. */
 export function useOverviewData(platform: Platform): { model: OverviewModel; arranging: boolean } {
   const open = useOverviewStore((s) => s.open);
@@ -44,6 +44,7 @@ export function useOverviewData(platform: Platform): { model: OverviewModel; arr
   const terms = useTermStore((s) => s.terms);
   const connections = useManualConnectionsStore((s) => s.connections);
   const embeddings = useEmbeddingsStore((s) => s.vectors);
+  const spacing = useOverviewStore((s) => s.spacing);
   const activeCriteria = useConnectionsUiStore((s) => s.activeCriteria);
   const [clusters, setClusters] = useState<{ key: string; layout: ConstellationLayout } | null>(
     null,
@@ -58,7 +59,7 @@ export function useOverviewData(platform: Platform): { model: OverviewModel; arr
     [placements, items],
   );
   const criteriaKey = activeCriteria.join(',');
-  const clustersKey = `${visibleIds.join('|')}#${criteriaKey}#${connections.size}`;
+  const clustersKey = `${visibleIds.join('|')}#${criteriaKey}#${connections.size}#${spacing}`;
 
   useEffect(() => {
     if (!open || layout !== 'clusters' || clusters?.key === clustersKey) return;
@@ -72,6 +73,7 @@ export function useOverviewData(platform: Platform): { model: OverviewModel; arr
       terms,
       manualConnections: [...connections.values()],
       embeddings,
+      spacing,
     })
       .then((result) => {
         if (!cancelled) setClusters({ key: clustersKey, layout: result });
@@ -101,11 +103,13 @@ export function useOverviewData(platform: Platform): { model: OverviewModel; arr
         id,
         x: at ? at.x : p.x + p.w / 2,
         y: at ? at.y : p.y + p.h / 2,
+        homeX: p.x + p.w / 2,
+        homeY: p.y + p.h / 2,
         color: itemColorOf(item),
         title: item.title.trim() || item.fileName || item.kind,
         aspect: p.h > 0 ? p.w / p.h : 1,
         thumbUrl:
-          nodesMode === 'thumbnails' && isMediaKind(item.kind) && item.status === 'ok'
+          nodesMode === 'thumbnails' && isMediaItem(item) && item.status === 'ok'
             ? thumbUrl(platform, item, 128)
             : null,
       });

@@ -10,7 +10,6 @@ import {
   createTrashCommand,
 } from '@/commands/itemCommands';
 import { createRemoveFromBoardCommand } from '@/commands/boardCommands';
-import { createDeleteFrameCommand } from '@/commands/frameCommands';
 import { useBoardStore } from '@/state/boardStore';
 import { prefersReducedMotion } from '@/lib/motion';
 import { zoomRange } from '@/design/tokens';
@@ -21,11 +20,10 @@ import { triggerRediscover } from '@/features/rediscover/triggerRediscover';
 import { openInboxTriage } from '@/features/triage/openInboxTriage';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-}
+import { isTypingTarget } from '@/lib/isTypingTarget';
+import { showTrashToast } from '@/features/trash/trashToast';
+import { escapeStack } from '@/app/escapeStack';
+import { isBlockingOverlayOpen } from '@/app/overlayGate';
 
 /** Selection/stacking/trash/nudge/Rediscover/Favorite/Inbox-triage shortcuts that need the
  * engine and the library store — §2.2, §2.15. Kept separate from `useGlobalShortcuts` (which
@@ -36,11 +34,38 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * list (not just "new z value per selected item") that the engine doesn't track yet. Logged in
  * docs/DECISIONS.md; cheap to add once stacking order is exercised for real. */
 export function useCanvasShortcuts(engine: Engine | null, platform: Platform): void {
+  // Esc, when nothing is open (Patch 2 · C1): first cancel a pending pick or deselect a line,
+  // then clear the selection. Full screen is next in line (App.tsx, priority 30).
+  useEffect(() => {
+    if (!engine) return;
+    const removePick = escapeStack.addBase(10, () => {
+      if (engine.isPicking()) {
+        engine.cancelConnectPick();
+        engine.cancelPointPick();
+        return true;
+      }
+      if (engine.getSelectedConnectionPair()) {
+        engine.setSelectedConnectionPair(null);
+        return true;
+      }
+      return false;
+    });
+    const removeSelection = escapeStack.addBase(20, () => {
+      if (useLibraryStore.getState().selection.size === 0) return false;
+      useLibraryStore.getState().clearSelection();
+      return true;
+    });
+    return () => {
+      removePick();
+      removeSelection();
+    };
+  }, [engine]);
+
   useEffect(() => {
     if (!engine) return;
 
     function onKeyDown(e: KeyboardEvent) {
-      if (isTypingTarget(e.target)) return;
+      if (isTypingTarget(e.target) || isBlockingOverlayOpen()) return;
       const selection = [...useLibraryStore.getState().selection];
       const reduceMotion = prefersReducedMotion();
 
@@ -106,26 +131,9 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
         return;
       }
 
-      if (e.key === 'Escape') {
-        engine!.cancelConnectPick();
-        engine!.setSelectedConnectionPair(null);
-        engine!.setSelectedFrameId(null);
-        useLibraryStore.getState().clearSelection();
-        return;
-      }
-
       if (e.key === 'Enter' && selection.length === 1) {
         e.preventDefault();
         useFocusStore.getState().open(selection[0]);
-        return;
-      }
-
-      // A selected frame (§2.11) — deletes the frame only, un-parenting its contents.
-      if ((e.key === 'Delete' || e.key === 'Backspace') && engine!.getSelectedFrameId()) {
-        e.preventDefault();
-        const frameId = engine!.getSelectedFrameId()!;
-        engine!.setSelectedFrameId(null);
-        void useHistoryStore.getState().execute(createDeleteFrameCommand(platform, frameId));
         return;
       }
 
@@ -178,14 +186,7 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
           .getState()
           .execute(createTrashCommand(platform, selection))
           .then(() => {
-            useToastStore
-              .getState()
-              .show(
-                selection.length > 1
-                  ? `Moved ${selection.length} items to Trash`
-                  : 'Moved to Trash',
-                { onAction: () => void useHistoryStore.getState().undo() },
-              );
+            showTrashToast(selection.length, () => void useHistoryStore.getState().undo());
           });
         return;
       }

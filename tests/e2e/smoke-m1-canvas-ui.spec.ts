@@ -50,5 +50,25 @@ test('zoom menu, minimap and item context menu all work against the seeded demo 
   const menuBox = await menu.boundingBox();
   expect(menuBox && menuBox.y + menuBox.height).toBeLessThanOrEqual(480);
 
+  // One Esc rule (Patch 2 · C1): Esc closes Settings first and leaves the selection alone; the next
+  // Esc clears the selection.
+  await page.keyboard.press('Escape'); // close the menu before going on (its backdrop covers the page)
+  await expect(menu).toBeHidden();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.waitForTimeout(300);
+  const full = await canvas.boundingBox();
+  if (!full) throw new Error('canvas not found');
+  await page.mouse.click(full.x + full.width / 2, full.y + full.height / 2);
+  const favorite = page.getByRole('switch', { name: 'Favorite' });
+  await expect(favorite).toBeVisible();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await expect(settings).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
+  await expect(favorite).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(favorite).toBeHidden();
+
   expect(errors, errors.join('\n')).toEqual([]);
 });

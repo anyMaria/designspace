@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createCombineIntoPaletteCommand,
   createCreatePaletteCommand,
-  createExtractPaletteCommand,
   createSetSwatchColorsCommand,
 } from './paletteCommands';
 import { useLibraryStore } from '@/state/libraryStore';
@@ -34,7 +33,20 @@ function swatch(id: string, hex: string, extra: Partial<Item> = {}): Item {
 }
 
 function placement(id: string, x: number, y: number, w = 160, h = 160): Placement {
-  return { boardId: 'lib', itemId: id, x, y, w, h, z: 0, frameId: null, addedAt: '' };
+  return {
+    boardId: 'lib',
+    itemId: id,
+    x,
+    y,
+    w,
+    h,
+    z: 0,
+    frameId: null,
+    cropX: null,
+    cropY: null,
+    parentId: null,
+    addedAt: '',
+  };
 }
 
 beforeEach(() => {
@@ -152,26 +164,5 @@ describe('createCombineIntoPaletteCommand', () => {
     setup();
     const { platform } = makePlatform();
     expect(createCombineIntoPaletteCommand(platform, ['a'])).toBeNull();
-  });
-});
-
-describe('createExtractPaletteCommand', () => {
-  it('places the palette 48 units right of the selection', async () => {
-    const { platform } = makePlatform();
-    useLibraryStore.setState({
-      items: new Map([
-        ['i', { id: 'i', kind: 'image', palette: [{ hex: '#ff0000', weight: 1 }] } as Item],
-      ]),
-      placements: new Map([['i', placement('i', 100, 50, 300, 200)]]),
-    });
-    const { command, items } = createExtractPaletteCommand(platform, ['i'], 'lib', true, {
-      x: 0,
-      y: 0,
-    });
-    await command.do();
-    expect(useLibraryStore.getState().placements.get(items[0].id)).toMatchObject({
-      x: 100 + 300 + 48,
-      y: 50,
-    });
   });
 });

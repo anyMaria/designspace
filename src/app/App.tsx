@@ -3,7 +3,7 @@ import type { Platform, LibraryInfo } from '@/platform';
 import { getPlatform } from '@/platform';
 import { ensureLibraryReady, readDevUrlFlags } from '@/platform/bootstrap';
 import { seedDemoLibrary } from '@/platform/seed/demo';
-import { loadLibraryItems, loadFramesForBoard } from '@/state/loadLibrary';
+import { mergeFontFamilies } from '@/db/repairs/mergeFontFamilies';
 import { loadVocabulary } from '@/state/loadVocabulary';
 import { seedVocabulary } from '@/state/vocabularySeed';
 import { loadManualConnections } from '@/state/loadManualConnections';
@@ -25,10 +25,14 @@ import { useToastStore } from '@/state/toastStore';
 import { useUiStore } from '@/state/uiStore';
 import { setFullscreen } from './fullscreen';
 import { en } from '@/i18n/en';
+import { loadLibraryItems } from '@/state/loadLibrary';
 import { useReducedMotionSync } from '@/lib/useReducedMotionSync';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
 import { Shell } from './Shell';
+import { escapeStack, installEscapeListener } from './escapeStack';
+import { watchFullscreen } from './fullscreen';
+import { isTypingTarget } from '@/lib/isTypingTarget';
 import { requeueMissingThumbnails } from '@/workers/missingThumbnails';
 
 type BootState =
@@ -69,6 +73,26 @@ export function App() {
   const [boot, setBoot] = useState<BootState>({ phase: 'loading' });
   useReducedMotionSync();
 
+  // One Esc listener for the whole app (Patch 2 · C1); layers and base handlers register on the stack.
+  useEffect(() => installEscapeListener(window, isTypingTarget), []);
+
+  // Full screen follows the window (the browser's own Esc leaves it too); with nothing else to
+  // close, Esc leaves it (the last base handler).
+  const platformForEsc = boot.phase === 'ready' ? boot.platform : null;
+  useEffect(() => {
+    if (!platformForEsc) return;
+    const unwatch = watchFullscreen(platformForEsc);
+    const removeBase = escapeStack.addBase(30, () => {
+      if (!useUiStore.getState().fullscreen) return false;
+      void setFullscreen(platformForEsc, false);
+      return true;
+    });
+    return () => {
+      unwatch();
+      removeBase();
+    };
+  }, [platformForEsc]);
+
   useEffect(() => {
     let cancelled = false;
     async function start() {
@@ -82,6 +106,7 @@ export function App() {
           // §2.14 / §4.5: the browser dev build always has an automatic library, no onboarding.
           const library = await platform.library.open();
           const libraryBoardId = await ensureLibraryReady(platform);
+          await mergeFontFamilies(platform);
           const { seedDemo, bench } = readDevUrlFlags();
           await seedVocabulary(platform);
           if (seedDemo) await seedDemoLibrary(platform, libraryBoardId);
@@ -90,7 +115,6 @@ export function App() {
             loadVocabulary(platform),
             loadManualConnections(platform),
             loadBoards(platform),
-            loadFramesForBoard(platform, libraryBoardId),
             loadSettings(platform),
             loadEmbeddings(platform),
           ]);
@@ -109,6 +133,7 @@ export function App() {
         }
         const library = await platform.library.open(recent[0].path);
         const libraryBoardId = await ensureLibraryReady(platform);
+        await mergeFontFamilies(platform);
         void platform.cache.pruneOrphans();
         await seedVocabulary(platform);
         await Promise.all([
@@ -116,7 +141,6 @@ export function App() {
           loadVocabulary(platform),
           loadManualConnections(platform),
           loadBoards(platform),
-          loadFramesForBoard(platform, libraryBoardId),
           loadSettings(platform),
           loadEmbeddings(platform),
         ]);

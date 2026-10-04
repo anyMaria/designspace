@@ -1,16 +1,18 @@
 import type { Platform } from '@/platform/types';
 import type { DbRow } from '@/platform/types';
-import { rowToItem, rowToPlacement, rowToFrame } from '@/db/rowMapping';
+import { rowToFontFile, rowToItem, rowToPlacement } from '@/db/rowMapping';
+import { useFontFilesStore } from './fontFilesStore';
 import { useLibraryStore } from './libraryStore';
-import { useFrameStore } from './frameStore';
 
 /** Loads non-deleted items and the current space's placements into the store — §4.11 startup
  * ("load non-deleted items... the current space's placements"). */
 export async function loadLibraryItems(platform: Platform, libraryBoardId: string): Promise<void> {
-  const [itemRows, placementRows] = await Promise.all([
+  const [itemRows, placementRows, fontRows] = await Promise.all([
     platform.db.select<DbRow>('SELECT * FROM items WHERE deleted_at IS NULL'),
     platform.db.select<DbRow>('SELECT * FROM placements WHERE board_id = ?', [libraryBoardId]),
+    platform.db.select<DbRow>('SELECT * FROM font_files WHERE deleted_at IS NULL'),
   ]);
+  useFontFilesStore.getState().loadAll(fontRows.map(rowToFontFile));
   useLibraryStore.getState().loadAll(itemRows.map(rowToItem), placementRows.map(rowToPlacement));
 }
 
@@ -22,13 +24,4 @@ export async function loadPlacementsForBoard(platform: Platform, boardId: string
     boardId,
   ]);
   useLibraryStore.getState().setPlacements(rows.map(rowToPlacement));
-}
-
-/** Loads the current space's frames (§2.11) — called alongside `loadPlacementsForBoard`
- * everywhere that's called (startup and every "switch space"), so the two stay in sync. */
-export async function loadFramesForBoard(platform: Platform, boardId: string): Promise<void> {
-  const rows = await platform.db.select<DbRow>('SELECT * FROM frames WHERE board_id = ?', [
-    boardId,
-  ]);
-  useFrameStore.getState().setFrames(rows.map(rowToFrame));
 }

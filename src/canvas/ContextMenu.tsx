@@ -1,6 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Popover, Menu } from '@/design/components';
 import { placeMenu } from '@/lib/placeMenu';
+import { showTrashToast } from '@/features/trash/trashToast';
+import { isCropped, resetCropRect } from './coverCrop';
+import { useCropUiStore } from '@/state/cropUiStore';
 import type { Engine } from './Engine';
 import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
@@ -10,6 +13,8 @@ import { noteColorNames, type NoteColor } from '@/design/tokens';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { useDescriptionStore } from '@/state/descriptionStore';
 import {
+  createBulkSetItemFieldCommand,
+  createSetCropCommand,
   createSetItemFieldCommand,
   createStackOrderCommand,
   createTidyUpCommand,
@@ -20,10 +25,9 @@ import {
   createBoardFromItemsCommand,
   createRemoveFromBoardCommand,
 } from '@/commands/boardCommands';
-import { createExtractPaletteCommand } from '@/commands/swatchCommands';
+import { openEditPalette, openFromPhoto } from '@/features/colorStudio/openStudio';
 import { createCombineIntoPaletteCommand } from '@/commands/paletteCommands';
 import { swatchColorsOf } from '@/lib/palette';
-import { useUiStore } from '@/state/uiStore';
 import { useBoardStore } from '@/state/boardStore';
 import { switchSpace } from '@/features/boards/switchSpace';
 import { useListStore } from '@/state/listStore';
@@ -31,8 +35,14 @@ import { sortItems } from '@/features/list/listGrouping';
 import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
 import type { ContextMenuState } from './useContextMenu';
+import {
+  createAddToFontCollectionCommand,
+  createMakeFontCollectionCommand,
+  createRemoveFromFontCollectionCommand,
+} from '@/commands/fontCollectionCommands';
 import { contextMenuItemIds, type ContextMenuItemId } from './contextMenuItems';
 import type { Item } from '@/state/types';
+import { useEscape } from '@/app/useEscape';
 
 /** Right-click menu for a canvas item — §2.4. "Create board from selection" (M4-2) and, while
  * viewing a board, "Remove from board" (M4-3 — deletes only this board's placement, unlike Move
@@ -51,6 +61,7 @@ export function ContextMenu({
   platform: Platform;
   onClose: () => void;
 }) {
+  useEscape(true, onClose, { allowWhileTyping: true });
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   // Measured after the first render (hidden until then), so the menu flips and clamps to the window.
@@ -111,8 +122,47 @@ export function ContextMenu({
   function tidyUp(): void {
     onClose();
     const sortBy = useListStore.getState().sortBy;
-    const ordered = sortItems(ids, sortBy, useLibraryStore.getState().items);
+    // Type collections and their rows have a fixed layout (Patch 2 · F5): tidy leaves them alone.
+    const { items, placements } = useLibraryStore.getState();
+    const tidyable = ids.filter(
+      (id) => !items.get(id)?.fontCollection && !placements.get(id)?.parentId,
+    );
+    const ordered = sortItems(tidyable, sortBy, items);
     void useHistoryStore.getState().execute(createTidyUpCommand(platform, ordered));
+  }
+
+  function makeTypeCollection(): void {
+    onClose();
+    const made = createMakeFontCollectionCommand(platform, ids);
+    if (!made) return;
+    void useHistoryStore
+      .getState()
+      .execute(made.command)
+      .then(() => {
+        useLibraryStore.getState().setSelection([made.id]);
+        engine?.setSelection([made.id]);
+      });
+  }
+
+  function addToTypeCollection(): void {
+    onClose();
+    const state = useLibraryStore.getState();
+    const collection = selectedItems.find((i) => !!i.fontCollection);
+    if (!collection) return;
+    const families = ids.filter((id) => id !== collection.id);
+    void useHistoryStore
+      .getState()
+      .execute(createAddToFontCollectionCommand(platform, collection.id, families))
+      .then(() => state.setSelection([collection.id]));
+  }
+
+  function removeFromTypeCollection(): void {
+    onClose();
+    const parentId = memberOf;
+    if (!parentId) return;
+    void useHistoryStore
+      .getState()
+      .execute(createRemoveFromFontCollectionCommand(platform, parentId, ids[0]));
   }
 
   function backToInbox(): void {
@@ -155,25 +205,10 @@ export function ContextMenu({
       });
   }
 
-  function extractPalette(): void {
+  function makePalette(): void {
     onClose();
-    if (!currentBoardId) return;
-    const isLibraryBoard = currentBoard?.kind === 'library';
-    const origin = engine?.viewportCenter() ?? { x: 0, y: 0 };
-    const { command, items } = createExtractPaletteCommand(
-      platform,
-      ids,
-      currentBoardId,
-      isLibraryBoard,
-      origin,
-    );
-    void useHistoryStore
-      .getState()
-      .execute(command)
-      .then(() => {
-        const n = items[0]?.swatchColors?.length ?? 0;
-        if (n > 0) useToastStore.getState().show(en.palettes.extracted(n));
-      });
+    const item = selectedItems[0];
+    if (item) openFromPhoto(item);
   }
 
   function combinePalette(): void {
@@ -196,7 +231,8 @@ export function ContextMenu({
 
   function editPalette(): void {
     onClose();
-    useUiStore.setState({ panelOpen: true, panelTab: 'details' });
+    const item = selectedItems[0];
+    if (item) openEditPalette(item);
   }
 
   function copyColors(): void {
@@ -239,18 +275,57 @@ export function ContextMenu({
       .getState()
       .execute(createTrashCommand(platform, ids))
       .then(() => {
-        useToastStore
-          .getState()
-          .show(ids.length > 1 ? `Moved ${ids.length} items to Trash` : 'Moved to Trash', {
-            actionLabel: en.toasts.undo,
-            onAction: () => void useHistoryStore.getState().undo(),
-          });
+        showTrashToast(ids.length, () => void useHistoryStore.getState().undo());
       });
+  }
+
+  // A picture the owner cropped (Patch 2 · C3): "Adjust crop" and "Reset crop" apply to it.
+  const cropPlacement =
+    ids.length === 1 ? useLibraryStore.getState().placements.get(ids[0]) : undefined;
+  const cropItem = ids.length === 1 ? useLibraryStore.getState().items.get(ids[0]) : undefined;
+  const imageAspect = cropItem?.width && cropItem.height ? cropItem.width / cropItem.height : null;
+  const cropped =
+    !!cropPlacement &&
+    cropPlacement.cropX !== null &&
+    (imageAspect === null || isCropped(cropPlacement, imageAspect));
+
+  // A family that is a row of a type collection (Patch 2 · F5).
+  const memberOf =
+    ids.length === 1 ? (useLibraryStore.getState().placements.get(ids[0])?.parentId ?? null) : null;
+  function setFavorite(on: boolean): void {
+    onClose();
+    void useHistoryStore
+      .getState()
+      .execute(createBulkSetItemFieldCommand(platform, ids, 'favorite', on));
+  }
+
+  function adjustCrop(): void {
+    onClose();
+    useCropUiStore.getState().start(state.itemId);
+  }
+
+  function resetCrop(): void {
+    onClose();
+    if (!cropPlacement) return;
+    const rect = imageAspect ? resetCropRect(cropPlacement, imageAspect) : undefined;
+    void useHistoryStore
+      .getState()
+      .execute(
+        createSetCropCommand(
+          platform,
+          state.itemId,
+          { cropX: null, cropY: null, ...(rect ? { rect } : {}) },
+          en.crop.reset,
+        ),
+      );
   }
 
   const selectedItems = ids
     .map((id) => useLibraryStore.getState().items.get(id))
     .filter((i): i is Item => !!i);
+
+  const collectionName =
+    selectedItems.find((i) => !!i.fontCollection)?.title ?? en.fontCollection.defaultName;
 
   type Entry = { id: string; label: string; disabled?: boolean; onSelect: () => void };
   const colorEntries = Object.fromEntries(
@@ -261,6 +336,18 @@ export function ContextMenu({
   ) as Record<`note-color-${NoteColor}`, Entry>;
   const entries: Record<ContextMenuItemId, Entry> = {
     ...colorEntries,
+    'add-favorite': {
+      id: 'add-favorite',
+      label: en.contextMenu.addFavorite,
+      onSelect: () => setFavorite(true),
+    },
+    'remove-favorite': {
+      id: 'remove-favorite',
+      label: en.contextMenu.removeFavorite,
+      onSelect: () => setFavorite(false),
+    },
+    'adjust-crop': { id: 'adjust-crop', label: en.crop.adjust, onSelect: adjustCrop },
+    'reset-crop': { id: 'reset-crop', label: en.crop.reset, onSelect: resetCrop },
     'description-add': {
       id: 'description-add',
       label: en.description.add,
@@ -300,10 +387,25 @@ export function ContextMenu({
       label: en.contextMenu.backToInbox,
       onSelect: backToInbox,
     },
-    'extract-palette': {
-      id: 'extract-palette',
-      label: en.swatches.extractPalette,
-      onSelect: extractPalette,
+    'make-palette': {
+      id: 'make-palette',
+      label: en.colorStudio.makePalette,
+      onSelect: makePalette,
+    },
+    'make-type-collection': {
+      id: 'make-type-collection',
+      label: en.fontCollection.make,
+      onSelect: makeTypeCollection,
+    },
+    'add-to-type-collection': {
+      id: 'add-to-type-collection',
+      label: en.fontCollection.addTo(collectionName),
+      onSelect: addToTypeCollection,
+    },
+    'remove-from-type-collection': {
+      id: 'remove-from-type-collection',
+      label: en.fontCollection.removeFrom,
+      onSelect: removeFromTypeCollection,
     },
     'combine-palette': {
       id: 'combine-palette',
@@ -351,7 +453,11 @@ export function ContextMenu({
         <Popover>
           <Menu
             aria-label="Item"
-            items={contextMenuItemIds(selectedItems, { onBoard }).map((id) => entries[id])}
+            items={contextMenuItemIds(selectedItems, {
+              onBoard,
+              cropped,
+              inCollection: !!memberOf,
+            }).map((id) => entries[id])}
           />
         </Popover>
       </div>

@@ -6,16 +6,29 @@ import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
 import { openPdfDocument, renderPdfPage, type OpenPdfHandle } from '@/lib/pdfRender';
 import { setPdfCoverPage } from '@/workers/pdfIngestQueue';
-import { splitPdfIntoPages } from './splitPdfIntoPages';
+import { buildSinglePagePdfs } from './splitPdfIntoPages';
+import { importFiles } from '@/features/import/importItems';
+import { requestPdfPages } from '@/state/pdfPickerStore';
+import { useLibraryStore } from '@/state/libraryStore';
+import type { Engine } from '@/canvas/Engine';
 import { useToastStore } from '@/state/toastStore';
 
 const VIEWER_LONG_SIDE = 1400;
+const SPLIT_GAP = 48; // world units between the PDF and its split-out pages
 
 /** The PDF Focus viewer (§2.4's checklist: "the cover-page picker, split into pages, the Focus
  * viewer") — a basic page-by-page canvas view rather than a full PDF.js text-layer reader (no
  * pan/zoom control, per the scope trim logged in docs/DECISIONS.md); "Set as cover" is folded in
  * here rather than built as a separate thumbnail-strip picker component. */
-export function PdfFocusViewer({ platform, item }: { platform: Platform; item: Item }) {
+export function PdfFocusViewer({
+  platform,
+  item,
+  engine,
+}: {
+  platform: Platform;
+  item: Item;
+  engine: Engine | null;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [doc, setDoc] = useState<OpenPdfHandle['doc'] | null>(null);
   const [page, setPage] = useState(item.coverPage ?? 1);
@@ -95,16 +108,20 @@ export function PdfFocusViewer({ platform, item }: { platform: Platform; item: I
       const res = await fetch(platform.media.originalUrl(item.filePath));
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
-      const count = await splitPdfIntoPages(
-        platform,
-        item.title || item.fileName || 'document',
-        bytes,
-        {
-          x: 0,
-          y: 0,
-        },
-      );
-      useToastStore.getState().show(en.pdf.splitDone(count));
+      const name = item.title || item.fileName || 'document';
+      const choice = await requestPdfPages({ name, bytes: bytes.slice(0), mode: 'split' });
+      if (!choice || choice.kind !== 'pages') return;
+      // The pages land to the right of the PDF on this space (the original stays).
+      const p = useLibraryStore.getState().placements.get(item.id);
+      const at = p
+        ? { x: p.x + p.w + SPLIT_GAP, y: p.y }
+        : (engine?.viewportCenter() ?? { x: 0, y: 0 });
+      const files = await buildSinglePagePdfs(bytes, name, choice.pageIndices);
+      await importFiles(platform, files, at, undefined, {
+        aspects: choice.aspects,
+        anchor: 'topLeft',
+      });
+      useToastStore.getState().show(en.pdf.splitDone(files.length));
     } finally {
       setBusy(false);
     }

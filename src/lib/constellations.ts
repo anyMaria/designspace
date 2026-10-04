@@ -75,25 +75,31 @@ export interface ConstellationLayout {
 }
 
 // Step 2: the hub graph (§4.9) — charge ∝ -√size, link distance decreasing with weight, collide
-// radius ∝ √size. The plan states the proportionality, not exact constants; these are tuned so a
-// handful of hubs spread out readably at the map's normal zoom scale (world units, same as
-// everything else on the canvas).
+// radius ∝ √size. The plan states the proportionality, not exact constants; these are tuned for
+// the Overview's small thumbnails (Patch 2 · B2), so related items gather visibly around their
+// star. Every distance is multiplied by the caller's `spacing` (default 1).
 const HUB_CHARGE_K = 30;
-const HUB_LINK_BASE_DISTANCE = 220;
-const HUB_LINK_MIN_DISTANCE = 60;
-const HUB_LINK_DISTANCE_PER_WEIGHT = 15;
-const HUB_COLLIDE_K = 18;
+const HUB_LINK_BASE_DISTANCE = 160;
+const HUB_LINK_MIN_DISTANCE = 50;
+const HUB_LINK_DISTANCE_PER_WEIGHT = 10;
+const HUB_COLLIDE_K = 26;
 const HUB_TICKS = 300;
 
-// Step 3/4: item placement + relax (§4.9) — uniform card size (long side 160), a ring radius for
-// single/multi-hub jitter, and a weak pull back toward the step-3 target during the collide pass.
-const ITEM_CARD_LONG_SIDE = 160;
-const ITEM_COLLIDE_RADIUS = ITEM_CARD_LONG_SIDE / 2 + 8;
-const ITEM_TARGET_PULL_STRENGTH = 0.12;
-const ITEM_TICKS = 120;
-const SINGLE_HUB_RING_RADIUS = ITEM_CARD_LONG_SIDE * 1.4;
-const MULTI_HUB_JITTER_RADIUS = SINGLE_HUB_RING_RADIUS * 0.4;
-const UNCLASSIFIED_RING_PADDING = ITEM_CARD_LONG_SIDE * 2;
+// Step 3/4: item placement + relax (§4.9) — single-hub items fill a disk around their star,
+// multi-hub items get a small jitter around the average of their hubs, hub-less items sit on an
+// outer ring, and a pull back toward the step-3 target holds them while they un-collide.
+const ITEM_COLLIDE_RADIUS = 20;
+const ITEM_TARGET_PULL_STRENGTH = 0.3;
+const ITEM_TICKS = 200;
+const SINGLE_HUB_DISK_INNER = 26;
+const SINGLE_HUB_DISK_SPREAD = 40;
+const MULTI_HUB_JITTER_RADIUS = 22;
+const UNCLASSIFIED_RING_PADDING = 80;
+
+export interface ConstellationOptions {
+  /** Multiplies every distance (Overview's Spacing slider). Default 1. */
+  spacing?: number;
+}
 
 function buildHubLinks(nodes: HubNode[]): HubLink[] {
   const links: HubLink[] = [];
@@ -110,7 +116,7 @@ function buildHubLinks(nodes: HubNode[]): HubLink[] {
 /**
  * §4.9's Constellations algorithm: build hubs for the active criteria, lay out the hub graph with
  * d3-force (seeded, deterministic), place each item at the weighted average of its hubs plus
- * seeded jitter (a ring for single-hub items, an outer ring for hub-less "Unclassified" items),
+ * seeded jitter (a disk for single-hub items, an outer ring for hub-less "Unclassified" items),
  * then relax the whole item set against uniform-size collision with a weak pull back toward those
  * targets. Runs synchronously — the caller (`workers/layout.worker.ts`) is what keeps this off
  * the main thread, not anything in here.
@@ -125,7 +131,9 @@ export function computeConstellationLayout(
   index: ConnectionIndex,
   terms: Map<string, Term>,
   itemTitles: Map<string, string>,
+  options: ConstellationOptions = {},
 ): ConstellationLayout {
+  const spacing = options.spacing ?? 1;
   const seed = hashSeed([...activeCriteria, ...[...visibleItemIds].sort()]);
   const random = mulberry32(seed);
 
@@ -155,16 +163,18 @@ export function computeConstellationLayout(
         'link',
         forceLink<HubNode, HubLink>(hubLinks)
           .id((d) => d.id)
-          .distance((l) =>
-            Math.max(
-              HUB_LINK_MIN_DISTANCE,
-              HUB_LINK_BASE_DISTANCE - l.weight * HUB_LINK_DISTANCE_PER_WEIGHT,
-            ),
+          .distance(
+            (l) =>
+              spacing *
+              Math.max(
+                HUB_LINK_MIN_DISTANCE,
+                HUB_LINK_BASE_DISTANCE - l.weight * HUB_LINK_DISTANCE_PER_WEIGHT,
+              ),
           ),
       )
       .force(
         'collide',
-        forceCollide<HubNode>().radius((d) => HUB_COLLIDE_K * Math.sqrt(d.size)),
+        forceCollide<HubNode>().radius((d) => spacing * HUB_COLLIDE_K * Math.sqrt(d.size)),
       )
       .force('center', forceCenter(0, 0))
       .stop()
@@ -181,7 +191,7 @@ export function computeConstellationLayout(
   }
   const unclassifiedRadius =
     hubNodes.reduce((max, h) => Math.max(max, Math.hypot(h.x ?? 0, h.y ?? 0)), 0) +
-    UNCLASSIFIED_RING_PADDING;
+    UNCLASSIFIED_RING_PADDING * spacing;
 
   // Step 3: place each item at the weighted average of its hubs, plus seeded jitter.
   const targets = new Map<string, { x: number; y: number }>();
@@ -200,8 +210,12 @@ export function computeConstellationLayout(
     }
     const avgX = memberHubs.reduce((s, h) => s + (h.x ?? 0), 0) / memberHubs.length;
     const avgY = memberHubs.reduce((s, h) => s + (h.y ?? 0), 0) / memberHubs.length;
-    const jitterRadius = memberHubs.length === 1 ? SINGLE_HUB_RING_RADIUS : MULTI_HUB_JITTER_RADIUS;
     const angle = random() * Math.PI * 2;
+    const jitterRadius =
+      spacing *
+      (memberHubs.length === 1
+        ? SINGLE_HUB_DISK_INNER + SINGLE_HUB_DISK_SPREAD * Math.sqrt(random())
+        : MULTI_HUB_JITTER_RADIUS);
     targets.set(itemId, {
       x: avgX + Math.cos(angle) * jitterRadius,
       y: avgY + Math.sin(angle) * jitterRadius,
@@ -217,7 +231,7 @@ export function computeConstellationLayout(
   if (itemNodes.length > 0) {
     forceSimulation(itemNodes)
       .randomSource(random)
-      .force('collide', forceCollide<ItemNode>().radius(ITEM_COLLIDE_RADIUS))
+      .force('collide', forceCollide<ItemNode>().radius(ITEM_COLLIDE_RADIUS * spacing))
       .force('x', forceX<ItemNode>((d) => d.targetX).strength(ITEM_TARGET_PULL_STRENGTH))
       .force('y', forceY<ItemNode>((d) => d.targetY).strength(ITEM_TARGET_PULL_STRENGTH))
       .stop()
