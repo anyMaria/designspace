@@ -83,7 +83,6 @@ export function CanvasHoverOverlay({ engine }: { engine: Engine | null }) {
   const below = rect.y + rect.h + GAP_PX + PILL_HEIGHT_PX <= window.innerHeight;
   return (
     <div
-      data-testid="hover-name"
       style={{
         position: 'absolute',
         left: rect.x + rect.w / 2,
@@ -91,24 +90,42 @@ export function CanvasHoverOverlay({ engine }: { engine: Engine | null }) {
         transform: below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
         zIndex: 1,
         maxWidth: 'var(--hover-name-max-width)',
-        padding: '5px 12px',
-        borderRadius: 'var(--radius-pill)',
-        background: 'var(--surface-1-92)',
-        border: '1px solid var(--hairline)',
-        color: 'var(--text-1)',
-        fontSize: 'var(--text-sm)',
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 4,
         pointerEvents: 'none',
       }}
     >
-      {name}
+      <div
+        data-testid="hover-name"
+        style={{
+          maxWidth: '100%',
+          padding: '5px 12px',
+          borderRadius: 'var(--radius-pill)',
+          background: 'var(--surface-1-92)',
+          border: '1px solid var(--hairline)',
+          color: 'var(--text-1)',
+          fontSize: 'var(--text-sm)',
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {name}
+      </div>
       {noneText && (
         <div
           data-testid="hover-name-none"
-          style={{ fontWeight: 400, color: 'var(--text-2)', fontSize: 'var(--text-xs)' }}
+          style={{
+            padding: '2px 8px',
+            borderRadius: 'var(--radius-pill)',
+            background: 'var(--surface-1-92)',
+            color: 'var(--text-2)',
+            fontSize: 'var(--text-xs)',
+            whiteSpace: 'nowrap',
+          }}
         >
           {noneText}
         </div>
