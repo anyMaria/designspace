@@ -285,7 +285,7 @@ new `tests/e2e/patch2-reopen.spec.ts`.
 
 **Done when:** the new spec passes (it fails on `c7b3b8c`); `patch1-thumbnails` and `patch1-description` still pass.
 
-### A4 · Copying and pasting colours and images works on Windows `[ ]`
+### A4 · Copying and pasting colours and images works on Windows `[x]`
 **Why:** `clipboard-manager:default` grants nothing, so Copy hex, Copy image and Paste image are refused (§0 #10).
 
 **Files:** `src-tauri/capabilities/default.json`.
