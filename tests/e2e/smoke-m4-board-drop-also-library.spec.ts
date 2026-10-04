@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { newBoard } from './helpers/boards';
 
 test('dropping a file while a board is open adds it there and also onto the Library map', async ({
   page,
@@ -18,8 +19,7 @@ test('dropping a file while a board is open adds it there and also onto the Libr
   const libraryBefore = Number((await page.getByText(/^\d+ items$/).textContent())?.split(' ')[0]);
 
   // Create and switch to a new, empty board.
-  await page.getByRole('button', { name: 'Switch space' }).click();
-  await page.getByRole('menuitem', { name: '+ New board' }).click();
+  await newBoard(page);
   await page.waitForTimeout(300);
 
   const buffer = await page.evaluate(() => {

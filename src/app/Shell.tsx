@@ -91,7 +91,6 @@ export interface ShellProps {
 }
 
 export function Shell({ platform, library, libraryBoardId, benchCount }: ShellProps) {
-  const switcherOpen = useBoardUiStore((s) => s.switcherOpen);
   useGlobalShortcuts(platform);
   useUndoRedoShortcuts();
   useSoftLimitNotice();
@@ -205,8 +204,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           position: 'absolute',
           top: 'var(--space-4)',
           left: 'var(--space-4)',
-          // Raised while the switcher is open, so its click-away backdrop covers the dock and panels.
-          zIndex: switcherOpen ? 6 : 1,
+          zIndex: 1,
           display: 'flex',
           gap: 'var(--space-2)',
         }}

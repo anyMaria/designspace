@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { newBoard } from './helpers/boards';
 
 test('the space switcher creates a board, and the gallery renames/duplicates/deletes/restores it', async ({
   page,
@@ -18,7 +19,14 @@ test('the space switcher creates a board, and the gallery renames/duplicates/del
 
   // "+ New board" from the switcher creates a board and switches to it.
   await switcher.click();
-  await page.getByRole('menuitem', { name: '+ New board' }).click();
+  // The current space has a check (Patch 2 · C4).
+  await expect(
+    page.getByRole('menuitem', { name: /^Library/ }).getByLabel('current'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'New board', exact: true }).click();
+  const newBoardField = page.getByLabel('New board');
+  await newBoardField.fill('Untitled board');
+  await newBoardField.press('Enter');
   await expect(switcher).toContainText('Untitled board');
 
   // Back to Library, then open the full gallery.
@@ -67,4 +75,26 @@ test('the space switcher creates a board, and the gallery renames/duplicates/del
   await expect(gallery).toBeHidden();
 
   expect(errors, errors.join('\n')).toEqual([]);
+});
+test('the Library menu asks for a name, and a click on the dock closes it (Patch 2 · C4)', async ({
+  page,
+}) => {
+  await page.goto('/?seed=demo', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1000);
+
+  const switcher = page.getByRole('button', { name: 'Switch space' });
+  await newBoard(page, 'Moodboard');
+  await expect(switcher).toContainText('Moodboard');
+
+  // Reopen: the new board is listed and checked; the Trash entry is there.
+  await switcher.click();
+  const menu = page.getByRole('menu', { name: 'Switch space' });
+  await expect(
+    menu.getByRole('menuitem', { name: /^Moodboard/ }).getByLabel('current'),
+  ).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: /^Trash/ })).toBeVisible();
+
+  // Clicking the dock (outside the menu) closes it.
+  await page.getByRole('button', { name: 'Zoom' }).click({ force: true });
+  await expect(menu).toBeHidden();
 });

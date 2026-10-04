@@ -717,7 +717,7 @@ for a cropped picture. e2e (`patch2-resize.spec.ts`, extend): after the side dra
 the circle's orange (cropped, not stretched: a stretched circle would still be orange, so also check a pixel 30 px inside
 the right edge is the blue-green background, not orange).
 
-### C4 · The Library menu `[ ]`
+### C4 · The Library menu `[x]`
 **Files:** `src/features/boards/SpaceSwitcher.tsx`, new `src/features/boards/boardSummaries.ts` (+ test),
 `src/design/components/Menu.tsx`, `components.css`, `src/app/Shell.tsx`, `en.ts`. Mockup: `library-trash.png` (top).
 

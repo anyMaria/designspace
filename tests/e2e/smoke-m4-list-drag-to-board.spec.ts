@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { newBoard } from './helpers/boards';
 
 test("the List panel's [This board | Library] switch scopes tiles, and dragging a Library tile onto an empty board adds it", async ({
   page,
@@ -16,8 +17,7 @@ test("the List panel's [This board | Library] switch scopes tiles, and dragging 
   await expect(page.getByRole('tab', { name: 'This board' })).toHaveCount(0);
 
   // "+ New board" creates and switches to an empty board.
-  await page.getByRole('button', { name: 'Switch space' }).click();
-  await page.getByRole('menuitem', { name: '+ New board' }).click();
+  await newBoard(page);
   await page.waitForTimeout(300);
 
   // "This board" is the default and is empty — but the toggle itself must still be visible (the
