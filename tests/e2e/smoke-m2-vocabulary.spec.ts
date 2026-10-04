@@ -27,6 +27,17 @@ test('the vocabulary manager renders starter values and can rename/reorder/delet
   await expect(page.getByPlaceholder('AI hint (optional)').first()).toBeVisible();
   await page.screenshot({ path: 'test-results/vocab-movement.png' });
 
+  // The five mood-like starters are Vibes now (Patch 2 · D3), and "Move to…" moves a word
+  // between fields.
+  await expect(page.getByRole('textbox', { name: 'Name: Grunge' })).toHaveCount(0);
+  await page.getByLabel('Move to… Surrealism').selectOption('vibe');
+  await page.waitForTimeout(200);
+  await expect(page.getByRole('textbox', { name: 'Name: Surrealism' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Vibe' }).click();
+  await expect(page.getByRole('textbox', { name: 'Name: Surrealism' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Name: Grunge' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Movement' }).click();
+
   // Rename a value.
   const nameField = page.getByRole('textbox', { name: 'Name: Bauhaus' });
   await nameField.fill('Bauhaus (renamed)');

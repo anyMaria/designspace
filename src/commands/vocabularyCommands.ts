@@ -210,3 +210,42 @@ export function createReorderTermsCommand(
     undo: () => apply(previousOrder),
   };
 }
+
+/** Moves a word to another field (Patch 2 · D3), e.g. a mood that was filed under Movement goes to
+ * Vibe, keeping its items and AI hint. If the target field already has a word with the same name,
+ * the two are merged instead (items move to the existing word). A Type can't be moved (an item has
+ * one Type); the UI never offers it. */
+export function createMoveTermCommand(
+  platform: Platform,
+  termId: string,
+  toFacet: 'vibe' | 'movement' | 'tag',
+): Command {
+  const terms = useTermStore.getState().terms;
+  const term = terms.get(termId);
+  const existing = term
+    ? [...terms.values()].find((t) => t.facet === toFacet && t.nameNorm === term.nameNorm)
+    : undefined;
+  if (existing) return createMergeTermsCommand(platform, termId, existing.id);
+
+  const previous = term ? { facet: term.facet, sort: term.sort } : null;
+  const nextSort =
+    1 + Math.max(-1, ...[...terms.values()].filter((t) => t.facet === toFacet).map((t) => t.sort));
+
+  async function apply(facet: Facet, sort: number): Promise<void> {
+    const current = useTermStore.getState().terms.get(termId);
+    if (!current) return;
+    useTermStore.getState().upsertTerm({ ...current, facet, sort });
+    invalidateValueEmbeddings(termId);
+    await platform.db.execute('UPDATE terms SET facet = ?, sort = ? WHERE id = ?', [
+      facet,
+      sort,
+      termId,
+    ]);
+  }
+
+  return {
+    label: `Move "${term?.name ?? termId}" to ${toFacet}`,
+    do: () => apply(toFacet, nextSort),
+    undo: () => (previous ? apply(previous.facet, previous.sort) : undefined),
+  };
+}

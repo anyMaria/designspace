@@ -55,6 +55,11 @@ export const STARTER_VIBES: VocabularyEntry[] = [
   { name: 'Cheerful' },
   { name: 'Dark' },
   { name: 'Serene' },
+  { name: 'Psychedelic' },
+  { name: 'Grunge' },
+  { name: 'Punk' },
+  { name: 'Y2K', aiHint: 'Y2K aesthetic, chrome, early 2000s' },
+  { name: 'Vaporwave' },
 ];
 
 export const STARTER_MOVEMENTS: VocabularyEntry[] = [
@@ -77,19 +82,13 @@ export const STARTER_MOVEMENTS: VocabularyEntry[] = [
   { name: 'Mid-century Modern' },
   { name: 'Pop Art' },
   { name: 'Op Art' },
-  { name: 'Psychedelic' },
   { name: 'Minimalism' },
   { name: 'Brutalism' },
   { name: 'Postmodernism' },
   { name: 'Memphis', aiHint: 'Memphis Group design, 1980s, bold geometric patterns' },
-  { name: 'Punk' },
-  { name: 'Grunge' },
-  { name: 'Y2K', aiHint: 'Y2K aesthetic, chrome, early 2000s' },
-  { name: 'Vaporwave' },
   { name: 'Ukiyo-e' },
   { name: 'Japonisme' },
   { name: 'Baroque' },
   { name: 'Renaissance' },
   { name: 'Street art' },
-  { name: 'Contemporary' },
 ];

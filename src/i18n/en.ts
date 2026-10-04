@@ -434,6 +434,7 @@ export const en = {
     aiHintPlaceholder: 'AI hint (optional)',
     moveUp: 'Move up',
     moveDown: 'Move down',
+    moveTo: 'Move to…',
     mergeInto: 'Merge into…',
     merge: 'Merge',
     delete: 'Delete',

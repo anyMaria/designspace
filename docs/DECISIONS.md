@@ -3044,3 +3044,17 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
 - **C7:** `ListTile` is shared by the List panel and the Trash screen. Type-collection tiles come with F5.
 - **Not verifiable without Windows:** full-screen Esc (the Tauri `onResized` subscription), Alt-resize on Windows, the
   resize cursors.
+
+## Patch 2 · Phase D: word fields (v0.12.0)
+
+- **D1/D2:** `TermCombobox` replaces `ChipInput` (deleted) in Details, Triage, bulk editing and the design page; list in
+  the flow under the field, existing words first (most used first), typos forgiven ("Did you mean?"), a new word only on
+  Enter or a click on the Create row, never on leaving the field. In bulk editing the field holds the words **every**
+  selected item has; partial words ("Dreamy 5/8") stay as chips above it. The first Esc closes the list, the second
+  leaves the field (Triage's spec presses Esc twice).
+- **D3:** migration `004_vocabulary.sql` moves Psychedelic, Grunge, Punk, Y2K and Vaporwave to Vibe (only when no Vibe of
+  that name exists) and deletes an unused Contemporary. New libraries seed them as Vibes. Settings → Vocabularies has
+  "Move to…" (`createMoveTermCommand`, which merges when the target field has the same word). `src/test/migratedDb.ts`
+  runs the real migrations on in-memory SQLite for tests (reused in F).
+- **Found by e2e:** since the connect handle moved outside the card (C2), the card now stays hovered over the strip
+  between its edge and the handle (`overConnectHandleZone`), or the handle vanished before it could be grabbed.

@@ -903,7 +903,7 @@ calls nothing; Esc with the list open closes it and the event is `defaultPrevent
 Enter (the first match or Create is highlighted). New assertion in `smoke-m2-details`: focus the Vibe field, the list shows
 "Dreamy"; type "dremy", the first row shows "Did you mean?".
 
-### D3 · Movement holds movements; words can move between fields `[ ]`
+### D3 · Movement holds movements; words can move between fields `[x]`
 **Files:** new `src/db/migrations/004_vocabulary.sql`, `src/db/migrator.ts` (+ test), `src/lib/vocabulary.ts`,
 `src/commands/vocabularyCommands.ts` (+ test), `src/features/settings/VocabularySection.tsx`, `en.ts`.
 
