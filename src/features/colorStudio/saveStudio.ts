@@ -11,6 +11,7 @@ import {
   createSetSwatchColorsCommand,
 } from '@/commands/paletteCommands';
 import { paletteCardSize, swatchColorsOf, type SwatchColor } from '@/lib/palette';
+import { importFiles } from '@/features/import/importItems';
 import { en } from '@/i18n/en';
 import { useColorStudioStore } from './colorStudioStore';
 
@@ -62,6 +63,10 @@ export async function saveStudio(platform: Platform, engine: Engine | null): Pro
     name === en.colorStudio.untitled ? '' : name,
   );
   await useHistoryStore.getState().execute(command);
+  // The picture is only added to the library when the owner ticked the box (Patch 2 · E4).
+  if (studio.imageToAdd) {
+    void importFiles(platform, [studio.imageToAdd], { x: centre.x, y: centre.y + h });
+  }
   engine?.setSelection([item.id]);
   useLibraryStore.getState().setSelection([item.id]);
   useToastStore.getState().show(en.colorStudio.saved, {

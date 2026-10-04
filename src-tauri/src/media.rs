@@ -287,6 +287,36 @@ fn current_library_id(state: &State<'_, AppState>) -> AppResult<String> {
         .ok_or_else(|| AppError::new("no_library", "No library is open"))
 }
 
+const IMAGE_EXTENSIONS: [&str; 7] = ["jpg", "jpeg", "png", "webp", "gif", "avif", "bmp"];
+const MAX_IMAGE_BYTES: u64 = 64 * 1024 * 1024;
+
+/// Pure, unit-tested: only the picture formats the Color studio reads.
+fn is_allowed_image(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| IMAGE_EXTENSIONS.iter().any(|ok| e.eq_ignore_ascii_case(ok)))
+}
+
+/// Reads a picture chosen with the file dialog, for the Color studio's "From an image" tab: the
+/// bytes are used for sampling colours and are never stored in the library. Raw binary IPC.
+#[tauri::command]
+pub fn media_read_image(path: String) -> AppResult<tauri::ipc::Response> {
+    let p = Path::new(&path);
+    if !is_allowed_image(p) {
+        return Err(AppError::new(
+            "not_image",
+            "Only picture files can be read this way.",
+        ));
+    }
+    if fs::metadata(p)?.len() > MAX_IMAGE_BYTES {
+        return Err(AppError::new(
+            "too_large",
+            "This picture is larger than 64 MB.",
+        ));
+    }
+    Ok(tauri::ipc::Response::new(fs::read(p)?))
+}
+
 /// Pure, unit-tested: ULID-named direct children of `root` not in `keep`.
 fn orphan_cache_dirs(root: &Path, keep: &HashSet<String>) -> Vec<PathBuf> {
     let Ok(entries) = fs::read_dir(root) else {
@@ -468,5 +498,13 @@ mod tests {
         let keep = HashSet::from([kept]);
         let orphans = orphan_cache_dirs(dir.path(), &keep);
         assert_eq!(orphans, vec![dir.path().join(other)]);
+    }
+
+    #[test]
+    fn is_allowed_image_accepts_pictures_only() {
+        assert!(is_allowed_image(Path::new("C:\\x\\photo.JPG")));
+        assert!(is_allowed_image(Path::new("a.webp")));
+        assert!(!is_allowed_image(Path::new("a.pdf")));
+        assert!(!is_allowed_image(Path::new("a")));
     }
 }

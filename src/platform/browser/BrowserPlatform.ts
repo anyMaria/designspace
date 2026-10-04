@@ -134,6 +134,7 @@ export class BrowserPlatform implements Platform {
       }
     },
     listFolder: (): Promise<FolderListing> => notSupported('media.listFolder'),
+    readImage: (): Promise<ArrayBuffer> => notSupported('media.readImage'),
   };
 
   cache = {

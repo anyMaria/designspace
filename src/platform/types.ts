@@ -98,6 +98,9 @@ export interface Platform {
     purge(relPaths: string[]): Promise<void>;
     /** Recursive folder listing for the Folder… entry point (§2.3) — Tauri only. */
     listFolder(path: string): Promise<FolderListing>;
+    /** The bytes of a picture chosen with the file dialog, for sampling colours (Color studio) —
+     * never stored in the library. Tauri only: only picture formats, at most 64 MB. */
+    readImage(path: string): Promise<ArrayBuffer>;
   };
 
   cache: {

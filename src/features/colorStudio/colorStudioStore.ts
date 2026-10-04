@@ -55,6 +55,8 @@ interface ColorStudioState {
   likedSelected: string | null;
   /** Which kind of proposals Space makes (Generate tab). */
   generateMode: 'harmonious' | 'random';
+  /** A picture from the From an image tab to also add to the library on save (off by default). */
+  imageToAdd: File | null;
 
   openStudio: (
     source: StudioSource,
@@ -77,6 +79,7 @@ interface ColorStudioState {
   goHistory: (index: number) => void;
   selectLiked: (hex: string | null) => void;
   setGenerateMode: (mode: 'harmonious' | 'random') => void;
+  setImageToAdd: (file: File | null) => void;
 }
 
 export const useColorStudioStore = create<ColorStudioState>((set, get) => ({
@@ -91,6 +94,7 @@ export const useColorStudioStore = create<ColorStudioState>((set, get) => ({
   historyIndex: 0,
   likedSelected: null,
   generateMode: 'harmonious',
+  imageToAdd: null,
 
   openStudio: (source, init) => {
     const spots = init.hexes.map((h) => newSpot(h));
@@ -105,9 +109,10 @@ export const useColorStudioStore = create<ColorStudioState>((set, get) => ({
       history: [spots.map((s) => s.hex)],
       historyIndex: 0,
       likedSelected: null,
+      imageToAdd: null,
     });
   },
-  close: () => set({ open: false, dirty: false }),
+  close: () => set({ open: false, dirty: false, imageToAdd: null }),
   setTab: (tab) => set({ tab }),
   setName: (name) => set({ name, dirty: true }),
   select: (selected) => set({ selected }),
@@ -195,4 +200,5 @@ export const useColorStudioStore = create<ColorStudioState>((set, get) => ({
 
   selectLiked: (likedSelected) => set({ likedSelected }),
   setGenerateMode: (generateMode) => set({ generateMode }),
+  setImageToAdd: (imageToAdd) => set({ imageToAdd }),
 }));

@@ -33,6 +33,7 @@
     "allow-cache-has",
     "allow-cache-delete",
     "allow-cache-prune-orphans",
+    "allow-media-read-image",
     "allow-backup-now",
     "allow-backup-list",
     "allow-backup-restore",

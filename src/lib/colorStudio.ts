@@ -6,6 +6,7 @@
  */
 import {
   clampChroma,
+  differenceEuclidean,
   converter,
   filterDeficiencyDeuter,
   filterDeficiencyProt,
@@ -365,6 +366,18 @@ export function simulateCvd(hex: string, type: CvdType): string {
   return upper(
     formatHex(toRgb({ mode: 'lrgb', r: clamp01(out.r), g: clamp01(out.g), b: clamp01(out.b) })),
   );
+}
+
+const oklabDistance = differenceEuclidean('oklab');
+
+/** For each pair of neighbouring colours: are they hard to tell apart (OKLab distance under
+ * `threshold`)? The result has one entry fewer than `hexes`. */
+export function hardToTellApart(hexes: string[], threshold = 0.04): boolean[] {
+  const out: boolean[] = [];
+  for (let i = 0; i + 1 < hexes.length; i++) {
+    out.push(oklabDistance(hexes[i], hexes[i + 1]) < threshold);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------

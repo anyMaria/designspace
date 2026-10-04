@@ -72,6 +72,7 @@ export class TauriPlatform implements Platform {
     reveal: (relPath: string) => invoke<void>('media_reveal', { relPath }),
     purge: (relPaths: string[]) => invoke<void>('media_purge', { relPaths }),
     listFolder: (path: string) => invoke<FolderListing>('media_list_folder', { path }),
+    readImage: (path: string) => invoke<ArrayBuffer>('media_read_image', { path }),
   };
 
   cache = {

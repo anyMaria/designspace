@@ -335,3 +335,11 @@ describe('locateColors', () => {
     expect(found[0].hex).toBe('#E8202A'); // the pixel's own colour
   });
 });
+
+describe('hardToTellApart', () => {
+  it('flags two near-identical greys and leaves a clear pair alone', async () => {
+    const { hardToTellApart } = await import('./colorStudio');
+    expect(hardToTellApart(['#808080', '#828282', '#000000'])).toEqual([true, false]);
+    expect(hardToTellApart(['#FF0000'])).toEqual([]);
+  });
+});
