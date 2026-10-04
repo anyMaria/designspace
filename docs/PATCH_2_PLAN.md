@@ -387,7 +387,7 @@ the queue stuck.
 **Tests:** `itemCommands.test.ts`: trashing a selected item removes it from `selection`.
 **Done when:** after deleting everything, the minimap is empty and Details shows nothing selected.
 
-### A9 · Settings always fits the window `[ ]`
+### A9 · Settings always fits the window `[x]`
 **Files:** `src/design/components/Dialog.tsx`, `components.css`, `src/features/settings/SettingsDialog.tsx`,
 `src/features/settings/LibrarySection.tsx`, `en.ts`. Mockup: `docs/patch-2/settings.png`.
 

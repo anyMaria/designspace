@@ -26,12 +26,21 @@ export interface SettingsDialogProps {
 
 /** Settings shell (§2.14): Library, Canvas, Content & network, Vocabularies, AI and About. */
 export function SettingsDialog({ platform, library, onClose }: SettingsDialogProps) {
-  const [section, setSection] = useState<Section>('about');
+  const [section, setSection] = useState<Section>('canvas');
 
   return (
-    <Dialog title={en.settings.title} onClose={onClose}>
-      <div style={{ display: 'flex', gap: 'var(--space-5)', minHeight: 320 }}>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 160 }}>
+    <Dialog title={en.settings.title} onClose={onClose} className="ds-dialog--settings">
+      <div style={{ display: 'flex', gap: 'var(--space-5)', minHeight: 0, flex: 1 }}>
+        <nav
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            minWidth: 160,
+            flex: 'none',
+            overflowY: 'auto',
+          }}
+        >
           {SECTIONS.map((id) => (
             <button
               key={id}
@@ -49,7 +58,7 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
             </button>
           ))}
         </nav>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 'var(--space-2)' }}>
           {section === 'about' ? (
             <AboutSection platform={platform} library={library} />
           ) : section === 'library' ? (
