@@ -39,6 +39,12 @@ export const criterionColors = {
 } as const;
 
 /** Map connection lines (Patch 2 · A1): a dark halo under a bolder line so they read on photos. */
+/** Resize handles on a selected card, in screen px (Patch 2 · C2). */
+export const resizeHandles = { corner: 10, sideLong: 20, sideShort: 6, hitTolerance: 6 } as const;
+
+/** Where the connect handle sits outside a card's right edge, in screen px (Patch 2 · C2). */
+export const CONNECT_HANDLE_OFFSET_PX = 22;
+
 export const connectionLineStyle = {
   width: 2,
   opacity: 0.9,

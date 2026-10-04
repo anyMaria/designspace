@@ -641,7 +641,7 @@ selected**; press Esc again: the selection clears. Every spec in the "Esc behavi
 `patch1-overview`, `smoke-m2-list`.
 **Owner checks:** in full screen with nothing open and nothing selected, Esc leaves full screen.
 
-### C2 · Resize from every side `[ ]`
+### C2 · Resize from every side `[x]`
 **Why:** D7. Today: four corner handles, every kind keeps its proportions, no resize cursor.
 
 **Files:** new `src/canvas/resizeMath.ts` (+ test), `src/canvas/selection.ts`, `src/canvas/Engine.ts`,

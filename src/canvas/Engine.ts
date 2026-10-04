@@ -25,18 +25,22 @@ import { Camera } from './Camera';
 import { SpatialIndex } from './spatialIndex';
 import { TextureManager } from './TextureManager';
 import { attachCanvasInput, type Tool, type WheelMode } from './input';
+import { hitTest, normalizeRect, rectSelect } from './selection';
 import {
-  hitTest,
-  normalizeRect,
-  rectSelect,
+  ALL_HANDLES,
+  cursorForHandle,
+  isCornerHandle,
   resizeHandleAt,
-  resizeWithAspect,
+  resizePolicyFor,
+  resizeRect,
   type ResizeHandle,
-} from './selection';
+} from './resizeMath';
 import {
   canvasGeometry,
   colors,
   connectionLineStyle,
+  CONNECT_HANDLE_OFFSET_PX,
+  resizeHandles,
   criterionColors,
   fonts,
   noteGeometry,
@@ -122,6 +126,7 @@ const LINE_WIDTH_HOVERED_PX = connectionLineStyle.width + 1;
 const LINE_OPACITY = connectionLineStyle.opacity;
 const TEXTURE_RETRY_MS = 5000; // a texture that failed to load is retried once after this
 const MAX_TEXTURE_ATTEMPTS = 2;
+const RESIZE_MIN_SIZE = 40; // smallest card a resize can make, in world units
 const LINE_GAP_PX = 6; // space between a picture's edge and the line that leaves it
 const LINE_OFFSET_PX = 4; // spacing between up to 3 parallel lines for the same pair
 
@@ -142,7 +147,6 @@ const CONNECT_HANDLE_RADIUS_PX = 6;
 const CONNECT_HANDLE_HIT_PX = 12;
 const DOUBLE_TAP_MS = 350;
 
-const HANDLE_SCREEN_PX = 10;
 /** Every canvas label uses the UI font; Pixi rasterises text once, so it must be loaded first
  * (CanvasView waits for it). */
 /** `<b>`, `<i>` and `<dshash>` (a hashtag) in a note's tagged text (Patch 1 · D1). */
@@ -883,7 +887,16 @@ export class Engine {
     const card = this.cards.get(id);
     if (!card) return null;
     const { width: vw, height: vh } = this.app.screen;
-    return this.camera.worldToScreen(card.x + card.w, card.y + card.h / 2, vw, vh);
+    const edge = this.camera.worldToScreen(card.x + card.w, card.y + card.h / 2, vw, vh);
+    return { x: edge.x + CONNECT_HANDLE_OFFSET_PX, y: edge.y };
+  }
+
+  /** The resize handle of `card` under a world point (a whole edge counts, not only the pill). */
+  private resizeHandleUnder(card: ItemCard, world: { x: number; y: number }): ResizeHandle | null {
+    return resizeHandleAt(card, world, {
+      tolerance: resizeHandles.hitTolerance / this.camera.zoom,
+      handles: resizePolicyFor(card.kind).handles,
+    });
   }
 
   private attachSelectionInput(container: HTMLElement, opts: EngineOptions): () => void {
@@ -896,6 +909,8 @@ export class Engine {
     let pressed: { id: string; wasSelected: boolean } | null = null;
     let resizeHandle: ResizeHandle | null = null;
     let resizeTargetId: string | null = null;
+    let resizeStartRect = { x: 0, y: 0, w: 0, h: 0 };
+    let handleCursor = false;
     let moveOrigin = new Map<string, { x: number; y: number }>();
     let connectFromId: string | null = null;
 
@@ -960,12 +975,14 @@ export class Engine {
       if (this.selection.size === 1) {
         const id = [...this.selection][0];
         const card = this.cards.get(id);
-        if (card && card.kind !== 'swatch') {
-          const handle = resizeHandleAt(card, world, HANDLE_SCREEN_PX / this.camera.zoom);
+        if (card) {
+          const handle = this.resizeHandleUnder(card, world);
           if (handle) {
             mode = 'resize';
             resizeHandle = handle;
             resizeTargetId = id;
+            resizeStartRect = { x: card.x, y: card.y, w: card.w, h: card.h };
+            e.preventDefault(); // Alt-drag must not trigger the browser's Alt behaviour
             container.setPointerCapture(e.pointerId);
             return;
           }
@@ -1018,6 +1035,16 @@ export class Engine {
         // The pointer is on the map, so it can't be on a List row any more.
         if (this.hoverHighlightSource === 'panel') this.setHoverHighlight(null);
         const world = toWorld(e);
+        // A resize cursor while the pointer is over a handle of the selected card.
+        const only = this.selection.size === 1 ? this.cards.get([...this.selection][0]) : undefined;
+        const overHandle = only ? this.resizeHandleUnder(only, world) : null;
+        if (overHandle) {
+          container.style.cursor = cursorForHandle(overHandle);
+          handleCursor = true;
+        } else if (handleCursor) {
+          container.style.cursor = '';
+          handleCursor = false;
+        }
         const hit = hitTest(this.interactableCards(), world);
         if (hit?.id !== this.hoveredId) {
           this.hoveredId = hit?.id ?? null;
@@ -1070,7 +1097,18 @@ export class Engine {
         const card = this.cards.get(resizeTargetId);
         const sprite = this.sprites.get(resizeTargetId);
         if (card && sprite) {
-          const next = resizeWithAspect(card, resizeHandle, world);
+          if (e.altKey) e.preventDefault();
+          const policy = resizePolicyFor(card.kind);
+          const next = resizeRect(
+            resizeStartRect,
+            resizeHandle,
+            { x: world.x - startWorld.x, y: world.y - startWorld.y },
+            {
+              keepAspect: isCornerHandle(resizeHandle) && (policy.alwaysKeepAspect || !e.shiftKey),
+              fromCenter: e.altKey,
+              minSize: RESIZE_MIN_SIZE,
+            },
+          );
           card.x = next.x;
           card.y = next.y;
           card.w = next.w;
@@ -1121,6 +1159,10 @@ export class Engine {
       resizeHandle = null;
       resizeTargetId = null;
       connectFromId = null;
+      if (handleCursor) {
+        container.style.cursor = '';
+        handleCursor = false;
+      }
       this.connecting = false;
       this.drawConnectHandle();
       moveOrigin.clear();
@@ -1286,11 +1328,21 @@ export class Engine {
     this.selectionOutline = null;
     for (const h of this.handles) h.destroy();
     this.handles = [];
+    // Tests read the single selected card's on-screen rect from this attribute (container px).
+    this.container?.removeAttribute('data-selected-rect');
 
     const selected = [...this.selection]
       .map((id) => this.cards.get(id))
       .filter((c): c is ItemCard => !!c);
     if (selected.length === 0) return;
+    if (selected.length === 1) {
+      const c = selected[0];
+      const tl = this.camera.worldToScreen(c.x, c.y, this.app.screen.width, this.app.screen.height);
+      this.container?.setAttribute(
+        'data-selected-rect',
+        JSON.stringify({ x: tl.x, y: tl.y, w: c.w * this.camera.zoom, h: c.h * this.camera.zoom }),
+      );
+    }
 
     for (const card of selected) {
       const outline = new Graphics();
@@ -1304,23 +1356,37 @@ export class Engine {
       this.handles.push(outline);
     }
 
-    if (selected.length === 1 && selected[0].kind !== 'swatch') {
-      // Swatches and palettes size themselves, so they get no resize handles.
+    if (selected.length === 1) {
       const card = selected[0];
-      const corners: [number, number][] = [
-        [card.x, card.y],
-        [card.x + card.w, card.y],
-        [card.x, card.y + card.h],
-        [card.x + card.w, card.y + card.h],
-      ];
-      for (const [wx, wy] of corners) {
-        const handle = new Graphics();
-        this.applyOverlayTransform(handle, wx, wy);
-        handle.position.x -= HANDLE_SCREEN_PX / 2;
-        handle.position.y -= HANDLE_SCREEN_PX / 2;
-        handle.rect(0, 0, HANDLE_SCREEN_PX, HANDLE_SCREEN_PX).fill(0xefe6d6);
-        this.overlayLayer.addChild(handle);
-        this.handles.push(handle);
+      const handles = resizePolicyFor(card.kind).handles;
+      const { corner, sideLong, sideShort } = resizeHandles;
+      const w = card.w * this.camera.zoom;
+      const h = card.h * this.camera.zoom;
+      const origin = this.camera.worldToScreen(
+        card.x,
+        card.y,
+        this.app.screen.width,
+        this.app.screen.height,
+      );
+      for (const name of ALL_HANDLES) {
+        if (!handles.includes(name)) continue;
+        const cx = origin.x + (name.includes('w') ? 0 : name.includes('e') ? w : w / 2);
+        const cy = origin.y + (name.startsWith('n') ? 0 : name.startsWith('s') ? h : h / 2);
+        const isCorner = isCornerHandle(name);
+        // Sides are small pills lying along their edge; corners are squares with an accent border.
+        const horizontalEdge = name === 'n' || name === 's';
+        const hw = isCorner ? corner : horizontalEdge ? sideLong : sideShort;
+        const hh = isCorner ? corner : horizontalEdge ? sideShort : sideLong;
+        const g = new Graphics();
+        if (isCorner) {
+          g.rect(cx - hw / 2, cy - hh / 2, hw, hh)
+            .fill(0xffffff)
+            .stroke({ color: colors.accent, width: 1.5 });
+        } else {
+          g.roundRect(cx - hw / 2, cy - hh / 2, hw, hh, Math.min(hw, hh) / 2).fill(0xffffff);
+        }
+        this.overlayLayer.addChild(g);
+        this.handles.push(g);
       }
     }
   }
