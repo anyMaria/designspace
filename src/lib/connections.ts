@@ -268,3 +268,37 @@ export function formatHubLabel(
   if (hub.criterion === 'color') return hub.value;
   return terms.get(hub.value)?.name ?? hub.value;
 }
+
+export interface ConnectionSummary {
+  /** Visible items that share at least one value under the active criteria. */
+  connectedItems: number;
+  /** How many groups (hubs) they form. */
+  groups: number;
+  /** For each criterion that is off (type, movement, color): how many items it would connect. */
+  byInactive: Partial<Record<Criterion, number>>;
+}
+
+const SUMMARY_INACTIVE: Criterion[] = ['type', 'movement', 'color'];
+
+/** Patch 2 · A1: what the Connections popover tells the owner, so "nothing shows up" always has
+ * an explanation and, when something is switched off, a way out. */
+export function connectionSummary(
+  visibleIds: Iterable<string>,
+  activeCriteria: Criterion[],
+  index: ConnectionIndex,
+): ConnectionSummary {
+  const visible = new Set(visibleIds);
+  const countItems = (criteria: Criterion[]) => {
+    const { hubs } = computeHubs(visible, criteria, index);
+    const ids = new Set<string>();
+    for (const hub of hubs) for (const id of hub.itemIds) ids.add(id);
+    return { ids, groups: hubs.length };
+  };
+  const active = countItems(activeCriteria);
+  const byInactive: Partial<Record<Criterion, number>> = {};
+  for (const c of SUMMARY_INACTIVE) {
+    if (activeCriteria.includes(c)) continue;
+    byInactive[c] = countItems([c]).ids.size;
+  }
+  return { connectedItems: active.ids.size, groups: active.groups, byInactive };
+}

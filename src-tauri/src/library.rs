@@ -4,7 +4,7 @@
 
 use crate::error::{AppError, AppResult};
 use crate::state::{AppState, LibraryHandle};
-use rusqlite::{Connection, OptionalExtension};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -86,27 +86,36 @@ fn open_connection(root: &Path) -> AppResult<Connection> {
     Ok(conn)
 }
 
-/// Reads `meta.library_id` if the schema has already been migrated, otherwise mints a new one —
-/// the frontend migrator persists it into `meta` on first run (§5.2).
+/// Reads `meta.library_id`, storing a new one if it's missing. A brand-new database has no `meta`
+/// yet (the frontend migrator creates it), so the id is only minted here and `ensureLibraryReady`
+/// stores it right after migrating. The cache folder is named after this id.
 fn ensure_library_id(conn: &Connection) -> rusqlite::Result<String> {
     let has_meta: bool = conn.query_row(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'meta'",
         [],
         |row| row.get::<_, i64>(0),
     )? > 0;
-    if has_meta {
-        let existing: Option<String> = conn
-            .query_row(
-                "SELECT value FROM meta WHERE key = 'library_id'",
-                [],
-                |row| row.get(0),
-            )
-            .optional()?;
-        if let Some(id) = existing {
-            return Ok(id);
-        }
+    if !has_meta {
+        return Ok(ulid::Ulid::generate().to_string());
     }
-    Ok(ulid::Ulid::generate().to_string())
+    conn.execute(
+        "INSERT OR IGNORE INTO meta (key, value) VALUES ('library_id', ?1)",
+        [ulid::Ulid::generate().to_string()],
+    )?;
+    conn.query_row(
+        "SELECT value FROM meta WHERE key = 'library_id'",
+        [],
+        |row| row.get(0),
+    )
+}
+
+/// The ids of the libraries in the recent list, for pruning cache folders nobody uses any more.
+pub fn recent_library_ids(app: &AppHandle) -> AppResult<std::collections::HashSet<String>> {
+    Ok(load_settings(app)?
+        .recent_libraries
+        .into_iter()
+        .map(|l| l.id)
+        .collect())
 }
 
 fn open_library(app: &AppHandle, state: &State<AppState>, root: PathBuf) -> AppResult<LibraryInfo> {
@@ -230,23 +239,38 @@ mod tests {
     }
 
     #[test]
-    fn opening_a_library_twice_reuses_the_same_id() {
+    fn opening_a_migrated_library_twice_reuses_the_same_id() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("Library");
         bootstrap_folder(&root).unwrap();
-
-        let conn1 = open_connection(&root).unwrap();
-        let id1 = ensure_library_id(&conn1).unwrap();
-        conn1
-            .execute_batch(&format!(
+        // What the frontend migrator leaves: `meta` with only schema_version.
+        open_connection(&root)
+            .unwrap()
+            .execute_batch(
                 "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-                 INSERT INTO meta (key, value) VALUES ('library_id', '{id1}');"
-            ))
+                 INSERT INTO meta (key, value) VALUES ('schema_version', '2');",
+            )
             .unwrap();
-        drop(conn1);
-
-        let conn2 = open_connection(&root).unwrap();
-        let id2 = ensure_library_id(&conn2).unwrap();
+        let id1 = ensure_library_id(&open_connection(&root).unwrap()).unwrap();
+        let id2 = ensure_library_id(&open_connection(&root).unwrap()).unwrap();
         assert_eq!(id1, id2);
+    }
+
+    #[test]
+    fn a_database_without_meta_gets_an_id_and_still_has_no_meta_table() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("Library");
+        bootstrap_folder(&root).unwrap();
+        let conn = open_connection(&root).unwrap();
+        let id = ensure_library_id(&conn).unwrap();
+        assert!(ulid::Ulid::from_string(&id).is_ok());
+        let tables: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name = 'meta'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(tables, 0);
     }
 }

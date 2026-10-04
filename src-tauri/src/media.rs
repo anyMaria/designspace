@@ -9,8 +9,9 @@ use designspace_core::media_url::cache_file_name;
 use designspace_core::{hash::sha256_hex, media_naming::media_rel_path, path_safety};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
+use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, State};
 
 #[derive(Debug, Serialize)]
@@ -286,6 +287,39 @@ fn current_library_id(state: &State<'_, AppState>) -> AppResult<String> {
         .ok_or_else(|| AppError::new("no_library", "No library is open"))
 }
 
+/// Pure, unit-tested: ULID-named direct children of `root` not in `keep`.
+fn orphan_cache_dirs(root: &Path, keep: &HashSet<String>) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(root) else {
+        return vec![];
+    };
+    entries
+        .flatten()
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false)) // no symlinks/junctions
+        .filter(|e| {
+            let n = e.file_name().to_string_lossy().into_owned();
+            ulid::Ulid::from_string(&n).is_ok() && !keep.contains(&n)
+        })
+        .map(|e| e.path())
+        .collect()
+}
+
+/// Deletes thumbnail-cache folders of libraries that are neither open nor in the recent list
+/// (older launches made a new folder each time; see Patch 2 · A2).
+#[tauri::command]
+pub fn cache_prune_orphans(app: AppHandle, state: State<'_, AppState>) -> AppResult<u32> {
+    let mut keep: HashSet<String> = crate::library::recent_library_ids(&app)?;
+    keep.insert(current_library_id(&state)?);
+    let root = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| AppError::new("path_error", e.to_string()))?
+        .join("cache");
+    Ok(orphan_cache_dirs(&root, &keep)
+        .iter()
+        .filter(|p| fs::remove_dir_all(p).is_ok())
+        .count() as u32)
+}
+
 #[tauri::command]
 pub fn cache_put(
     app: AppHandle,
@@ -420,5 +454,19 @@ mod tests {
         let listing = list_folder(dir.path()).unwrap();
         assert!(listing.paths.is_empty());
         assert_eq!(listing.skipped, 0);
+    }
+
+    #[test]
+    fn orphan_cache_dirs_returns_only_unused_ulid_folders() {
+        let dir = tempfile::tempdir().unwrap();
+        let kept = ulid::Ulid::generate().to_string();
+        let other = ulid::Ulid::generate().to_string();
+        fs::create_dir(dir.path().join(&kept)).unwrap();
+        fs::create_dir(dir.path().join(&other)).unwrap();
+        fs::create_dir(dir.path().join("not-a-ulid")).unwrap();
+        fs::write(dir.path().join(ulid::Ulid::generate().to_string()), b"x").unwrap();
+        let keep = HashSet::from([kept]);
+        let orphans = orphan_cache_dirs(dir.path(), &keep);
+        assert_eq!(orphans, vec![dir.path().join(other)]);
     }
 }

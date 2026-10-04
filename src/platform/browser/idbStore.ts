@@ -65,3 +65,16 @@ export async function idbHas(store: string, key: string): Promise<boolean> {
     req.onerror = () => reject(req.error ?? new Error('IndexedDB request failed'));
   });
 }
+
+export async function idbEntries<T>(store: string): Promise<[string, T][]> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const os = tx.objectStore(store);
+    const keysReq = os.getAllKeys();
+    const valuesReq = os.getAll();
+    tx.oncomplete = () =>
+      resolve(keysReq.result.map((k, i): [string, T] => [k as string, valuesReq.result[i] as T]));
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction failed'));
+  });
+}

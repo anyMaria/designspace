@@ -171,7 +171,12 @@ export function createTrashCommand(platform: Platform, ids: string[]): Command {
 
   return {
     label: ids.length > 1 ? `Move ${ids.length} items to Trash` : 'Move to Trash',
-    do: () => setDeleted(new Date().toISOString()),
+    do: async () => {
+      await setDeleted(new Date().toISOString());
+      // Trashed items leave the selection (undo doesn't restore it; nothing else does either).
+      const { selection, setSelection } = useLibraryStore.getState();
+      setSelection([...selection].filter((id) => !ids.includes(id)));
+    },
     undo: () => setDeleted(null),
   };
 }

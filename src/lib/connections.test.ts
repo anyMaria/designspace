@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildConnectionIndex,
   computeHubs,
+  connectionSummary,
   formatHubLabel,
   formatSharedTooltip,
   scoreCandidates,
@@ -363,5 +364,33 @@ describe("'similar' criterion", () => {
       similar: 'Similar look',
     });
     expect(tooltip).toMatch(/Similar look: \d+%/);
+  });
+});
+
+describe('connectionSummary', () => {
+  it('counts items and groups that share a value under the active criteria', () => {
+    const terms = new Map([['v1', makeTerm({ id: 'v1', facet: 'vibe', name: 'Dreamy' })]]);
+    const itemTerms = new Map([
+      ['a', new Set(['v1'])],
+      ['b', new Set(['v1'])],
+    ]);
+    const items = [makeItem({ id: 'a' }), makeItem({ id: 'b' }), makeItem({ id: 'c' })];
+    const index = buildConnectionIndex(items, itemTerms, terms, []);
+    const s = connectionSummary(['a', 'b', 'c'], ['vibe'], index);
+    expect(s.connectedItems).toBe(2);
+    expect(s.groups).toBe(1);
+  });
+
+  it('says how many items an inactive criterion would connect', () => {
+    const terms = new Map([['m1', makeTerm({ id: 'm1', facet: 'movement', name: 'Bauhaus' })]]);
+    const itemTerms = new Map([
+      ['a', new Set(['m1'])],
+      ['b', new Set(['m1'])],
+    ]);
+    const items = [makeItem({ id: 'a' }), makeItem({ id: 'b' })];
+    const index = buildConnectionIndex(items, itemTerms, terms, []);
+    const s = connectionSummary(['a', 'b'], ['vibe', 'tag'], index);
+    expect(s.connectedItems).toBe(0);
+    expect(s.byInactive.movement).toBe(2);
   });
 });

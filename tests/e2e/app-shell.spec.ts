@@ -59,6 +59,7 @@ test.describe('App shell (M0)', () => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Settings' }).click();
     await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+    await page.getByRole('button', { name: 'About', exact: true }).click();
     await page.getByRole('button', { name: 'Diagnostics' }).click();
     await expect(page.getByText('Drop here')).toBeVisible();
   });

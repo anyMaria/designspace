@@ -2955,3 +2955,52 @@ window-state plugin no longer restoring full screen.
   is meant to avoid. Terms, colour and My connections are drawn. Easy to add later if wanted.
 - **Not verifiable in the cloud:** performance of the Overview at 10,000 items on a real GPU (the
   canvas draws only what is on screen and caps bitmaps, but it was only measured on the demo library).
+
+## Patch 2: owner review of the v0.8.0 Windows build (planning session, 2026-10-04)
+
+The owner's notes after Patch 1, and a discussion of them, became `docs/PATCH_2_PLAN.md` (seven phases, A–G), with
+mockups and tested reference code in `docs/patch-2/`. This session only diagnosed and planned. Root causes found, each of
+which passed every existing test:
+
+- **Pictures disappear after reopening the app.** `ensure_library_id` mints a new ULID whenever `meta.library_id` is
+  missing and expects the frontend to store it; nothing ever did. The thumbnail cache folder is named after that id, so
+  every launch looked in a new, empty folder, and nothing re-made the thumbnails because items were still `ok`. The Rust
+  test inserted the row by hand; the browser build keeps its id in IndexedDB (and also lost its blob URLs on reload, so
+  no e2e test could reopen).
+- **The AI never ran on Windows.** `fetch-models.mjs` runs in Node, where transformers.js defaults to fp32 files; the
+  worker (wasm) asks for the `_quantized` ones. Separately, with `localModelPath` an `http://` URL, transformers.js skips
+  its local-file checks, so the tokenizer finds nothing. Settings → AI said "loaded" without checking.
+- **Connections "never show".** They are computed correctly, but lines are clipped to card edges (Patch 1 B4), so cards
+  side by side leave a few-pixel stub under the connect handle; and nothing explains when no item shares a Vibe or Tag.
+- **Movement suggested Vibe words:** every `ChipInput` shared one `<datalist>` id.
+- **Copy hex / Copy image / Paste image are refused on Windows:** `clipboard-manager:default` grants nothing.
+- Also: the PDF viewer rendered before its document loaded; the minimap drew trashed items; `.ds-dialog` had no
+  max-height (Settings → Library with 22 backups ran off the screen, hiding About and the Trash); frames never held their
+  content (`placement.frame_id` was never set).
+
+Decisions with the owner: Constellations and Frames are removed (the Overview becomes the clusters view; export gets
+"Selection"); one card per font family plus type collections; five Movement starter values move to Vibe; liked colours
+are kept; corners keep proportions, sides change them (pictures crop, never stretch), Alt resizes from the centre.
+
+## Patch 2 · Phase A: fix what's broken (v0.9.0)
+
+All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
+
+- **A1:** the summary and the "no shared …" hover line build their own connection index
+  (`features/connections/useConnectionIndex.ts`, only while the popover or hover pill is in use) rather than
+  reaching into `useConnectionsBinding`. The popover's summary ignores the search filter (it counts every item
+  that isn't in the Trash). "Tag" is written singular in the empty-state sentence ("Nothing shares a Vibe or Tag yet.").
+  Show all's hub lines also get the halo and the no-stub rule.
+- **A2:** orphan cache folders are pruned from the recent-libraries list plus the open library. Ids stored in
+  the recent list by older launches are kept (harmless, they are small).
+- **A3:** the `patch2-reopen` spec passes with the change; I did not re-run it against `c7b3b8c` to see it fail.
+- **A6:** the old "A local model is loaded" paragraph is gone; the string `settings.ai.modelBundled` is now unused
+  and can be deleted later. Progress rows only show with the real (CLIP) provider.
+- **A9:** Settings opens on **Canvas**. Two specs that assumed About was first now click About themselves.
+  Collapsed backups show only the summary line; the list (with Restore) appears under "Show all".
+- **A10:** picking an option from the browser's list adds it at once (it changes the input without typing or
+  Enter); leaving the field clears the draft.
+- **A12:** `problem_report_info` and the report text are in place; the report contains no item titles or file names.
+- **Not verifiable without Windows:** the library id staying stable and thumbnails being re-made, the clipboard
+  permissions, the AI model files and tokenizer lookup (the CI "Check the bundled AI model files" step is the check),
+  the media check, orphan-cache pruning, and the problem report's Rust half (tested only for its pure log-tail helper).

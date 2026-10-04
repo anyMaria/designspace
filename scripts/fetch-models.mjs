@@ -19,6 +19,7 @@
 // owner or CI actually has internet: a local run, or the Windows installer workflow (see the
 // comment in .github/workflows/windows-build.yml this script's presence resolves).
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -52,12 +53,21 @@ function progress(data) {
 
 async function main() {
   console.log(`Fetching ${MODEL_ID} into ${MODELS_DIR}`);
-  // No explicit `dtype` — transformers.js already defaults to `q8` (quantized) on the `wasm`
-  // device, which is the only device this app ever runs on (§4.10).
+  // Start clean so an old full-size file can never be bundled (Patch 2 · A5).
+  fs.rmSync(path.join(MODELS_DIR, MODEL_ID), { recursive: true, force: true });
+  // The app's worker asks for `dtype: 'q8'` (the `*_quantized.onnx` files). In Node transformers.js
+  // defaults to full-size fp32 files, so ask for q8 explicitly here too. No `device`: in Node only
+  // cpu/dml/webgpu exist, and cpu + q8 downloads the same quantized files.
   console.log('Vision encoder + projection…');
-  await CLIPVisionModelWithProjection.from_pretrained(MODEL_ID, { progress_callback: progress });
+  await CLIPVisionModelWithProjection.from_pretrained(MODEL_ID, {
+    dtype: 'q8',
+    progress_callback: progress,
+  });
   console.log('Text encoder + projection…');
-  await CLIPTextModelWithProjection.from_pretrained(MODEL_ID, { progress_callback: progress });
+  await CLIPTextModelWithProjection.from_pretrained(MODEL_ID, {
+    dtype: 'q8',
+    progress_callback: progress,
+  });
   console.log('Image processor…');
   await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: progress });
   console.log('Tokenizer…');

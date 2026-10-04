@@ -22,6 +22,7 @@ export function LibrarySection({
 }) {
   const [recent, setRecent] = useState<LibraryInfo[]>([]);
   const [backups, setBackups] = useState<BackupInfo[] | null>(null);
+  const [showAllBackups, setShowAllBackups] = useState(false);
   const isTauri = platform.kind === 'tauri';
   const extraDestination = useSettingsStore((s) => s.backupExtraDestination);
 
@@ -158,7 +159,28 @@ export function LibrarySection({
             )}
             {backups && backups.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                {backups.map((b) => (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ color: 'var(--text-2)' }}>
+                    {en.settings.library.backupsSummary(
+                      new Date(backups[0].createdAt).toLocaleString(),
+                      backups.length,
+                    )}
+                  </span>
+                  {backups.length > 1 && (
+                    <Button variant="ghost" onClick={() => setShowAllBackups((v) => !v)}>
+                      {showAllBackups
+                        ? en.settings.library.showFewerBackups
+                        : en.settings.library.showAllBackups(backups.length)}
+                    </Button>
+                  )}
+                </div>
+                {(showAllBackups ? backups : []).map((b) => (
                   <div
                     key={b.id}
                     style={{

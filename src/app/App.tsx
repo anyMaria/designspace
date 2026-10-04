@@ -29,6 +29,7 @@ import { useReducedMotionSync } from '@/lib/useReducedMotionSync';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
 import { Shell } from './Shell';
+import { requeueMissingThumbnails } from '@/workers/missingThumbnails';
 
 type BootState =
   | { phase: 'loading' }
@@ -48,6 +49,7 @@ const REFRESH_TOAST_THRESHOLD = 20;
  * work (the one-off Patch 1 repair re-makes every preview). */
 async function resumeAllIngest(platform: Platform): Promise<void> {
   try {
+    await requeueMissingThumbnails(platform);
     const counts = await Promise.all([
       resumePendingIngest(platform),
       resumePendingVideoIngest(platform),
@@ -107,6 +109,7 @@ export function App() {
         }
         const library = await platform.library.open(recent[0].path);
         const libraryBoardId = await ensureLibraryReady(platform);
+        void platform.cache.pruneOrphans();
         await seedVocabulary(platform);
         await Promise.all([
           loadLibraryItems(platform, libraryBoardId),

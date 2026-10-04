@@ -30,18 +30,29 @@ export class ClipEmbeddingProvider implements EmbeddingProvider {
   private textModel: TextModel | null = null;
   private tokenizer: PreTrainedTokenizer | null = null;
 
-  // No explicit `dtype` — transformers.js already defaults to `q8` (quantized) on the `wasm`
-  // device, which is the only device this app ever runs on (§4.10).
+  // `dtype: 'q8'` asks for the `*_quantized.onnx` files that `scripts/fetch-models.mjs` bundles
+  // (the only ones in the installer); `wasm` is the only device this app runs on (§4.10).
   private async ensureVision(): Promise<{ visionModel: VisionModel; processor: Processor }> {
-    this.visionModel ??= await CLIPVisionModelWithProjection.from_pretrained(MODEL_ID);
+    this.visionModel ??= await CLIPVisionModelWithProjection.from_pretrained(MODEL_ID, {
+      device: 'wasm',
+      dtype: 'q8',
+    });
     this.processor ??= await AutoProcessor.from_pretrained(MODEL_ID);
     return { visionModel: this.visionModel, processor: this.processor };
   }
 
   private async ensureText(): Promise<{ textModel: TextModel; tokenizer: PreTrainedTokenizer }> {
-    this.textModel ??= await CLIPTextModelWithProjection.from_pretrained(MODEL_ID);
+    this.textModel ??= await CLIPTextModelWithProjection.from_pretrained(MODEL_ID, {
+      device: 'wasm',
+      dtype: 'q8',
+    });
     this.tokenizer ??= await AutoTokenizer.from_pretrained(MODEL_ID);
     return { textModel: this.textModel, tokenizer: this.tokenizer };
+  }
+
+  async warmUp(): Promise<void> {
+    await this.ensureVision();
+    await this.ensureText();
   }
 
   async embedImage(bytes: ArrayBuffer, mime: string): Promise<Float32Array> {

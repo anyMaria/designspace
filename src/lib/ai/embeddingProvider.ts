@@ -7,6 +7,8 @@ export interface EmbeddingProvider {
   /** `bytes` is the image file's raw bytes (the `t512` derivative in production — §4.7 step 3). */
   embedImage(bytes: ArrayBuffer, mime: string): Promise<Float32Array>;
   embedText(text: string): Promise<Float32Array>;
+  /** Loads everything up front, so a broken model shows at once instead of on the first item. */
+  warmUp?(): Promise<void>;
   dispose(): void;
 }
 

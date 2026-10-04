@@ -75,7 +75,12 @@ export function Minimap({ engine }: { engine: Engine | null }) {
             h: viewportSize.h / camera.zoom,
           }
         : null;
-      const rects = [...placements.values()].map((p) => ({
+      // Trashed items are not on the map, so they are not on the minimap either.
+      const visible = [...placements.values()].filter((p) => {
+        const item = items.get(p.itemId);
+        return !!item && !item.deletedAt;
+      });
+      const rects = visible.map((p) => ({
         x: p.x,
         y: p.y,
         w: p.w,
@@ -93,7 +98,7 @@ export function Minimap({ engine }: { engine: Engine | null }) {
 
       const centre = (id: string) => {
         const p = placements.get(id);
-        return p ? { x: p.x + p.w / 2, y: p.y + p.h / 2 } : null;
+        return p && !items.get(id)?.deletedAt ? { x: p.x + p.w / 2, y: p.y + p.h / 2 } : null;
       };
       const scene: MinimapScene = { rects, manualLines: [], hoverLines: [], viewport };
       for (const c of manual.values()) {

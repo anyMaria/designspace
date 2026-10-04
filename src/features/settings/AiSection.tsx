@@ -4,25 +4,17 @@ import { Toggle, Button } from '@/design/components';
 import { useSettingsStore } from '@/state/settingsStore';
 import { setAiEnabled } from '@/state/loadSettings';
 import { getAiQueue } from '@/workers/aiQueue';
-import { computeAiEnvConfig } from '@/lib/ai/env';
+import { useAiStatusStore } from '@/state/aiStatusStore';
 import { en } from '@/i18n/en';
 
 /** Settings → AI (§4.10, M6-5): the on/off switch, whether a real model is actually bundled in
  * this build, and live background-analysis progress with pause/resume. */
 export function AiSection({ platform }: { platform: Platform }) {
   const aiEnabled = useSettingsStore((s) => s.aiEnabled);
-  const [modelBundled, setModelBundled] = useState<boolean | null>(null);
+  const aiStatus = useAiStatusStore((s) => s.status);
+  const aiError = useAiStatusStore((s) => s.error);
+  const aiProvider = useAiStatusStore((s) => s.provider);
   const [progress, setProgress] = useState({ completed: 0, pending: 0, failed: 0, paused: false });
-
-  useEffect(() => {
-    let cancelled = false;
-    void computeAiEnvConfig(platform.kind).then((config) => {
-      if (!cancelled) setModelBundled(config.localModelPath !== null);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [platform.kind]);
 
   useEffect(() => {
     if (!aiEnabled) return;
@@ -56,13 +48,40 @@ export function AiSection({ platform }: { platform: Platform }) {
         />
       </div>
 
-      {modelBundled !== null && (
-        <p style={{ color: 'var(--text-2)', fontSize: 13, margin: 0 }}>
-          {modelBundled ? en.settings.ai.modelBundled : en.settings.ai.modelNotBundled}
-        </p>
+      {aiEnabled && (
+        <div data-testid="ai-status" style={{ color: 'var(--text-2)', fontSize: 13 }}>
+          {aiStatus === 'error' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <span>
+                {en.settings.ai.statusError(
+                  aiError?.includes('was not found locally')
+                    ? en.settings.ai.modelMissing
+                    : (aiError ?? en.settings.ai.workerStopped),
+                )}
+              </span>
+              <Button variant="secondary" onClick={() => getAiQueue(platform)?.retry()}>
+                {en.settings.ai.retry}
+              </Button>
+            </div>
+          ) : aiStatus === 'loading' ? (
+            en.settings.ai.statusLoading
+          ) : aiStatus === 'ready' ? (
+            progress.pending > 0 ? (
+              en.settings.ai.statusAnalyzing(
+                progress.completed,
+                progress.completed + progress.pending,
+              )
+            ) : (
+              en.settings.ai.statusReady
+            )
+          ) : null}
+          {aiProvider === 'fake' && (
+            <p style={{ margin: 'var(--space-2) 0 0' }}>{en.settings.ai.modelNotBundled}</p>
+          )}
+        </div>
       )}
 
-      {aiEnabled && modelBundled && (
+      {aiEnabled && aiProvider === 'clip' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           <Row label={en.settings.ai.analyzed} value={String(progress.completed)} />
           <Row label={en.settings.ai.remaining} value={String(progress.pending)} />

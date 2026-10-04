@@ -39,5 +39,10 @@ test('empty-state + Add opens the add menu, and Settings Canvas/Library sections
   await expect(page.getByRole('heading', { name: 'Trash' })).toBeVisible();
   await page.screenshot({ path: 'test-results/settings-library.png' });
 
+  // A short window must not cut Settings off: About stays reachable (Patch 2 · A9).
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.getByRole('button', { name: 'About', exact: true }).click();
+  await expect(page.getByText('Version')).toBeInViewport();
+
   expect(errors, errors.join('\n')).toEqual([]);
 });

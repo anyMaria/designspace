@@ -212,6 +212,11 @@ export const en = {
       about: 'About',
     },
     about: {
+      problemReport: 'Copy a problem report',
+      problemReportHelp:
+        'Copies details about the app and your PC (no pictures or names) to paste into a ' +
+        'conversation. The recent log lines it includes may contain file paths.',
+      problemReportCopied: 'Problem report copied',
       version: 'Version',
       itemCounts: 'Items',
       /** `breakdown` is a pre-joined "3 images, 1 video" string built by the caller (which has
@@ -248,6 +253,9 @@ export const en = {
       restore: 'Restore',
       restoreConfirm: "Restore this backup? The library will reopen once it's done.",
       noBackupsYet: 'No backups yet.',
+      backupsSummary: (date: string, count: number) => `Last backup ${date} · ${count} kept`,
+      showAllBackups: (n: number) => `Show all (${n})`,
+      showFewerBackups: 'Show fewer',
       notAvailableInBrowser: "Not available in the browser dev build — it's tested on Windows.",
       extraDestinationUnset: 'No extra backup destination set.',
       extraDestinationSet: (path: string) => `Also backs up to: ${path}`,
@@ -297,6 +305,13 @@ export const en = {
       pause: 'Pause analysis',
       resume: 'Resume analysis',
       paused: 'Paused',
+      statusLoading: 'Loading the local model…',
+      statusReady: 'Ready',
+      statusAnalyzing: (done: number, total: number) => `Analyzing ${done} of ${total}`,
+      statusError: (reason: string) => `Not working: ${reason}`,
+      retry: 'Try again',
+      workerStopped: 'The AI helper stopped unexpectedly.',
+      modelMissing: 'The AI model files are missing from this installation.',
     },
   },
   onboarding: {
@@ -486,6 +501,12 @@ export const en = {
     dock: 'Connections',
     display: 'Display',
     displayOff: 'Off',
+    summary: (items: number, groups: number) =>
+      `${items} items share something (${groups} group${groups === 1 ? '' : 's'})`,
+    empty: (names: string) => `Nothing shares a ${names} yet.`,
+    turnOn: (name: string, count: number) => `Turn on ${name} (${count} items)`,
+    emptyHint: 'Give a few items the same Vibe or Tag to see them connect.',
+    noneForItem: (names: string) => `No shared ${names}`,
     onHover: 'On hover',
     showAll: 'Show all',
     strength: (n: number) => `Link items that share at least ${n} thing${n === 1 ? '' : 's'}`,

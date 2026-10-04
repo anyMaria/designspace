@@ -1,0 +1,101 @@
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from 'vitest';
+import { createEscapeStack, installEscapeListener } from './escapeStack';
+
+describe('escapeStack', () => {
+  it('runs the last opened layer first and stops when it handles Esc', () => {
+    const s = createEscapeStack();
+    const calls: string[] = [];
+    s.push(() => (calls.push('dialog'), true));
+    s.push(() => (calls.push('menu'), true));
+    expect(s.handle()).toBe(true);
+    expect(calls).toEqual(['menu']);
+  });
+  it('passes through a layer that returns false', () => {
+    const s = createEscapeStack();
+    const calls: string[] = [];
+    s.push(() => (calls.push('dialog'), true));
+    s.push(() => (calls.push('idle'), false));
+    s.handle();
+    expect(calls).toEqual(['idle', 'dialog']);
+  });
+  it('falls back to base handlers by priority only when no layer handled it', () => {
+    const s = createEscapeStack();
+    const calls: string[] = [];
+    s.addBase(30, () => (calls.push('fullscreen'), true));
+    s.addBase(10, () => (calls.push('mode'), false));
+    s.addBase(20, () => (calls.push('selection'), false));
+    expect(s.handle()).toBe(true);
+    expect(calls).toEqual(['mode', 'selection', 'fullscreen']);
+  });
+  it('removes layers and base handlers', () => {
+    const s = createEscapeStack();
+    const layer = vi.fn(() => true);
+    const remove = s.push(layer);
+    remove();
+    remove(); // twice is harmless
+    const baseFn = vi.fn(() => false);
+    s.addBase(0, baseFn)();
+    expect(s.handle()).toBe(false);
+    expect(layer).not.toHaveBeenCalled();
+    expect(baseFn).not.toHaveBeenCalled();
+    expect(s.size()).toBe(0);
+  });
+  it('survives a layer removing itself while handling', () => {
+    const s = createEscapeStack();
+    const calls: string[] = [];
+    s.push(() => (calls.push('dialog'), true));
+    const remove = s.push(() => {
+      calls.push('menu');
+      remove();
+      return true;
+    });
+    s.handle();
+    s.handle();
+    expect(calls).toEqual(['menu', 'dialog']);
+  });
+});
+
+describe('typing', () => {
+  it('lets the field keep Esc unless the top layer allows typing', () => {
+    const s = createEscapeStack();
+    const base = vi.fn(() => true);
+    s.addBase(0, base);
+    const dialog = vi.fn(() => true);
+    const remove = s.push(dialog);
+    expect(s.handle(true)).toBe(false);
+    expect(dialog).not.toHaveBeenCalled();
+    expect(base).not.toHaveBeenCalled();
+    remove();
+    s.push(dialog, { allowWhileTyping: true });
+    expect(s.handle(true)).toBe(true);
+    expect(dialog).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('installEscapeListener', () => {
+  it('handles Esc in the capture phase and respects typing', () => {
+    const s = createEscapeStack();
+    const layer = vi.fn(() => true);
+    s.push(layer);
+    const input = document.createElement('input');
+    document.body.append(input);
+    const isTyping = (t: EventTarget | null) => t instanceof HTMLInputElement;
+    const uninstall = installEscapeListener(window, isTyping, s);
+    const fieldHandler = vi.fn();
+    input.addEventListener('keydown', fieldHandler);
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(layer).not.toHaveBeenCalled();
+    expect(fieldHandler).toHaveBeenCalledTimes(1);
+    const fresh = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(fresh);
+    expect(layer).toHaveBeenCalledTimes(1);
+    expect(fresh.defaultPrevented).toBe(true);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    expect(layer).toHaveBeenCalledTimes(1);
+    uninstall();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    expect(layer).toHaveBeenCalledTimes(1);
+    input.remove();
+  });
+});

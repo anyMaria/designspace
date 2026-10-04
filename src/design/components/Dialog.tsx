@@ -4,12 +4,13 @@ export interface DialogProps {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  className?: string;
 }
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function Dialog({ title, children, onClose }: DialogProps) {
+export function Dialog({ title, children, onClose, className }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,7 +64,7 @@ export function Dialog({ title, children, onClose }: DialogProps) {
     >
       <div
         ref={dialogRef}
-        className="ds-dialog"
+        className={className ? `ds-dialog ${className}` : 'ds-dialog'}
         role="dialog"
         aria-modal="true"
         aria-label={title}

@@ -7,6 +7,7 @@ import { drawPalette, paletteDrawKey } from './decor/paletteDecor';
 import { CRITERION_COLOR } from './criterionColor';
 import { drawNotePaper, notePaperKey } from './decor/noteDecor';
 import { paletteCellAt } from '@/lib/palette';
+import { drawRelatedOutlines, type RelatedOutlineEntry } from '@/canvas/relatedOutline';
 import { clipSegmentToBoxes, distanceToSegment, edgePoint } from '@/lib/lineAnchors';
 import {
   Application,
@@ -35,6 +36,7 @@ import {
 import {
   canvasGeometry,
   colors,
+  connectionLineStyle,
   criterionColors,
   fonts,
   motion,
@@ -129,9 +131,11 @@ interface EngineEvents {
   frameRenameRequest: (frameId: string) => void;
 }
 
-const LINE_WIDTH_PX = 1.5;
-const LINE_WIDTH_HOVERED_PX = 2.5;
-const LINE_OPACITY = 0.7;
+const LINE_WIDTH_PX = connectionLineStyle.width;
+const LINE_WIDTH_HOVERED_PX = connectionLineStyle.width + 1;
+const LINE_OPACITY = connectionLineStyle.opacity;
+const TEXTURE_RETRY_MS = 5000; // a texture that failed to load is retried once after this
+const MAX_TEXTURE_ATTEMPTS = 2;
 const LINE_GAP_PX = 6; // space between a picture's edge and the line that leaves it
 const LINE_OFFSET_PX = 4; // spacing between up to 3 parallel lines for the same pair
 
@@ -144,8 +148,8 @@ export interface ShowAllHub extends Hub {
 const HUB_STAR_POINTS = 5;
 const HUB_STAR_RADIUS_PX = 9;
 const HUB_STAR_INNER_RADIUS_PX = 4;
-const HUB_LINE_OPACITY = 0.35; // §4.6: "0.7 on hover and 0.35 in Show all"
-const HUB_LINE_WIDTH_PX = 1.5; // §4.6: "Lines are 1.5px on screen at every zoom level"
+const HUB_LINE_OPACITY = connectionLineStyle.hubOpacity;
+const HUB_LINE_WIDTH_PX = connectionLineStyle.hubWidth;
 const HUB_LABEL_FONT_SIZE = 11;
 
 const CONNECT_HANDLE_RADIUS_PX = 6;
@@ -275,6 +279,8 @@ export class Engine {
   // lines to; unset (empty array) means no connections are showing right now.
   private connectionSources: { fromId: string; candidates: ScoredCandidate[] }[] = [];
   private connectionLineGraphics: Graphics[] = [];
+  private texFailures = new Map<string, { attempts: number; at: number }>();
+  private texRetryTimer: number | null = null;
   private hoveredConnectionLine: { fromId: string; toId: string } | null = null;
   // "Show all" mode (§2.10) — hubs plus their item-to-hub edges; unset (empty array) means
   // Show all isn't active right now (Hover mode owns `connectionSources` instead).
@@ -1201,6 +1207,7 @@ export class Engine {
     for (const sprite of this.sprites.values()) sprite.destroy();
     this.sprites.clear();
     this.appliedTexKey.clear();
+    this.texFailures.clear();
     for (const d of this.decor.values()) d.destroy({ children: true });
     this.decor.clear();
     this.decorKey.clear();
@@ -1906,6 +1913,7 @@ export class Engine {
     };
 
     const seenPairs = new Set<string>();
+    const relatedEntries = new Map<string, RelatedOutlineEntry>();
     let hoveredSegment: { a: { x: number; y: number }; b: { x: number; y: number } } | null = null;
     for (const { fromId, candidates } of this.connectionSources) {
       const fromCard = this.cards.get(fromId);
@@ -1925,12 +1933,22 @@ export class Engine {
         if (!clipped) continue;
         const fromScreen = clipped.from;
         const toScreen = clipped.to;
-
         const criteria = (Object.keys(candidate.shared) as Criterion[])
           .filter((c) => (candidate.shared[c]?.length ?? 0) > 0)
           .sort((a, b) => CRITERION_ORDER.indexOf(a) - CRITERION_ORDER.indexOf(b))
           .slice(0, 3);
         if (criteria.length === 0) continue;
+        // The relationship shows as an outline on the related card even when its line is too
+        // short to draw (touching cards).
+        relatedEntries.set(candidate.id, {
+          box: boxScreen(toCard),
+          color: CRITERION_COLOR[criteria[0]],
+        });
+        if (
+          Math.hypot(toScreen.x - fromScreen.x, toScreen.y - fromScreen.y) <
+          connectionLineStyle.minVisiblePx
+        )
+          continue;
 
         const dx = toScreen.x - fromScreen.x;
         const dy = toScreen.y - fromScreen.y;
@@ -1948,6 +1966,17 @@ export class Engine {
           const ox = nx * offset;
           const oy = ny * offset;
           const isManual = criterion === 'manual';
+
+          const halo = new Graphics()
+            .moveTo(fromScreen.x + ox, fromScreen.y + oy)
+            .lineTo(toScreen.x + ox, toScreen.y + oy)
+            .stroke({
+              color: 0x000000,
+              width: connectionLineStyle.haloWidth,
+              alpha: connectionLineStyle.haloAlpha,
+            });
+          this.overlayLayer!.addChild(halo);
+          this.connectionLineGraphics.push(halo);
 
           const line = new Graphics();
           line
@@ -1986,6 +2015,9 @@ export class Engine {
         });
       }
     }
+    this.connectionLineGraphics.push(
+      ...drawRelatedOutlines(this.overlayLayer, [...relatedEntries.values()]),
+    );
     this.recheckHoveredLine(hoveredSegment);
   }
 
@@ -2067,7 +2099,18 @@ export class Engine {
           x: hx - ux * (HUB_STAR_RADIUS_PX + 2),
           y: hy - uy * (HUB_STAR_RADIUS_PX + 2),
         };
-        if ((end.x - start.x) * ux + (end.y - start.y) * uy <= 0) continue; // nothing left to draw
+        const visibleLen = (end.x - start.x) * ux + (end.y - start.y) * uy;
+        if (visibleLen < connectionLineStyle.minVisiblePx) continue; // no stubs
+        const edgeHalo = new Graphics()
+          .moveTo(start.x, start.y)
+          .lineTo(end.x, end.y)
+          .stroke({
+            color: 0x000000,
+            width: connectionLineStyle.haloWidth,
+            alpha: connectionLineStyle.haloAlpha * (HUB_LINE_OPACITY / LINE_OPACITY),
+          });
+        this.overlayLayer.addChild(edgeHalo);
+        this.hubDisplayObjects.push(edgeHalo);
         const edge = new Graphics()
           .moveTo(start.x, start.y)
           .lineTo(end.x, end.y)
@@ -2494,10 +2537,30 @@ export class Engine {
       this.textureManager.touch(want.key); // keep on-screen textures out of LRU eviction
       return;
     }
+    const failed = this.texFailures.get(want.key);
+    if (
+      failed &&
+      (failed.attempts >= MAX_TEXTURE_ATTEMPTS || performance.now() - failed.at < TEXTURE_RETRY_MS)
+    )
+      return;
     this.appliedTexKey.set(card.id, want.key); // also marks "in flight": no duplicate requests
     void this.textureManager.request(want.key, want.url).then((texture) => {
+      if (!texture) {
+        // Failed: keep the placeholder and try once more after a pause; after that, only a new
+        // URL (re-ingest bumps thumb_v) retries.
+        this.texFailures.set(want.key, {
+          attempts: (failed?.attempts ?? 0) + 1,
+          at: performance.now(),
+        });
+        if (this.appliedTexKey.get(card.id) === want.key) this.appliedTexKey.delete(card.id);
+        this.texRetryTimer ??= window.setTimeout(() => {
+          this.texRetryTimer = null;
+          this.scheduleFrame();
+        }, TEXTURE_RETRY_MS);
+        return;
+      }
+      this.texFailures.delete(want.key);
       if (sprite.destroyed || this.appliedTexKey.get(card.id) !== want.key) return; // superseded
-      if (!texture) return; // failed: keep the placeholder; a new URL (re-ingest) retries
       sprite.texture = texture;
       sprite.tint = 0xffffff;
     });
@@ -2566,6 +2629,7 @@ export class Engine {
     this.detachSelectionInput?.();
     this.unsubscribeCamera?.();
     if (this.textResolutionTimer !== null) window.clearTimeout(this.textResolutionTimer);
+    if (this.texRetryTimer !== null) window.clearTimeout(this.texRetryTimer);
     this.stopVideoPreview();
     this.clearScene();
     this.clearMarquee();

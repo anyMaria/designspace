@@ -1,0 +1,177 @@
+// Proposed: src/canvas/resizeMath.ts (pure; no Pixi, no DOM).
+// In the repo, replace the two local types below with:
+//   import type { Rect } from '@/lib/geometry';
+//   import type { ItemKind } from '@/state/types';
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+type ItemKind = 'image' | 'video' | 'pdf' | 'font' | 'link' | 'note' | 'swatch';
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+
+export const CORNER_HANDLES: readonly ResizeHandle[] = ['nw', 'ne', 'se', 'sw'];
+export const ALL_HANDLES: readonly ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+
+export function isCornerHandle(handle: ResizeHandle): boolean {
+  return handle.length === 2;
+}
+
+/** Which edges a handle moves: -1 = the left/top edge, 1 = the right/bottom edge, 0 = that axis
+ * keeps its size. */
+export function handleDirection(handle: ResizeHandle): { hx: -1 | 0 | 1; hy: -1 | 0 | 1 } {
+  return {
+    hx: handle.includes('w') ? -1 : handle.includes('e') ? 1 : 0,
+    hy: handle.startsWith('n') ? -1 : handle.startsWith('s') ? 1 : 0,
+  };
+}
+
+/** The CSS cursor for a handle (set on the canvas container, see Engine). */
+export function cursorForHandle(handle: ResizeHandle): string {
+  switch (handle) {
+    case 'nw':
+    case 'se':
+      return 'nwse-resize';
+    case 'ne':
+    case 'sw':
+      return 'nesw-resize';
+    case 'e':
+    case 'w':
+      return 'ew-resize';
+    case 'n':
+    case 's':
+      return 'ns-resize';
+  }
+}
+
+export interface ResizePolicy {
+  /** Handles this kind shows (and can be grabbed by). */
+  handles: readonly ResizeHandle[];
+  /** Corners keep proportions even with Shift. */
+  alwaysKeepAspect: boolean;
+  /** A change of proportions crops the picture (object-fit: cover) instead of stretching it. */
+  crops: boolean;
+}
+
+const NO_HANDLES: ResizePolicy = { handles: [], alwaysKeepAspect: true, crops: false };
+const FONT: ResizePolicy = { handles: CORNER_HANDLES, alwaysKeepAspect: true, crops: false };
+const NOTE: ResizePolicy = { handles: ALL_HANDLES, alwaysKeepAspect: false, crops: false };
+const PICTURE: ResizePolicy = { handles: ALL_HANDLES, alwaysKeepAspect: false, crops: true };
+
+/** Palettes and swatches size themselves; a font specimen is a laid-out picture of text, so it
+ * only scales; notes reflow; pictures crop. */
+export function resizePolicyFor(kind: ItemKind): ResizePolicy {
+  switch (kind) {
+    case 'swatch':
+      return NO_HANDLES;
+    case 'font':
+      return FONT;
+    case 'note':
+      return NOTE;
+    case 'image':
+    case 'video':
+    case 'pdf':
+    case 'link':
+      return PICTURE;
+  }
+}
+
+export interface HandleHitOptions {
+  /** How far from an edge (world units: screen px / zoom) the pointer still grabs it. */
+  tolerance: number;
+  handles: readonly ResizeHandle[];
+}
+
+/** The handle under `point`: a corner where two edge zones meet, a side anywhere along the rest of
+ * an edge. Each zone reaches `tolerance` outside the card but at most a quarter of the card inside,
+ * so a small card can still be moved by its middle. Null when nothing (or a handle this kind
+ * doesn't have) is under the pointer. */
+export function resizeHandleAt(
+  bounds: Rect,
+  point: Point,
+  opts: HandleHitOptions,
+): ResizeHandle | null {
+  if (opts.handles.length === 0) return null;
+  const tol = opts.tolerance;
+  const left = bounds.x;
+  const right = bounds.x + bounds.w;
+  const top = bounds.y;
+  const bottom = bounds.y + bounds.h;
+  if (point.x < left - tol || point.x > right + tol) return null;
+  if (point.y < top - tol || point.y > bottom + tol) return null;
+  const insideX = Math.min(tol, bounds.w / 4);
+  const insideY = Math.min(tol, bounds.h / 4);
+  // Signed distance into the card from each edge (positive = inside).
+  const nearLeft = point.x - left <= insideX;
+  const nearRight = right - point.x <= insideX;
+  const nearTop = point.y - top <= insideY;
+  const nearBottom = bottom - point.y <= insideY;
+  const vertical = nearTop ? 'n' : nearBottom ? 's' : '';
+  const horizontal = nearLeft ? 'w' : nearRight ? 'e' : '';
+  const name = `${vertical}${horizontal}`;
+  const handle = opts.handles.find((h) => h === name);
+  return handle ?? null;
+}
+
+export interface ResizeOptions {
+  /** Corners only: keep the start rect's proportions (default; Shift turns it off). */
+  keepAspect: boolean;
+  /** Alt: the centre stays put and the opposite edge(s) move by the same amount. */
+  fromCenter: boolean;
+  /** Smallest width and height a drag may produce, in world units. A side that already starts
+   * smaller is never forced to grow. */
+  minSize: number;
+}
+
+/** The rect after dragging `handle` by `delta` (world units, pointer now − pointer at press) from
+ * `start` (the rect at press: always pass the press-time rect, never the live one, so nothing
+ * drifts). Corners with `keepAspect` follow whichever axis changed more, relative to its size, so
+ * dragging a corner straight in shrinks it and straight out grows it. Sides change one axis. The
+ * rect never flips: crossing the opposite edge stops at the minimum size. */
+export function resizeRect(
+  start: Rect,
+  handle: ResizeHandle,
+  delta: Point,
+  opts: ResizeOptions,
+): Rect {
+  const { hx, hy } = handleDirection(handle);
+  const k = opts.fromCenter ? 2 : 1;
+  let w = hx === 0 ? start.w : start.w + hx * delta.x * k;
+  let h = hy === 0 ? start.h : start.h + hy * delta.y * k;
+  const minW = Math.min(opts.minSize, start.w);
+  const minH = Math.min(opts.minSize, start.h);
+
+  if (hx !== 0 && hy !== 0 && opts.keepAspect && start.w > 0 && start.h > 0) {
+    const sx = w / start.w;
+    const sy = h / start.h;
+    const s = Math.max(
+      Math.abs(sx - 1) >= Math.abs(sy - 1) ? sx : sy,
+      minW / start.w,
+      minH / start.h,
+    );
+    w = start.w * s;
+    h = start.h * s;
+  } else {
+    w = Math.max(w, minW);
+    h = Math.max(h, minH);
+  }
+
+  const x = opts.fromCenter
+    ? start.x + (start.w - w) / 2
+    : hx === -1
+      ? start.x + start.w - w
+      : start.x;
+  const y = opts.fromCenter
+    ? start.y + (start.h - h) / 2
+    : hy === -1
+      ? start.y + start.h - h
+      : start.y;
+  return { x, y, w, h };
+}

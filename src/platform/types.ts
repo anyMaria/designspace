@@ -49,6 +49,19 @@ export interface FolderListing {
   skipped: number;
 }
 
+export interface ProblemReportInfo {
+  appVersion: string;
+  os: string;
+  arch: string;
+  webviewVersion: string | null;
+  libraryId: string;
+  storedLibraryId: string | null;
+  cacheFolderCount: number;
+  cacheFileCount: number;
+  models: { name: string; present: boolean; bytes: number }[];
+  logTail: string;
+}
+
 export interface AppPaths {
   appLocalDataDir: string;
   logsDir: string;
@@ -93,6 +106,8 @@ export interface Platform {
     /** `version` (an item's `thumbV`) is added to the URL so a re-made thumbnail never shows stale. */
     url(key: string, version?: number): string;
     delete(keys: string[]): Promise<void>;
+    /** Removes cache folders of libraries that are no longer in use. Returns how many. */
+    pruneOrphans(): Promise<number>;
   };
 
   net: {
@@ -137,6 +152,7 @@ export interface Platform {
   app: {
     paths(): Promise<AppPaths>;
     openLogs(): Promise<void>;
+    problemReportInfo(): Promise<ProblemReportInfo>;
   };
 
   /** §5.5's machine settings (window/wheel mode/reduce motion/etc., as opposed to the library's
