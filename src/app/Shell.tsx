@@ -78,6 +78,7 @@ import {
   EmptyState,
   Button,
 } from '@/design/components';
+import { useEscape } from '@/app/useEscape';
 import { en } from '@/i18n/en';
 import { SettingsDialog } from '@/features/settings/SettingsDialog';
 
@@ -148,6 +149,9 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   useManualConnectionsBinding(engine, platform);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
   const listExpanded = useListStore((s) => s.expanded);
+  useEscape(listExpanded, () => useListStore.getState().setExpanded(false), {
+    allowWhileTyping: true,
+  });
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>

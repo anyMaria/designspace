@@ -1,4 +1,5 @@
 import type { Camera } from './Camera';
+import { isTypingTarget } from '@/lib/isTypingTarget';
 
 export type Tool = 'select' | 'hand';
 export type WheelMode = 'zoom' | 'pan';
@@ -7,11 +8,6 @@ export interface CanvasInputOptions {
   getViewport: () => { w: number; h: number };
   getTool: () => Tool;
   getWheelMode: () => WheelMode;
-}
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 }
 
 /** Heuristic from §2.2: touchpads report pixel-mode deltas that are fractional, carry a

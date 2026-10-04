@@ -20,11 +20,8 @@ import { triggerRediscover } from '@/features/rediscover/triggerRediscover';
 import { openInboxTriage } from '@/features/triage/openInboxTriage';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-}
+import { isTypingTarget } from '@/lib/isTypingTarget';
+import { escapeStack } from '@/app/escapeStack';
 
 /** Selection/stacking/trash/nudge/Rediscover/Favorite/Inbox-triage shortcuts that need the
  * engine and the library store — §2.2, §2.15. Kept separate from `useGlobalShortcuts` (which
@@ -35,6 +32,33 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * list (not just "new z value per selected item") that the engine doesn't track yet. Logged in
  * docs/DECISIONS.md; cheap to add once stacking order is exercised for real. */
 export function useCanvasShortcuts(engine: Engine | null, platform: Platform): void {
+  // Esc, when nothing is open (Patch 2 · C1): first cancel a pending pick or deselect a line,
+  // then clear the selection. Full screen is next in line (App.tsx, priority 30).
+  useEffect(() => {
+    if (!engine) return;
+    const removePick = escapeStack.addBase(10, () => {
+      if (engine.isPicking()) {
+        engine.cancelConnectPick();
+        engine.cancelPointPick();
+        return true;
+      }
+      if (engine.getSelectedConnectionPair()) {
+        engine.setSelectedConnectionPair(null);
+        return true;
+      }
+      return false;
+    });
+    const removeSelection = escapeStack.addBase(20, () => {
+      if (useLibraryStore.getState().selection.size === 0) return false;
+      useLibraryStore.getState().clearSelection();
+      return true;
+    });
+    return () => {
+      removePick();
+      removeSelection();
+    };
+  }, [engine]);
+
   useEffect(() => {
     if (!engine) return;
 
@@ -102,13 +126,6 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
         const { placements, items } = useLibraryStore.getState();
         const visibleIds = [...placements.keys()].filter((id) => !items.get(id)?.deletedAt);
         useLibraryStore.getState().setSelection(visibleIds);
-        return;
-      }
-
-      if (e.key === 'Escape') {
-        engine!.cancelConnectPick();
-        engine!.setSelectedConnectionPair(null);
-        useLibraryStore.getState().clearSelection();
         return;
       }
 

@@ -33,6 +33,7 @@ import { logger } from '@/lib/logger';
 import type { ContextMenuState } from './useContextMenu';
 import { contextMenuItemIds, type ContextMenuItemId } from './contextMenuItems';
 import type { Item } from '@/state/types';
+import { useEscape } from '@/app/useEscape';
 
 /** Right-click menu for a canvas item — §2.4. "Create board from selection" (M4-2) and, while
  * viewing a board, "Remove from board" (M4-3 — deletes only this board's placement, unlike Move
@@ -51,6 +52,7 @@ export function ContextMenu({
   platform: Platform;
   onClose: () => void;
 }) {
+  useEscape(true, onClose, { allowWhileTyping: true });
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   // Measured after the first render (hidden until then), so the menu flips and clamps to the window.

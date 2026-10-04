@@ -731,6 +731,11 @@ export class Engine {
     if (this.container) this.container.style.cursor = '';
   }
 
+  /** A connect pick or a point pick is waiting for a click (Esc cancels it). */
+  isPicking(): boolean {
+    return this.pickingConnectFrom !== null || this.pickingPoint !== null;
+  }
+
   getSelectedConnectionPair(): { fromId: string; toId: string } | null {
     return this.selectedConnectionPair;
   }

@@ -586,7 +586,7 @@ DECISIONS: "Frames removed (owner, Patch 2 D2). Existing frame rows stay in the 
 Library menu, a real Trash screen, visible favourites, and List tiles for every kind. Size: L. Version at the end:
 **0.11.0**. Mockups: `docs/patch-2/canvas.png`, `library-trash.png`.
 
-### C1 · One rule for Esc; Esc leaves full screen `[ ]`
+### C1 · One rule for Esc; Esc leaves full screen `[x]`
 **Why:** 13 separate Esc listeners run in no particular order (closing Settings also clears the selection), five overlays
 ignore Esc, and nothing leaves full screen.
 

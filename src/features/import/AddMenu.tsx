@@ -28,6 +28,8 @@ import {
   PDF_EXTENSIONS,
   VIDEO_EXTENSIONS,
 } from '@/lib/fileKinds';
+import { isTypingTarget } from '@/lib/isTypingTarget';
+import { useEscape } from '@/app/useEscape';
 
 // Windows pre-selects the first filter, so "All supported files" must come first.
 const MEDIA_FILTERS: FileFilter[] = [
@@ -46,6 +48,7 @@ export interface AddMenuProps {
 /** The dock's "+ Add" entry point (§2.3): Files…, Folder…, Paste. Ctrl+O opens Files… directly. */
 export function AddMenu({ platform, engine }: AddMenuProps) {
   const open = useAddMenuStore((s) => s.open);
+  useEscape(open, () => useAddMenuStore.getState().setOpen(false), { allowWhileTyping: true });
   const setOpen = useAddMenuStore((s) => s.setOpen);
   const [folderConfirm, setFolderConfirm] = useState<FolderConfirmState | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -177,12 +180,6 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
   }
 
   useEffect(() => {
-    function isTypingTarget(target: EventTarget | null): boolean {
-      if (!(target instanceof HTMLElement)) return false;
-      return (
-        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
-      );
-    }
     function onKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
         e.preventDefault();

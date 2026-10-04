@@ -16,6 +16,7 @@ import { colorAtUrl } from '@/lib/pickColor';
 import { logger } from '@/lib/logger';
 import { en } from '@/i18n/en';
 import { ColorWheel } from './ColorWheel';
+import { useEscape } from '@/app/useEscape';
 
 interface EyeDropperLike {
   open(): Promise<{ sRGBHex: string }>;
@@ -146,19 +147,14 @@ export function PaletteEditor({
     });
   }
 
-  // Esc cancels a pending pick.
+  // Esc cancels a pending pick (a layer on the Esc stack; typing in a field keeps its Esc).
+  useEscape(picking && !!engine, () => {
+    engine?.cancelPointPick();
+    setPicking(false);
+  });
   useEffect(() => {
     if (!picking || !engine) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      engine.cancelPointPick();
-      setPicking(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      engine.cancelPointPick();
-    };
+    return () => engine.cancelPointPick();
   }, [picking, engine]);
 
   function eyedropper(): void {

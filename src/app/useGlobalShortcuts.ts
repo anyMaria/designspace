@@ -6,11 +6,7 @@ import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import type { Platform } from '@/platform';
 import { toggleFullscreen } from './fullscreen';
 import { useOverviewStore } from '@/features/overview/overviewStore';
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-}
+import { isTypingTarget } from '@/lib/isTypingTarget';
 
 /** The single-key shortcuts from §2.15 that M0's shell already has UI for. The rest (search,
  * add, undo/redo, zoom-to-*…) land with the features that back them. */

@@ -169,6 +169,9 @@ export interface Platform {
   window: {
     isFullscreen(): Promise<boolean>;
     setFullscreen(on: boolean): Promise<void>;
+    /** Called whenever full screen turns on or off (also when the OS or the browser leaves it).
+     * Returns an unsubscribe function. */
+    onFullscreenChange(cb: (on: boolean) => void): () => void;
   };
 
   clipboard: {

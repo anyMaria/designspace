@@ -459,7 +459,7 @@ export const en = {
     selectAll: 'Select all',
     moveToTrash: 'Move to Trash',
     focusView: 'Focus view',
-    closeDeselect: 'Close · clear search · deselect',
+    escapeLadder: 'Close, deselect, then leave full screen',
     zoomToFit: 'Zoom to fit',
     zoomToSelection: 'Zoom to selection',
     zoomTo100: 'Zoom to 100%',
@@ -606,7 +606,7 @@ export const en = {
   fullscreen: {
     enter: 'Full screen',
     exit: 'Exit full screen',
-    hint: 'Full screen · press F11 to leave',
+    hint: 'Full screen · press Esc or F11 to leave',
     setting: 'Open in full screen',
   },
   palettes: {

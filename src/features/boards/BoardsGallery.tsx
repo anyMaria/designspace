@@ -16,6 +16,7 @@ import { switchSpace } from './switchSpace';
 import { IconButton, Button, EmptyState } from '@/design/components';
 import type { Board } from '@/state/types';
 import { en } from '@/i18n/en';
+import { useEscape } from '@/app/useEscape';
 
 /** The Boards gallery (§2.11): "All boards…" from the space switcher. Covers are a placeholder
  * tile (no thumbnail-compositing exists yet — real covers need the board canvas's own item
@@ -43,6 +44,9 @@ export function BoardsGallery({ platform }: { platform: Platform }) {
         .sort((a, b) => (b.deletedAt ?? '').localeCompare(a.deletedAt ?? '')),
     [boards],
   );
+
+  // Not while typing: the rename field keeps its own Esc.
+  useEscape(galleryOpen, () => useBoardUiStore.getState().closeGallery());
 
   if (!galleryOpen) return null;
 

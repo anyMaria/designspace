@@ -15,6 +15,7 @@ import {
 import { ChipInput, Chip, IconButton, Toggle, Button } from '@/design/components';
 import { en } from '@/i18n/en';
 import { useSuggestions } from '@/features/ai/useSuggestions';
+import { useEscape } from '@/app/useEscape';
 
 const NUMBER_KEY_COUNT = 9;
 
@@ -114,6 +115,8 @@ export function TriageView({ platform }: { platform: Platform }) {
       .execute(createSetItemFieldCommand(platform, currentId, 'favorite', !item.favorite));
   }
 
+  useEscape(isOpen, () => useTriageStore.getState().close());
+
   useEffect(() => {
     if (!isOpen) return;
     function onKeyDown(e: KeyboardEvent): void {
@@ -124,9 +127,7 @@ export function TriageView({ platform }: { platform: Platform }) {
         e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
       if (isTyping) return; // ChipInput owns Enter (add value) / Escape (leave field) while typing.
 
-      if (e.key === 'Escape') {
-        useTriageStore.getState().close();
-      } else if (e.key === 'Enter' || e.key === 'ArrowRight') {
+      if (e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault();
         useTriageStore.getState().next();
       } else if (e.key === 'ArrowLeft') {

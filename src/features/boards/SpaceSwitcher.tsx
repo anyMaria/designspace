@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import { useBoardStore } from '@/state/boardStore';
@@ -10,6 +10,7 @@ import { switchSpace } from './switchSpace';
 import { Popover, Menu } from '@/design/components';
 import { en } from '@/i18n/en';
 import type { MenuItem } from '@/design/components/Menu';
+import { useEscape } from '@/app/useEscape';
 
 const RECENT_BOARDS_LIMIT = 5;
 
@@ -41,17 +42,9 @@ export function SpaceSwitcher({
     [boards],
   );
 
-  useEffect(() => {
-    if (!switcherOpen) return;
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        useBoardUiStore.getState().closeSwitcher();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [switcherOpen]);
+  useEscape(switcherOpen, () => useBoardUiStore.getState().closeSwitcher(), {
+    allowWhileTyping: true,
+  });
 
   async function handleNewBoard(): Promise<void> {
     const { command, board } = createCreateBoardCommand(platform, en.boards.untitled);

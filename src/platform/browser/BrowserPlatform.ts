@@ -253,6 +253,11 @@ export class BrowserPlatform implements Platform {
         await document.exitFullscreen();
       }
     },
+    onFullscreenChange: (cb: (on: boolean) => void): (() => void) => {
+      const handler = () => cb(document.fullscreenElement !== null);
+      document.addEventListener('fullscreenchange', handler);
+      return () => document.removeEventListener('fullscreenchange', handler);
+    },
   };
 
   clipboard = {

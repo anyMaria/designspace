@@ -29,6 +29,9 @@ import { useReducedMotionSync } from '@/lib/useReducedMotionSync';
 import { DesignPage } from '@/design/DesignPage';
 import { Onboarding } from '@/features/onboarding/Onboarding';
 import { Shell } from './Shell';
+import { escapeStack, installEscapeListener } from './escapeStack';
+import { watchFullscreen } from './fullscreen';
+import { isTypingTarget } from '@/lib/isTypingTarget';
 import { requeueMissingThumbnails } from '@/workers/missingThumbnails';
 
 type BootState =
@@ -68,6 +71,26 @@ async function resumeAllIngest(platform: Platform): Promise<void> {
 export function App() {
   const [boot, setBoot] = useState<BootState>({ phase: 'loading' });
   useReducedMotionSync();
+
+  // One Esc listener for the whole app (Patch 2 · C1); layers and base handlers register on the stack.
+  useEffect(() => installEscapeListener(window, isTypingTarget), []);
+
+  // Full screen follows the window (the browser's own Esc leaves it too); with nothing else to
+  // close, Esc leaves it (the last base handler).
+  const platformForEsc = boot.phase === 'ready' ? boot.platform : null;
+  useEffect(() => {
+    if (!platformForEsc) return;
+    const unwatch = watchFullscreen(platformForEsc);
+    const removeBase = escapeStack.addBase(30, () => {
+      if (!useUiStore.getState().fullscreen) return false;
+      void setFullscreen(platformForEsc, false);
+      return true;
+    });
+    return () => {
+      unwatch();
+      removeBase();
+    };
+  }, [platformForEsc]);
 
   useEffect(() => {
     let cancelled = false;

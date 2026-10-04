@@ -16,6 +16,7 @@ import {
 } from '@/design/tokens';
 import { noteExtensions, emptyNoteBody } from '@/lib/noteText';
 import { en } from '@/i18n/en';
+import { useEscape } from '@/app/useEscape';
 
 /** §2.11 "TipTap editing in place (DOM overlay)" — a positioned `<div>` layered over the note's
  * current on-screen rect, tracked every frame via `engine.getScreenRect` (there's no
@@ -77,17 +78,7 @@ function NoteEditorInner({
     useNoteEditStore.getState().close();
   }
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        close();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `close` reads fresh state via getState()
-  }, []);
+  useEscape(true, close, { allowWhileTyping: true });
 
   function onDocumentMouseDown(e: MouseEvent): void {
     const target = e.target as Element;

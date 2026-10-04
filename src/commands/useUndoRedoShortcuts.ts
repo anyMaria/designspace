@@ -1,10 +1,6 @@
 import { useEffect } from 'react';
 import { useHistoryStore } from './history';
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-}
+import { isTypingTarget } from '@/lib/isTypingTarget';
 
 /** Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — §2.15. */
 export function useUndoRedoShortcuts() {

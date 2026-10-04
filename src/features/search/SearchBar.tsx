@@ -15,6 +15,7 @@ import type { Facet, ItemKind } from '@/state/types';
 import { useSearchResults } from './useSearchResults';
 import { Panel, SearchField, Chip, IconButton, Button, Tabs, Toggle } from '@/design/components';
 import { en } from '@/i18n/en';
+import { useEscape } from '@/app/useEscape';
 
 const KINDS: ItemKind[] = ['image', 'video', 'pdf', 'font', 'link', 'note', 'swatch'];
 const COLORS: ColorFamily[] = [
@@ -67,17 +68,9 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
     if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        useSearchStore.getState().closeOrClearText();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen]);
+  useEscape(isOpen, () => useSearchStore.getState().closeOrClearText(), {
+    allowWhileTyping: true,
+  });
 
   if (!isOpen) return null;
 

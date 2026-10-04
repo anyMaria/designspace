@@ -6,6 +6,7 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { useConnectionIndex } from './useConnectionIndex';
 import { Popover, Tabs } from '@/design/components';
 import { en } from '@/i18n/en';
+import { useEscape } from '@/app/useEscape';
 
 const LIMIT_HIT_DISPLAY_MS = 2500;
 
@@ -66,17 +67,7 @@ export function ConnectionsPopover() {
     return connectionSummary(visible, activeCriteria, index);
   }, [index, items, activeCriteria]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        useConnectionsUiStore.getState().close();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [isOpen]);
+  useEscape(isOpen, () => useConnectionsUiStore.getState().close(), { allowWhileTyping: true });
 
   useEffect(() => {
     if (limitHitAt === null) return;

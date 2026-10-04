@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Engine } from '@/canvas/Engine';
@@ -12,6 +12,7 @@ import { en } from '@/i18n/en';
 import { OverviewCanvas } from './OverviewCanvas';
 import { useOverviewData } from './useOverviewData';
 import { OVERVIEW_SPACING_MAX, OVERVIEW_SPACING_MIN, useOverviewStore } from './overviewStore';
+import { useEscape } from '@/app/useEscape';
 
 const CRITERION_LABEL: Record<Criterion, string> = {
   type: en.connections.criterionType,
@@ -44,20 +45,16 @@ export function OverviewOverlay({
   // The slider moves freely; the layout is only recomputed on release.
   const [spacingDraft, setSpacingDraft] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      e.stopPropagation();
-      // Esc steps back one level: first a clicked star, then the Overview itself.
+  // Esc steps back one level: first a clicked star, then the Overview itself.
+  useEscape(
+    open,
+    () => {
       const store = useOverviewStore.getState();
       if (store.focusHubKey) store.setFocusHubKey(null);
       else store.hide();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [open]);
+    },
+    { allowWhileTyping: true },
+  );
 
   if (!open) return null;
 

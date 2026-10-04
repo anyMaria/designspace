@@ -8,6 +8,7 @@ import { en } from '@/i18n/en';
 import { PdfFocusViewer } from './PdfFocusViewer';
 import { FontFocusViewer } from './FontFocusViewer';
 import { LinkFocusViewer } from './LinkFocusViewer';
+import { useEscape } from '@/app/useEscape';
 
 /** Full-window overlay for one image (§2.12). Simplifications logged in docs/DECISIONS.md: no
  * zoom/pan/fit-vs-1:1 toggle yet (the image is always letterboxed to fit), and no collapsible
@@ -37,9 +38,7 @@ export function FocusView({ platform }: { platform: Platform }) {
   useEffect(() => {
     if (!itemId) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        close();
-      } else if (e.key === 'ArrowLeft' && hasPrev) {
+      if (e.key === 'ArrowLeft' && hasPrev) {
         useFocusStore.getState().open(order[index - 1]);
       } else if (e.key === 'ArrowRight' && hasNext) {
         useFocusStore.getState().open(order[index + 1]);
@@ -48,6 +47,8 @@ export function FocusView({ platform }: { platform: Platform }) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [itemId, index, hasPrev, hasNext, order, close]);
+
+  useEscape(!!itemId, close, { allowWhileTyping: true });
 
   if (!itemId || !item) return null;
 
