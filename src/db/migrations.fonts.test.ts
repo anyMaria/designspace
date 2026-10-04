@@ -32,7 +32,8 @@ describe('migration 005 (fonts)', () => {
     expect(rows[0][1]).toBe('f1');
     expect(rows[0][2]).toBe('originals/f1.ttf');
     expect(rows[0][3]).toBe('Bold');
-    expect(JSON.parse(String(rows[0][4]))[0].tag).toBe('wght');
+    const axes = JSON.parse(String(rows[0][4])) as { tag: string }[];
+    expect(axes[0].tag).toBe('wght');
     // The new columns exist and start empty.
     const item = db.exec(
       "SELECT font_family_key, font_card, font_collection FROM items WHERE id='f1'",
