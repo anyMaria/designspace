@@ -18,7 +18,7 @@ test.describe('App shell (M0)', () => {
     await expect(page.getByText('Drop images anywhere')).toBeVisible();
 
     // The Pixi canvas mounted.
-    await expect(page.locator('canvas')).toBeVisible();
+    await expect(page.locator('canvas').first()).toBeVisible();
 
     expect(errors).toEqual([]);
   });
@@ -27,7 +27,7 @@ test.describe('App shell (M0)', () => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Hand tool' }).click();
 
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('canvas').first();
     const box = await canvas.boundingBox();
     if (!box) throw new Error('canvas has no bounding box');
     const cx = box.x + box.width / 2;
@@ -39,7 +39,7 @@ test.describe('App shell (M0)', () => {
     await page.mouse.up();
 
     // No crash, no console error, and the drag didn't leave the button stuck mid-press.
-    await expect(page.locator('canvas')).toBeVisible();
+    await expect(page.locator('canvas').first()).toBeVisible();
   });
 
   test('switches tools with the V/H shortcuts', async ({ page }) => {
@@ -65,7 +65,7 @@ test.describe('App shell (M0)', () => {
 
   test('renders 10,000 bench rectangles with culling (spike S1)', async ({ page }) => {
     await page.goto('/?bench=10000');
-    await expect(page.locator('canvas')).toBeVisible();
+    await expect(page.locator('canvas').first()).toBeVisible();
     // Give the culling pass a frame to run.
     await page.waitForTimeout(300);
   });

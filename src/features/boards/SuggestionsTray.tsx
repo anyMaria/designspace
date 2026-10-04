@@ -1,3 +1,4 @@
+import { thumbUrl } from '@/lib/thumbs';
 import { useMemo } from 'react';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
@@ -168,7 +169,11 @@ function SuggestionTile({
       >
         {item.status === 'ok' && (
           <img
-            src={platform.cache.url(`t128/${id}`)}
+            src={thumbUrl(
+              platform,
+              { id, thumbV: useLibraryStore.getState().items.get(id)?.thumbV },
+              128,
+            )}
             alt=""
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />

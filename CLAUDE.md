@@ -5,6 +5,7 @@ Designspace is a personal, local-first **Windows desktop app** for collecting vi
 ## Read first
 1. `docs/IMPLEMENTATION_PLAN.md`: the full spec, architecture, data model and milestones. **It is the source of truth.**
 2. `docs/DECISIONS.md`: decisions and deviations made during the build. Append to it (it's created in Milestone 0).
+3. `docs/PATCH_1_PLAN.md`: the current work (Patch 1, after the owner's review of v0.1.0). When a conversation is about Patch 1, follow it task by task.
 
 ## Stack
 Tauri 2 (Rust, WebView2) · React + TypeScript (strict) + Vite · Zustand · PixiJS 8 canvas · SQLite (rusqlite in Rust, sql.js in the browser dev build) · MiniSearch · d3-force · Transformers.js (CLIP, offline) · Vitest · Playwright.

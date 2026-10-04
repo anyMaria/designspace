@@ -171,7 +171,7 @@ export function SearchBar({ engine, platform }: { engine: Engine | null; platfor
             gap: 'var(--space-2)',
           }}
         >
-          <span style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>
+          <span style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)', minWidth: '14ch' }}>
             {en.search.count(matchedCount, total)}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>

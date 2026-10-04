@@ -56,6 +56,16 @@ describe('buildSearchIndex + text search', () => {
     expect(results.map((r) => String(r.id))).toEqual(['a']);
   });
 
+  it('finds an item by a word that is only in its description', () => {
+    const items = [
+      makeItem({ id: 'a', title: 'Poster', descriptionText: 'Warm autumn light on brick' }),
+      makeItem({ id: 'b', title: 'Other' }),
+    ];
+    const index = buildSearchIndex(items, new Map(), new Map());
+    expect(index.search('autumn').map((r) => String(r.id))).toEqual(['a']);
+    expect(index.search('dig-into').map((r) => String(r.id))).toEqual([]);
+  });
+
   it('matches the last token as a prefix', () => {
     const items = [makeItem({ id: 'a', title: 'Bauhaus Poster' })];
     const index = buildSearchIndex(items, new Map(), new Map());

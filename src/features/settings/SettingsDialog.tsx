@@ -6,6 +6,7 @@ import { en } from '@/i18n/en';
 import { formatBytes } from '@/lib/formatBytes';
 import { logger } from '@/lib/logger';
 import { DropInspector } from '@/features/diagnostics/DropInspector';
+import { MediaCheck } from '@/features/diagnostics/MediaCheck';
 import { loadLibraryStats, type LibraryStats } from './libraryStats';
 import { LibrarySection } from './LibrarySection';
 import { CanvasSection } from './CanvasSection';
@@ -54,7 +55,7 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
           ) : section === 'library' ? (
             <LibrarySection platform={platform} library={library} />
           ) : section === 'canvas' ? (
-            <CanvasSection />
+            <CanvasSection platform={platform} />
           ) : section === 'vocabularies' ? (
             <VocabularySection platform={platform} />
           ) : section === 'contentNetwork' ? (
@@ -125,6 +126,9 @@ function AboutSection({ platform, library }: { platform: Platform; library: Libr
             {en.settings.diagnostics.dropInspector}
           </h3>
           <DropInspector />
+          <div style={{ marginTop: 'var(--space-4)' }}>
+            <MediaCheck platform={platform} />
+          </div>
         </div>
       )}
     </div>

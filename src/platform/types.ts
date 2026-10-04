@@ -90,7 +90,8 @@ export interface Platform {
   cache: {
     put(key: string, bytes: Uint8Array): Promise<void>;
     has(keys: string[]): Promise<boolean[]>;
-    url(key: string): string;
+    /** `version` (an item's `thumbV`) is added to the URL so a re-made thumbnail never shows stale. */
+    url(key: string, version?: number): string;
     delete(keys: string[]): Promise<void>;
   };
 
@@ -145,6 +146,13 @@ export interface Platform {
   machineSettings: {
     read(): Promise<string | null>;
     write(json: string): Promise<void>;
+  };
+
+  /** Immersive full screen (Patch 1 · B1). In the browser it uses the Fullscreen API, which only
+   * works from a click or key press. */
+  window: {
+    isFullscreen(): Promise<boolean>;
+    setFullscreen(on: boolean): Promise<void>;
   };
 
   clipboard: {

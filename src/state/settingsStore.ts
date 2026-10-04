@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DEFAULT_PREVIEW_TEXT } from '@/lib/fontPreview';
 
 /** Library settings that live in `meta.settings` (JSON) — §7's "Library settings (vocabulary
  * order, default criteria, Offline mode) live in meta.settings". Only Offline mode is wired up
@@ -12,10 +13,13 @@ interface SettingsState {
   /** §5.4: an optional second folder (e.g. a OneDrive folder) that also receives a copy of every
    * backup. `null` means none configured. */
   backupExtraDestination: string | null;
+  /** The text every font card shows in its own font (Patch 1 · F2). */
+  fontPreviewText: string;
 }
 
 export const useSettingsStore = create<SettingsState>(() => ({
   offlineMode: false,
   aiEnabled: true,
   backupExtraDestination: null,
+  fontPreviewText: DEFAULT_PREVIEW_TEXT,
 }));

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { IngestQueue, type WorkerLike } from './ingestQueue';
+import { IngestQueue, resumePendingIngest, type WorkerLike } from './ingestQueue';
 import { useLibraryStore } from '@/state/libraryStore';
 import type { Platform } from '@/platform/types';
 import type { IngestResponse } from './ingest.worker';
@@ -56,6 +56,7 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue({
+      ok: true,
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
     }),
   );
@@ -185,5 +186,49 @@ describe('IngestQueue', () => {
     );
     queue.destroy();
     expect(workers.every((w) => w.terminated)).toBe(true);
+  });
+
+  it('marks the item failed when the original cannot be fetched', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, url: 'media://x' }));
+    const platform = makePlatform();
+    const queue = new IngestQueue(platform, () => new FakeWorker(), 1);
+
+    queue.enqueue([{ itemId: 'a', relPath: 'media/a.jpg', mime: 'image/jpeg' }]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(platform.db.execute).toHaveBeenCalledWith(expect.stringContaining("status = 'error'"), [
+      expect.any(String),
+      'a',
+    ]);
+  });
+});
+
+describe('resumePendingIngest', () => {
+  it('re-queues a failed link by its cover path (links share the image worker)', async () => {
+    const workers: FakeWorker[] = [];
+    vi.stubGlobal(
+      'Worker',
+      class {
+        constructor() {
+          const w = new FakeWorker();
+          workers.push(w);
+          return w;
+        }
+      },
+    );
+    const select = vi
+      .fn()
+      .mockResolvedValue([{ id: 'l1', file_path: 'media/2026/10/cover.jpg', mime: 'image/jpeg' }]);
+    const platform = makePlatform({ db: { select } as unknown as Platform['db'] });
+
+    const queued = await resumePendingIngest(platform);
+
+    expect(queued).toBe(1);
+    const sql = select.mock.calls[0]?.[0] as string;
+    expect(sql).toContain("kind = 'link' AND cover_path IS NOT NULL");
+    expect(sql).toContain('COALESCE(file_path, cover_path)');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(workers.flatMap((w) => w.posted)).toHaveLength(1);
   });
 });

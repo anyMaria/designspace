@@ -1,0 +1,1174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Patch 1 mockups</title>
+    <style>
+      @font-face {
+        font-family: 'Urbanist';
+        src: url('../../src/design/fonts/urbanist/Urbanist-VariableFont_wght.ttf')
+          format('truetype');
+        font-weight: 100 900;
+      }
+      :root {
+        --canvas: #1e1024;
+        --surface-1: #2a1832;
+        --surface-2: #33203d;
+        --surface-3: #3d2847;
+        --hairline: rgba(255, 255, 255, 0.08);
+        --text-1: #f4eef6;
+        --text-2: #c9bcd0;
+        --text-3: #9a8ba3;
+        --accent: #e9a845;
+        --on-accent: #2a1832;
+        --sage: #93b89d;
+        --blush: #f0b7b3;
+        --cream: #efe6d6;
+        --lavender: #b7a6e8;
+        --sky: #8cc6e6;
+        --dot: rgba(236, 222, 245, 0.16);
+        --shadow-float: 0 12px 32px rgba(8, 2, 12, 0.55), 0 2px 6px rgba(8, 2, 12, 0.4);
+        --shadow-card: 0 6px 18px rgba(6, 1, 10, 0.5);
+        --font: 'Urbanist', system-ui, sans-serif;
+        /* proposed note metrics (world units = px at 100% zoom) */
+        --note-pad: 16px;
+        --note-font: 18px;
+        --note-line: 30px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #120818;
+        font: 500 15px/1.4 var(--font);
+        color: var(--text-1);
+      }
+      section {
+        width: 1180px;
+        padding: 28px 32px 36px;
+        margin: 0 0 6px;
+        background-color: var(--canvas);
+        background-image: radial-gradient(var(--dot) 1.2px, transparent 1.6px);
+        background-size: 24px 24px;
+        position: relative;
+      }
+      h1 {
+        font: 700 22px var(--font);
+        margin: 0 0 4px;
+        letter-spacing: -0.01em;
+      }
+      .sub {
+        color: var(--text-2);
+        margin: 0 0 22px;
+        max-width: 900px;
+      }
+      .label {
+        font: 600 12px var(--font);
+        color: var(--text-3);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin: 0 0 10px;
+      }
+      .row {
+        display: flex;
+        gap: 40px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .cap {
+        color: var(--text-2);
+        font-size: 13px;
+        margin-top: 10px;
+        max-width: 300px;
+      }
+
+      /* "photos" */
+      .photo {
+        position: relative;
+        border-radius: 10px;
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        flex: none;
+      }
+      .p1 {
+        width: 300px;
+        height: 380px;
+        background: linear-gradient(160deg, #2b5876, #4e4376);
+      }
+      .p1::after {
+        content: '';
+        position: absolute;
+        left: 70px;
+        top: 120px;
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        background: #e9a845;
+      }
+      .p2 {
+        width: 260px;
+        height: 170px;
+        background: linear-gradient(120deg, #f6d365, #fda085);
+      }
+      .p3 {
+        width: 200px;
+        height: 250px;
+        background: linear-gradient(200deg, #84fab0, #8fd3f4);
+      }
+      .p4 {
+        width: 220px;
+        height: 150px;
+        background: linear-gradient(90deg, #a18cd1, #fbc2eb);
+      }
+      .p5 {
+        width: 180px;
+        height: 220px;
+        background: linear-gradient(30deg, #30cfd0, #330867);
+      }
+
+      /* ---------- Notes ---------- */
+      .note {
+        position: relative;
+        width: 280px;
+        min-height: 250px;
+        border-radius: 10px;
+        padding: var(--note-pad);
+        font: 500 var(--note-font)/var(--note-line) var(--font);
+        box-shadow: var(--shadow-card);
+        background-image:
+          repeating-linear-gradient(
+            to bottom,
+            transparent 0,
+            transparent calc(var(--note-line) - 1px),
+            var(--rule) calc(var(--note-line) - 1px),
+            var(--rule) var(--note-line)
+          ),
+          linear-gradient(var(--paper), var(--paper));
+        background-origin: content-box, border-box;
+        background-clip: content-box, border-box;
+      }
+      .note::before {
+        /* folded corner */
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 22px;
+        height: 22px;
+        background: linear-gradient(225deg, var(--canvas) 50%, var(--fold) 50%);
+        border-bottom-left-radius: 6px;
+      }
+      .note p {
+        margin: 0;
+      }
+      /* Hashtags: bold + colour only, no pill, so the editor (D2) and the map (D1) render them identically. */
+      .note .tag {
+        font-weight: 700;
+      }
+      .n-cream {
+        --paper: var(--cream);
+        color: #2a1832;
+        --rule: rgba(255, 255, 255, 0.95);
+        --fold: #d9cdb8;
+      }
+      .n-cream .tag {
+        color: #4b2580;
+      }
+      .n-ink {
+        --paper: #3a2546;
+        color: #f4eef6;
+        --rule: rgba(255, 255, 255, 0.16);
+        --fold: #5a4166;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .n-ink .tag {
+        color: #f2c27a;
+      }
+      .n-sage {
+        --paper: var(--sage);
+        color: #1e2a20;
+        --rule: rgba(255, 255, 255, 0.55);
+        --fold: #7a9c83;
+      }
+      .n-sage .tag {
+        color: #4b2580;
+      }
+      .n-ink-dark-rule {
+        --rule: rgba(42, 24, 50, 0.18);
+      }
+
+      /* ---------- Palettes ---------- */
+      .swatch-single {
+        width: 160px;
+        height: 160px;
+        border-radius: 16px;
+        position: relative;
+        box-shadow: var(--shadow-card);
+      }
+      .swatch-single span {
+        position: absolute;
+        left: 12px;
+        bottom: 10px;
+        font: 700 14px var(--font);
+      }
+      .palette {
+        width: 216px;
+        padding: 8px;
+        display: grid;
+        grid-template-columns: 96px 96px;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--hairline);
+        border-radius: 20px;
+        position: relative;
+      }
+      .palette .cell {
+        height: 96px;
+        border-radius: 12px;
+        position: relative;
+      }
+      .palette .cell span {
+        position: absolute;
+        left: 9px;
+        bottom: 7px;
+        font: 700 12px var(--font);
+      }
+      .pal-name {
+        font: 600 16px var(--font);
+        color: var(--text-1);
+        margin: 0 0 6px 2px;
+      }
+      .editor {
+        width: 330px;
+        background: var(--surface-1);
+        border-radius: 20px;
+        box-shadow: var(--shadow-float);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .field {
+        background: var(--surface-2);
+        border-radius: 14px;
+        padding: 9px 12px;
+        color: var(--text-1);
+        box-shadow:
+          inset 3px 3px 6px rgba(8, 2, 12, 0.5),
+          inset -2px -2px 5px rgba(255, 255, 255, 0.04);
+      }
+      .egrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .ecell {
+        height: 52px;
+        border-radius: 12px;
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        padding: 6px 8px;
+        font: 700 12px var(--font);
+      }
+      .ecell.sel {
+        outline: 2px solid var(--cream);
+        outline-offset: 2px;
+      }
+      .ecell .grip {
+        position: absolute;
+        right: 6px;
+        top: 5px;
+        opacity: 0.7;
+        font-size: 12px;
+        letter-spacing: -2px;
+      }
+      .ecell.ghost {
+        background: transparent !important;
+        border: 2px dashed rgba(255, 255, 255, 0.25);
+        color: var(--text-3);
+        align-items: center;
+        justify-content: center;
+      }
+      .wheelwrap {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+      }
+      .wheel {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        position: relative;
+        flex: none;
+        background:
+          radial-gradient(circle closest-side, #fff, rgba(255, 255, 255, 0)),
+          conic-gradient(from 90deg, red, yellow, lime, aqua, blue, magenta, red);
+      }
+      .wheel .dim {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: #000;
+        opacity: 0.12;
+      }
+      .wheel .knob {
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+        left: 104px;
+        top: 38px;
+        background: #c85a8a;
+      }
+      .vslider {
+        width: 14px;
+        height: 150px;
+        border-radius: 999px;
+        background: linear-gradient(#c85a8a, #000);
+        position: relative;
+        flex: none;
+      }
+      .vslider i {
+        position: absolute;
+        left: -3px;
+        width: 20px;
+        height: 8px;
+        border-radius: 4px;
+        background: #fff;
+        top: 18px;
+      }
+      .hsv {
+        display: grid;
+        grid-template-columns: 14px 1fr 40px;
+        gap: 6px 8px;
+        align-items: center;
+        font-size: 13px;
+        color: var(--text-2);
+        flex: 1;
+      }
+      .track {
+        height: 6px;
+        border-radius: 999px;
+        position: relative;
+      }
+      .track i {
+        position: absolute;
+        top: -4px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+      }
+      .btnrow {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .chipbtn {
+        background: var(--surface-2);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font: 600 13px var(--font);
+        color: var(--text-1);
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .chipbtn.primary {
+        background: var(--accent);
+        color: var(--on-accent);
+      }
+
+      /* ---------- Description bubble ---------- */
+      .stage {
+        position: relative;
+        height: 470px;
+      }
+      .bubble {
+        position: absolute;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--surface-1);
+        box-shadow: var(--shadow-float);
+        display: grid;
+        place-items: center;
+      }
+      .desc {
+        position: absolute;
+        background: var(--surface-1);
+        border-radius: 20px;
+        box-shadow: var(--shadow-float);
+        padding: 18px 18px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .desc h3 {
+        margin: 0;
+        font: 700 17px var(--font);
+      }
+      .desc .body {
+        color: var(--text-1);
+        font-size: 15px;
+        line-height: 1.5;
+        overflow: hidden;
+      }
+      .desc .body h4 {
+        margin: 6px 0 2px;
+        font: 700 15px var(--font);
+        color: var(--text-1);
+      }
+      .desc .body ul {
+        margin: 4px 0;
+        padding-left: 18px;
+      }
+      .desc .body .tag {
+        color: #f2c27a;
+        font-weight: 700;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        border-top: 1px solid var(--hairline);
+        padding-top: 10px;
+      }
+      .chip {
+        font: 600 12px var(--font);
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--surface-2);
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .chip i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .namepill {
+        position: absolute;
+        transform: translateX(-50%);
+        background: rgba(42, 24, 50, 0.92);
+        border: 1px solid var(--hairline);
+        color: var(--text-1);
+        font: 600 13px var(--font);
+        padding: 5px 12px;
+        border-radius: 999px;
+        white-space: nowrap;
+        box-shadow: var(--shadow-float);
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* ---------- Lines ---------- */
+      .linestage {
+        position: relative;
+        width: 540px;
+        height: 330px;
+        border-radius: 16px;
+        border: 1px solid var(--hairline);
+      }
+      .linestage svg {
+        position: absolute;
+        inset: 0;
+      }
+      .ls-item {
+        position: absolute;
+        border-radius: 10px;
+        box-shadow: var(--shadow-card);
+      }
+
+      /* ---------- Minimap / overview ---------- */
+      .minimap {
+        width: 240px;
+        height: 160px;
+        border-radius: 20px;
+        background: var(--surface-1);
+        box-shadow: var(--shadow-float);
+        position: relative;
+        overflow: hidden;
+      }
+      .minimap svg {
+        position: absolute;
+        inset: 0;
+      }
+      .mmbtn {
+        position: absolute;
+        right: 8px;
+        top: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--surface-2);
+        display: grid;
+        place-items: center;
+      }
+      .overview {
+        width: 1116px;
+        height: 560px;
+        border-radius: 28px;
+        background: #160b1b;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--hairline);
+      }
+      .overview svg {
+        position: absolute;
+        inset: 0;
+      }
+      .ovbar {
+        position: absolute;
+        left: 50%;
+        top: 16px;
+        transform: translateX(-50%);
+        background: var(--surface-1);
+        border-radius: 999px;
+        padding: 6px;
+        display: flex;
+        gap: 6px;
+        box-shadow: var(--shadow-float);
+        align-items: center;
+      }
+      .seg {
+        padding: 6px 14px;
+        border-radius: 999px;
+        font: 600 13px var(--font);
+        color: var(--text-2);
+      }
+      .seg.on {
+        background: var(--surface-3);
+        color: var(--text-1);
+      }
+      .legend {
+        position: absolute;
+        left: 16px;
+        bottom: 16px;
+        background: var(--surface-1);
+        border-radius: 16px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--text-2);
+      }
+      .legend span {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .legend i {
+        width: 18px;
+        height: 2px;
+        display: inline-block;
+        border-radius: 2px;
+      }
+      .ovclose {
+        position: absolute;
+        right: 16px;
+        top: 16px;
+      }
+      .ovhint {
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        color: var(--text-3);
+        font-size: 13px;
+        background: var(--surface-1);
+        padding: 8px 12px;
+        border-radius: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ======================= NOTES ======================= -->
+    <section id="notes">
+      <h1>Notes look like notebook paper</h1>
+      <p class="sub">
+        Ruled lines sit under every line of text (same rhythm in the editor and on the map), a
+        folded corner marks "this is a note, not an imported file", and <b>#actions</b> are
+        highlighted. Right: an imported photo for contrast.
+      </p>
+      <div class="row">
+        <div>
+          <div class="label">Cream · white lines</div>
+          <div class="note n-cream">
+            <p>Dig into the Bauhaus poster grid <span class="tag">#dig-into</span></p>
+            <p>Albers colour studies for the spring board</p>
+            <p><span class="tag">#research</span></p>
+          </div>
+        </div>
+        <div>
+          <div class="label">Ink (dark) · white lines</div>
+          <div class="note n-ink">
+            <p>Ask Léa about the risograph print shop <span class="tag">#ask</span></p>
+            <p>Type pairing: Urbanist + a serif?</p>
+            <p><span class="tag">#dig-into</span></p>
+          </div>
+        </div>
+        <div>
+          <div class="label">Sage · white lines</div>
+          <div class="note n-sage">
+            <p>Mood: soft, sunny, slow mornings</p>
+            <p>Find more film stills like this <span class="tag">#find-more</span></p>
+          </div>
+        </div>
+        <div>
+          <div class="label">Imported photo</div>
+          <div class="photo p1"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= PALETTES ======================= -->
+    <section id="palettes">
+      <h1>Swatches grow into palettes</h1>
+      <p class="sub">
+        One color is a swatch. Add a second color and it becomes a palette: rounded squares in two
+        columns that move as one card. Double-click to edit: reorder by dragging, pick from a photo
+        with the eyedropper, adjust with the wheel (hue + saturation) and the brightness slider, or
+        type a hex code.
+      </p>
+      <div class="row">
+        <div>
+          <div class="label">Swatch (1 color)</div>
+          <div class="swatch-single" style="background: #c85a8a">
+            <span style="color: #fff">#C85A8A</span>
+          </div>
+        </div>
+        <div>
+          <div class="label">Palette (6 colors)</div>
+          <div class="pal-name">Spring campaign</div>
+          <div class="palette">
+            <div class="cell" style="background: #c85a8a">
+              <span style="color: #fff">#C85A8A</span>
+            </div>
+            <div class="cell" style="background: #f0b7b3">
+              <span style="color: #2a1832">#F0B7B3</span>
+            </div>
+            <div class="cell" style="background: #efe6d6">
+              <span style="color: #2a1832">#EFE6D6</span>
+            </div>
+            <div class="cell" style="background: #93b89d">
+              <span style="color: #1e2a20">#93B89D</span>
+            </div>
+            <div class="cell" style="background: #2b5876">
+              <span style="color: #fff">#2B5876</span>
+            </div>
+            <div class="cell" style="background: #e9a845">
+              <span style="color: #2a1832">#E9A845</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="label">Palette editor (double-click)</div>
+          <div class="editor">
+            <div class="field">Spring campaign</div>
+            <div class="egrid">
+              <div class="ecell sel" style="background: #c85a8a; color: #fff">
+                #C85A8A<span class="grip">⋮⋮</span>
+              </div>
+              <div class="ecell" style="background: #f0b7b3; color: #2a1832">
+                #F0B7B3<span class="grip">⋮⋮</span>
+              </div>
+              <div class="ecell" style="background: #efe6d6; color: #2a1832">
+                #EFE6D6<span class="grip">⋮⋮</span>
+              </div>
+              <div class="ecell" style="background: #93b89d; color: #1e2a20">
+                #93B89D<span class="grip">⋮⋮</span>
+              </div>
+              <div class="ecell" style="background: #2b5876; color: #fff">
+                #2B5876<span class="grip">⋮⋮</span>
+              </div>
+              <div class="ecell" style="background: #e9a845; color: #2a1832">
+                #E9A845<span class="grip">⋮⋮</span>
+              </div>
+              <div class="ecell ghost">+ Add color</div>
+            </div>
+            <div class="wheelwrap">
+              <div class="wheel">
+                <div class="dim"></div>
+                <div class="knob"></div>
+              </div>
+              <div class="vslider"><i></i></div>
+              <div class="hsv">
+                <span>H</span>
+                <div
+                  class="track"
+                  style="
+                    background: linear-gradient(90deg, red, yellow, lime, aqua, blue, magenta, red);
+                  "
+                >
+                  <i style="left: 86%"></i>
+                </div>
+                <span>330°</span> <span>S</span>
+                <div class="track" style="background: linear-gradient(90deg, #fff, #c8216e)">
+                  <i style="left: 52%"></i>
+                </div>
+                <span>55%</span> <span>V</span>
+                <div class="track" style="background: linear-gradient(90deg, #000, #c85a8a)">
+                  <i style="left: 74%"></i>
+                </div>
+                <span>78%</span>
+              </div>
+            </div>
+            <div class="field">#C85A8A</div>
+            <div class="btnrow">
+              <span class="chipbtn">Eyedropper</span><span class="chipbtn">From selected photo</span
+              ><span class="chipbtn">Remove</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= DESCRIPTION BUBBLE ======================= -->
+    <section id="bubble">
+      <h1>Hover a photo → name below, thought bubble at the top-right</h1>
+      <p class="sub">
+        The name appears under the item after a short hover. The bubble sits just outside the
+        top-right corner (three dots = it already has a description). Click it and it opens into a
+        panel as tall as the photo (min 320 px wide), with the long description and a summary of the
+        details.
+      </p>
+      <div class="stage">
+        <!-- left: hover state -->
+        <div class="photo p1" style="position: absolute; left: 0; top: 30px"></div>
+        <div class="bubble" style="left: 304px; top: 6px">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#F4EEF6"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M8.5 15.5h9a3.5 3.5 0 0 0 .5-6.96A5 5 0 0 0 8.4 7.1 4.25 4.25 0 0 0 8.5 15.5Z"
+            />
+            <circle cx="5.2" cy="18.6" r="1.5" />
+            <circle cx="2.6" cy="21.6" r="0.9" />
+            <circle cx="10.6" cy="11.6" r="0.5" fill="#F4EEF6" />
+            <circle cx="13.4" cy="11.6" r="0.5" fill="#F4EEF6" />
+            <circle cx="16.2" cy="11.6" r="0.5" fill="#F4EEF6" />
+          </svg>
+        </div>
+        <div class="namepill" style="left: 150px; top: 422px">Bauhaus exhibition poster, 1923</div>
+
+        <!-- right: open state -->
+        <div class="photo p1" style="position: absolute; left: 470px; top: 30px"></div>
+        <div
+          class="bubble"
+          style="left: 774px; top: 6px; outline: 2px solid var(--accent); outline-offset: 2px"
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#F4EEF6"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M8.5 15.5h9a3.5 3.5 0 0 0 .5-6.96A5 5 0 0 0 8.4 7.1 4.25 4.25 0 0 0 8.5 15.5Z"
+            />
+            <circle cx="5.2" cy="18.6" r="1.5" />
+            <circle cx="2.6" cy="21.6" r="0.9" />
+            <circle cx="10.6" cy="11.6" r="0.5" fill="#F4EEF6" />
+            <circle cx="13.4" cy="11.6" r="0.5" fill="#F4EEF6" />
+            <circle cx="16.2" cy="11.6" r="0.5" fill="#F4EEF6" />
+          </svg>
+        </div>
+        <div class="desc" style="left: 784px; top: 30px; width: 340px; height: 380px">
+          <h3>Bauhaus exhibition poster, 1923</h3>
+          <div class="body">
+            <h4>Why it matters</h4>
+            Joost Schmidt's poster for the first Bauhaus exhibition: the grid is built from the
+            circle and the square. <span class="tag">#dig-into</span>
+            <h4>Things to notice</h4>
+            <ul>
+              <li>Only three colours plus black</li>
+              <li>Type set vertically along the edge</li>
+              <li>Circle overlaps the grid on purpose</li>
+            </ul>
+          </div>
+          <div class="chips">
+            <span class="chip"><i style="background: var(--accent)"></i>Poster</span>
+            <span class="chip"><i style="background: var(--blush)"></i>Bold</span>
+            <span class="chip"><i style="background: var(--cream)"></i>Bauhaus</span>
+            <span class="chip"><i style="background: var(--sage)"></i>grid</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= LINES ======================= -->
+    <section id="lines">
+      <h1>Connection lines stop at the edges, never cross the pictures</h1>
+      <p class="sub">
+        Each line is cut where it meets the edge of each picture (on the side facing the other
+        item), with a 6 px gap, so nothing is drawn across the pictures and lines fan out naturally.
+        Parallel lines (one per shared criterion) stay side by side.
+      </p>
+      <div class="row">
+        <div>
+          <div class="label">Today: centre to centre</div>
+          <div class="linestage">
+            <div
+              class="ls-item p2"
+              style="left: 30px; top: 40px; width: 180px; height: 120px"
+            ></div>
+            <div
+              class="ls-item p3"
+              style="left: 330px; top: 24px; width: 150px; height: 180px"
+            ></div>
+            <div
+              class="ls-item p4"
+              style="left: 200px; top: 220px; width: 160px; height: 96px"
+            ></div>
+            <svg viewBox="0 0 540 330">
+              <line
+                x1="120"
+                y1="100"
+                x2="405"
+                y2="114"
+                stroke="#f0b7b3"
+                stroke-width="1.5"
+                opacity="0.8"
+              />
+              <line
+                x1="120"
+                y1="104"
+                x2="405"
+                y2="118"
+                stroke="#93b89d"
+                stroke-width="1.5"
+                opacity="0.8"
+              />
+              <line
+                x1="120"
+                y1="100"
+                x2="280"
+                y2="268"
+                stroke="#f0b7b3"
+                stroke-width="1.5"
+                opacity="0.8"
+              />
+              <line
+                x1="405"
+                y1="114"
+                x2="280"
+                y2="268"
+                stroke="#ffffff"
+                stroke-width="2"
+                opacity="0.9"
+              />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <div class="label">Proposed: lines stop at the edges</div>
+          <div class="linestage">
+            <div
+              class="ls-item p2"
+              style="left: 30px; top: 40px; width: 180px; height: 120px"
+            ></div>
+            <div
+              class="ls-item p3"
+              style="left: 330px; top: 24px; width: 150px; height: 180px"
+            ></div>
+            <div
+              class="ls-item p4"
+              style="left: 200px; top: 220px; width: 160px; height: 96px"
+            ></div>
+            <svg viewBox="0 0 540 330">
+              <!-- A-B: two criteria = two parallel lines, 4px apart -->
+              <line
+                x1="216"
+                y1="102.6"
+                x2="324"
+                y2="108"
+                stroke="#f0b7b3"
+                stroke-width="1.5"
+                opacity="0.8"
+              />
+              <line
+                x1="216"
+                y1="106.6"
+                x2="324"
+                y2="112"
+                stroke="#93b89d"
+                stroke-width="1.5"
+                opacity="0.8"
+              />
+              <!-- A-C -->
+              <line
+                x1="181.3"
+                y1="164.3"
+                x2="230.2"
+                y2="215.7"
+                stroke="#f0b7b3"
+                stroke-width="1.5"
+                opacity="0.8"
+              />
+              <!-- B-C manual connection -->
+              <line
+                x1="328.2"
+                y1="208.7"
+                x2="322.8"
+                y2="215.3"
+                stroke="#ffffff"
+                stroke-width="2"
+                opacity="0.9"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= MINIMAP + OVERVIEW ======================= -->
+    <section id="maps">
+      <h1>Minimap with connections → double-click for the Overview</h1>
+      <p class="sub">
+        The minimap shows items as tiny coloured shapes and draws My connections plus the lines of
+        whatever you hover or select. Double-click it (or press O) to open the Overview: the whole
+        space at a glance, every item as a tiny thumbnail, every connection drawn (shared values
+        meet at labelled stars, like tags in Obsidian). Double-click any item to jump to it on the
+        real map.
+      </p>
+      <div class="row" style="gap: 28px">
+        <div>
+          <div class="label">Minimap</div>
+          <div class="minimap">
+            <svg viewBox="0 0 240 160">
+              <g opacity="0.95">
+                <rect x="30" y="34" width="14" height="18" rx="2" fill="#4e4376" />
+                <rect x="52" y="30" width="20" height="13" rx="2" fill="#fda085" />
+                <rect x="80" y="40" width="12" height="15" rx="2" fill="#8fd3f4" />
+                <rect x="40" y="70" width="18" height="12" rx="2" fill="#a18cd1" />
+                <rect x="70" y="66" width="13" height="16" rx="2" fill="#30cfd0" />
+                <rect x="120" y="36" width="16" height="20" rx="2" fill="#e9a845" />
+                <rect x="146" y="44" width="20" height="13" rx="2" fill="#93b89d" />
+                <rect x="124" y="74" width="14" height="14" rx="2" fill="#c85a8a" />
+                <rect x="160" y="80" width="18" height="12" rx="2" fill="#efe6d6" />
+                <rect x="96" y="102" width="16" height="20" rx="2" fill="#2b5876" />
+                <rect x="182" y="100" width="12" height="16" rx="2" fill="#f0b7b3" />
+                <rect x="58" y="108" width="20" height="13" rx="2" fill="#84fab0" />
+              </g>
+              <g stroke-width="1.2" opacity="0.9">
+                <line x1="44" y1="43" x2="120" y2="46" stroke="#ffffff" />
+                <line x1="136" y1="81" x2="160" y2="86" stroke="#ffffff" />
+                <line x1="72" y1="36" x2="146" y2="50" stroke="#f0b7b3" />
+                <line x1="72" y1="36" x2="124" y2="81" stroke="#f0b7b3" />
+                <line x1="72" y1="36" x2="58" y2="114" stroke="#93b89d" />
+              </g>
+              <rect
+                x="22"
+                y="22"
+                width="110"
+                height="72"
+                fill="none"
+                stroke="#e9a845"
+                stroke-width="1.2"
+                rx="3"
+              />
+            </svg>
+            <div class="mmbtn">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#F4EEF6"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+            </div>
+          </div>
+          <p class="cap">Expand button (top-right) or double-click opens the Overview.</p>
+        </div>
+        <div>
+          <div class="label">Overview (full window)</div>
+          <div class="overview" style="width: 820px; height: 500px">
+            <svg viewBox="0 0 820 500" id="ov"></svg>
+            <div class="ovbar">
+              <span class="seg on">My layout</span><span class="seg">Clusters</span
+              ><span style="width: 1px; height: 18px; background: var(--hairline)"></span
+              ><span class="seg">Thumbnails</span><span class="seg">Dots</span>
+            </div>
+            <div
+              class="ovclose bubble"
+              style="position: absolute; right: 16px; top: 16px; left: auto"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#F4EEF6"
+                stroke-width="2"
+                stroke-linecap="round"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </div>
+            <div class="legend">
+              <span><i style="background: #f0b7b3"></i>Vibe</span
+              ><span><i style="background: #93b89d"></i>Tags</span
+              ><span><i style="background: #fff"></i>My connections</span>
+            </div>
+            <div class="ovhint">Double-click an item to go to it · Esc to close</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      // Procedural overview graph (deterministic) — hubs + item thumbnails + edges.
+      const svg = document.getElementById('ov');
+      let seed = 7;
+      const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const hubs = [
+        { x: 250, y: 190, label: 'DREAMY', c: '#f0b7b3' },
+        { x: 560, y: 170, label: 'BAUHAUS', c: '#efe6d6' },
+        { x: 420, y: 340, label: 'GRAIN', c: '#93b89d' },
+        { x: 640, y: 360, label: 'BOLD', c: '#f0b7b3' },
+      ];
+      const colors = [
+        '#4e4376',
+        '#fda085',
+        '#8fd3f4',
+        '#a18cd1',
+        '#30cfd0',
+        '#e9a845',
+        '#93b89d',
+        '#c85a8a',
+        '#2b5876',
+        '#f6d365',
+        '#84fab0',
+        '#fbc2eb',
+      ];
+      const ns = 'http://www.w3.org/2000/svg';
+      const items = [];
+      hubs.forEach((h, hi) => {
+        const n = 9 + (hi % 2) * 4;
+        for (let i = 0; i < n; i++) {
+          const a = rnd() * Math.PI * 2,
+            r = 40 + rnd() * 70;
+          items.push({
+            x: h.x + Math.cos(a) * r,
+            y: h.y + Math.sin(a) * r,
+            hubs: [hi],
+            c: colors[(i + hi * 3) % colors.length],
+          });
+        }
+      });
+      for (let i = 0; i < 6; i++) {
+        const a = items[Math.floor(rnd() * items.length)];
+        a.hubs.push((a.hubs[0] + 1 + Math.floor(rnd() * 3)) % 4);
+      }
+      const g = (tag, attrs) => {
+        const el = document.createElementNS(ns, tag);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        svg.appendChild(el);
+        return el;
+      };
+      items.forEach((it) =>
+        it.hubs.forEach((hi) =>
+          g('line', {
+            x1: it.x,
+            y1: it.y,
+            x2: hubs[hi].x,
+            y2: hubs[hi].y,
+            stroke: hubs[hi].c,
+            'stroke-width': 1,
+            opacity: 0.35,
+          }),
+        ),
+      );
+      g('line', {
+        x1: items[2].x,
+        y1: items[2].y,
+        x2: items[30].x,
+        y2: items[30].y,
+        stroke: '#fff',
+        'stroke-width': 1.5,
+        opacity: 0.9,
+      });
+      g('line', {
+        x1: items[12].x,
+        y1: items[12].y,
+        x2: items[40].x,
+        y2: items[40].y,
+        stroke: '#fff',
+        'stroke-width': 1.5,
+        opacity: 0.9,
+      });
+      items.forEach((it, i) => {
+        const w = 12 + (i % 3) * 3,
+          h = 16 - (i % 2) * 4;
+        g('rect', { x: it.x - w / 2, y: it.y - h / 2, width: w, height: h, rx: 2, fill: it.c });
+      });
+      hubs.forEach((h) => {
+        g('circle', { cx: h.x, cy: h.y, r: 15, fill: h.c, opacity: 0.18 });
+        const pts = [];
+        for (let k = 0; k < 10; k++) {
+          const r = k % 2 ? 4 : 9;
+          const a = -Math.PI / 2 + (k * Math.PI) / 5;
+          pts.push(`${h.x + Math.cos(a) * r},${h.y + Math.sin(a) * r}`);
+        }
+        g('polygon', { points: pts.join(' '), fill: h.c });
+        const t = g('text', {
+          x: h.x,
+          y: h.y + 26,
+          fill: '#f4eef6',
+          'text-anchor': 'middle',
+          'font-size': 11,
+          'font-weight': 700,
+          'letter-spacing': '0.06em',
+          'font-family': 'Urbanist',
+        });
+        t.textContent = h.label;
+      });
+      // hovered item highlight
+      const hv = items[5];
+      g('rect', {
+        x: hv.x - 16,
+        y: hv.y - 20,
+        width: 32,
+        height: 40,
+        rx: 4,
+        fill: hv.c,
+        stroke: '#efe6d6',
+        'stroke-width': 2,
+      });
+      const lbl = g('text', {
+        x: hv.x,
+        y: hv.y + 36,
+        fill: '#f4eef6',
+        'text-anchor': 'middle',
+        'font-size': 12,
+        'font-weight': 600,
+        'font-family': 'Urbanist',
+      });
+      lbl.textContent = 'Soft film still';
+    </script>
+  </body>
+</html>

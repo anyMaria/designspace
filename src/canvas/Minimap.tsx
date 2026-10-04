@@ -1,58 +1,119 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Maximize2 } from 'lucide-react';
 import { useLibraryStore } from '@/state/libraryStore';
+import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
+import { useOverviewStore } from '@/features/overview/overviewStore';
+import { colors } from '@/design/tokens';
+import { itemColorOf } from '@/lib/itemColor';
 import { unionRects } from '@/lib/geometry';
 import { en } from '@/i18n/en';
 import type { Engine } from './Engine';
 import { useCameraState } from './useCameraState';
+import { drawMinimap, fitMinimap, minimapToWorld, type MinimapScene } from './minimapDraw';
 
-const MAP_W = 160;
-const MAP_H = 110;
+const MAP_W = 240;
+const MAP_H = 160;
 const PAD = 20; // world-bounds padding so the viewport rect never touches the edge
 
-/** Every item as a dot plus the viewport rectangle; click or drag to navigate (§2.1, M key). */
+/** Items with their real shape and colour, My connections, the hover/selection lines and the
+ * viewport rectangle on one canvas; click or drag to navigate, double-click or the expand button
+ * opens the Overview (§2.1, M key; Patch 1 · G1). */
 export function Minimap({ engine }: { engine: Engine | null }) {
   const placements = useLibraryStore((s) => s.placements);
+  const items = useLibraryStore((s) => s.items);
+  const manual = useManualConnectionsStore((s) => s.connections);
   const camera = useCameraState(engine);
+  const [hoverLines, setHoverLines] = useState<{ fromId: string; toId: string; color: number }[]>(
+    [],
+  );
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const draggingRef = useRef(false);
+  const transformRef = useRef(fitMinimap({ x: 0, y: 0, w: 1000, h: 1000 }, MAP_W, MAP_H, PAD));
 
-  const rects = [...placements.values()].map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h }));
-  const bounds = unionRects(rects);
-  const viewport = engine?.viewportSize() ?? { w: 0, h: 0 };
+  useEffect(() => {
+    if (!engine) return;
+    // Coalesced to one animation frame, and an empty → empty change is ignored: the engine
+    // re-emits on every store change, and a synchronous setState from there loops with the
+    // binding that calls `setConnections`.
+    let raf = 0;
+    let latest: { fromId: string; toId: string; color: number }[] = [];
+    const off = engine.on('connectionsChanged', (lines) => {
+      latest = lines;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setHoverLines((prev) => (prev.length === 0 && latest.length === 0 ? prev : latest));
+      });
+    });
+    return () => {
+      off();
+      cancelAnimationFrame(raf);
+    };
+  }, [engine]);
 
-  // World bounds cover every item and the current viewport, so panning never falls outside the map.
-  const viewportRect = camera
-    ? {
-        x: camera.x - viewport.w / 2 / camera.zoom,
-        y: camera.y - viewport.h / 2 / camera.zoom,
-        w: viewport.w / camera.zoom,
-        h: viewport.h / camera.zoom,
+  // One repaint per change, coalesced to one animation frame.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const frame = requestAnimationFrame(() => {
+      const dpr = window.devicePixelRatio || 1;
+      if (canvas.width !== MAP_W * dpr) {
+        canvas.width = MAP_W * dpr;
+        canvas.height = MAP_H * dpr;
       }
-    : null;
-  const worldBounds = unionRects([
-    ...(bounds ? [bounds] : []),
-    ...(viewportRect ? [viewportRect] : []),
-  ]) ?? {
-    x: -500,
-    y: -500,
-    w: 1000,
-    h: 1000,
-  };
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, MAP_W, MAP_H);
 
-  const scale = Math.min(MAP_W / (worldBounds.w + PAD * 2), MAP_H / (worldBounds.h + PAD * 2));
-  const originX = worldBounds.x - PAD;
-  const originY = worldBounds.y - PAD;
+      const viewportSize = engine?.viewportSize() ?? { w: 0, h: 0 };
+      const viewport = camera
+        ? {
+            x: camera.x - viewportSize.w / 2 / camera.zoom,
+            y: camera.y - viewportSize.h / 2 / camera.zoom,
+            w: viewportSize.w / camera.zoom,
+            h: viewportSize.h / camera.zoom,
+          }
+        : null;
+      const rects = [...placements.values()].map((p) => ({
+        x: p.x,
+        y: p.y,
+        w: p.w,
+        h: p.h,
+        color: itemColorOf(items.get(p.itemId)),
+      }));
+      const world = unionRects([...rects, ...(viewport ? [viewport] : [])]) ?? {
+        x: -500,
+        y: -500,
+        w: 1000,
+        h: 1000,
+      };
+      const t = fitMinimap(world, MAP_W, MAP_H, PAD);
+      transformRef.current = t;
 
-  function toMap(wx: number, wy: number): { x: number; y: number } {
-    return { x: (wx - originX) * scale, y: (wy - originY) * scale };
-  }
-
-  function toWorld(mx: number, my: number): { x: number; y: number } {
-    return { x: mx / scale + originX, y: my / scale + originY };
-  }
+      const centre = (id: string) => {
+        const p = placements.get(id);
+        return p ? { x: p.x + p.w / 2, y: p.y + p.h / 2 } : null;
+      };
+      const scene: MinimapScene = { rects, manualLines: [], hoverLines: [], viewport };
+      for (const c of manual.values()) {
+        const a = centre(c.fromId);
+        const b = centre(c.toId);
+        if (a && b) scene.manualLines.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y });
+      }
+      for (const l of hoverLines) {
+        const a = centre(l.fromId);
+        const b = centre(l.toId);
+        if (a && b) scene.hoverLines.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, color: l.color });
+      }
+      drawMinimap(ctx, t, scene, `#${colors.accent.toString(16).padStart(6, '0')}`);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [engine, camera, placements, items, manual, hoverLines]);
 
   function navigate(e: React.PointerEvent<HTMLDivElement>): void {
     const rect = e.currentTarget.getBoundingClientRect();
-    const world = toWorld(e.clientX - rect.left, e.clientY - rect.top);
+    const world = minimapToWorld(transformRef.current, e.clientX - rect.left, e.clientY - rect.top);
     engine?.panTo(world.x, world.y);
   }
 
@@ -60,6 +121,7 @@ export function Minimap({ engine }: { engine: Engine | null }) {
     <div
       role="img"
       aria-label={en.minimap.label}
+      data-testid="minimap"
       style={{
         position: 'relative',
         width: MAP_W,
@@ -69,6 +131,7 @@ export function Minimap({ engine }: { engine: Engine | null }) {
         cursor: 'crosshair',
       }}
       onPointerDown={(e) => {
+        if ((e.target as Element).closest('button')) return;
         draggingRef.current = true;
         e.currentTarget.setPointerCapture(e.pointerId);
         navigate(e);
@@ -79,37 +142,31 @@ export function Minimap({ engine }: { engine: Engine | null }) {
       onPointerUp={() => {
         draggingRef.current = false;
       }}
+      onDoubleClick={() => useOverviewStore.getState().show()}
     >
-      {rects.map((r, i) => {
-        const p = toMap(r.x + r.w / 2, r.y + r.h / 2);
-        return (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              left: p.x - 1,
-              top: p.y - 1,
-              width: 2,
-              height: 2,
-              borderRadius: '50%',
-              background: 'var(--text-3)',
-            }}
-          />
-        );
-      })}
-      {viewportRect && (
-        <div
-          style={{
-            position: 'absolute',
-            left: toMap(viewportRect.x, viewportRect.y).x,
-            top: toMap(viewportRect.x, viewportRect.y).y,
-            width: viewportRect.w * scale,
-            height: viewportRect.h * scale,
-            border: '1px solid var(--accent)',
-            pointerEvents: 'none',
-          }}
-        />
-      )}
+      <canvas ref={canvasRef} style={{ width: MAP_W, height: MAP_H, display: 'block' }} />
+      <button
+        type="button"
+        aria-label={en.overview.expand}
+        title={en.overview.expand}
+        onClick={() => useOverviewStore.getState().show()}
+        style={{
+          position: 'absolute',
+          top: 4,
+          right: 4,
+          width: 28,
+          height: 28,
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--surface-2)',
+          color: 'var(--text-2)',
+          cursor: 'pointer',
+        }}
+      >
+        <Maximize2 size={14} strokeWidth={1.75} />
+      </button>
     </div>
   );
 }

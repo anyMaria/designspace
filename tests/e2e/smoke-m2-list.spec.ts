@@ -48,7 +48,6 @@ test('the List panel groups, sorts, virtualizes, and clicking a tile selects+fli
   // Expand opens a full-window gallery; Collapse returns to the docked panel.
   await page.getByLabel('Expand').click();
   await page.waitForTimeout(300);
-  await page.screenshot({ path: 'test-results/list-expanded.png' });
   await page.getByLabel('Collapse').click();
   await page.waitForTimeout(200);
 

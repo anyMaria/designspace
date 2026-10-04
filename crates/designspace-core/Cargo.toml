@@ -6,6 +6,7 @@ description = "Pure Rust logic for Designspace: path safety, slugs, hashing, med
 publish = false
 
 [dependencies]
+percent-encoding = "2.3.2"
 sha2 = "0.11.0"
 thiserror = "2.0.21"
 

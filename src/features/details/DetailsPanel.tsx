@@ -1,3 +1,4 @@
+import { thumbUrl } from '@/lib/thumbs';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ExternalLink, Sparkles, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
@@ -20,6 +21,8 @@ import { ChipInput, Swatch, Toggle, Button, IconButton } from '@/design/componen
 import { formatBytes } from '@/lib/formatBytes';
 import { formatDuration } from '@/lib/formatDuration';
 import { findSimilarItemIds } from '@/lib/ai/findSimilar';
+import { isMediaKind } from '@/lib/itemKinds';
+import { useDescriptionStore } from '@/state/descriptionStore';
 import { en } from '@/i18n/en';
 import { SuggestionsSection } from '@/features/ai/SuggestionsSection';
 
@@ -166,7 +169,7 @@ export function DetailsPanel({
           }}
         >
           <img
-            src={platform.cache.url(`t512/${item.id}`)}
+            src={thumbUrl(platform, item, 512)}
             alt=""
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
@@ -191,26 +194,31 @@ export function DetailsPanel({
         onBlur={(e) => setField('title', e.target.value)}
       />
 
-      {item.kind === 'swatch' && (
-        <Field label={en.swatches.colorField}>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-            <Swatch hex={item.color ?? '#8c8c8c'} name={item.title || undefined} />
-            <input
-              aria-label={en.swatches.colorField}
-              key={item.color ?? ''}
-              className="ds-chip-input__field"
-              defaultValue={item.color ?? ''}
-              placeholder="#RRGGBB"
-              style={{ flex: 1 }}
-              onBlur={(e) => {
-                const hex = e.target.value.trim();
-                if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
-                  void useHistoryStore
-                    .getState()
-                    .execute(createSetItemFieldCommand(platform, item.id, 'color', hex));
-                }
+      {isMediaKind(item.kind) && (
+        <Field label={en.description.field}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            <p
+              style={{
+                margin: 0,
+                display: '-webkit-box',
+                WebkitLineClamp: 4,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                whiteSpace: 'pre-wrap',
+                color: item.descriptionText?.trim() ? 'var(--text-1)' : 'var(--text-3)',
               }}
-            />
+            >
+              {item.descriptionText?.trim() || en.description.empty}
+            </p>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                engine?.zoomToIds([item.id]);
+                useDescriptionStore.getState().open(item.id);
+              }}
+            >
+              {en.description.open}
+            </Button>
           </div>
         </Field>
       )}

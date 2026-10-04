@@ -280,11 +280,15 @@ interface PendingLinkRow extends DbRow {
  * force-quit mid-fetch) — `enrichLink` is idempotent (a fresh fetch just overwrites the same
  * fields), so this doesn't need to distinguish "metadata never fetched" from "metadata fetched,
  * cover ingest interrupted." */
-export async function resumePendingLinkIngest(platform: Platform): Promise<void> {
+export async function resumePendingLinkIngest(platform: Platform): Promise<number> {
   const rows = await platform.db.select<PendingLinkRow>(
     `SELECT id, url FROM items WHERE kind = 'link' AND deleted_at IS NULL AND status = 'pending'`,
   );
+  let started = 0;
   for (const row of rows) {
-    if (row.url) void enrichLink(platform, row.id, row.url);
+    if (!row.url) continue;
+    void enrichLink(platform, row.id, row.url);
+    started++;
   }
+  return started;
 }

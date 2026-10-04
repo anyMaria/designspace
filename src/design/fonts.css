@@ -1,0 +1,16 @@
+/* Urbanist (SIL Open Font License, see fonts/urbanist/OFL.txt): one variable file per style. */
+@font-face {
+  font-family: 'Urbanist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url('./fonts/urbanist/Urbanist-VariableFont_wght.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Urbanist';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: block;
+  src: url('./fonts/urbanist/Urbanist-Italic-VariableFont_wght.ttf') format('truetype');
+}

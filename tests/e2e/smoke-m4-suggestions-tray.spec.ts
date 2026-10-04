@@ -53,7 +53,9 @@ test("the suggestions tray shows unadded matches for the board's source filter, 
   await expect(tray).toBeVisible();
   await expect(page.getByText('1', { exact: true })).toBeVisible();
 
-  // Dismissing the one suggestion hides the tray again (nothing left to suggest).
+  // Dismissing the one suggestion hides the tray again (nothing left to suggest). The "Created
+  // board" toast can still be sitting over the tray on a slow runner: wait for it to go.
+  await expect(page.getByText(/^Created “/)).toBeHidden({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Dismiss suggestion' }).click();
   await page.waitForTimeout(300);
   await expect(tray).toBeHidden();

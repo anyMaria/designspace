@@ -35,7 +35,6 @@ test('Shift+C morphs the map into Constellations with a glowing hub, and "Back t
   await page.waitForTimeout(2000);
   await page.keyboard.press('Shift+1');
   await page.waitForTimeout(700);
-  await page.screenshot({ path: 'test-results/constellations.png' });
 
   // "Back to my layout" turns it off again.
   await page.getByText('Back to my layout').click();

@@ -6,6 +6,7 @@ import { useImportStore } from '@/state/importStore';
 import { useToastStore } from '@/state/toastStore';
 import { useHistoryStore } from '@/commands/history';
 import { createAddItemsCommand, createRestoreItemCommand } from '@/commands/itemCommands';
+import { PLACEHOLDER_SIZE } from './fitPlacements';
 import { getIngestQueue } from '@/workers/ingestQueue';
 import { getVideoIngestQueue } from '@/workers/videoIngestQueue';
 import { getPdfIngestQueue } from '@/workers/pdfIngestQueue';
@@ -30,7 +31,6 @@ import { logger } from '@/lib/logger';
  * and `nextZ` below take an explicit occupied-rects list instead, and the Library's own is
  * fetched with one extra query (`fetchPlacementSnapshot`) only when it's actually needed. */
 
-const PLACEHOLDER_SIZE = 320; // square, until ingest reports the real aspect ratio (§2.4)
 const LIBRARY_BOARD_KIND = 'library';
 // The plan's "arrival area" spirals out from "the last arrival point, or the viewport center if
 // that point is off-screen" (§4.9) — meaningful only while the Library map itself is the visible
@@ -45,11 +45,17 @@ export interface DropPoint {
 
 export type FlyTo = (rect: Rect) => void;
 
-function makeIsOccupied(existing: Rect[]): (rect: Rect) => boolean {
+export function makeIsOccupied(existing: Rect[]): (rect: Rect) => boolean {
   return (rect) => existing.some((p) => rectsIntersect(rect, p));
 }
 
-function currentPlacementSnapshot(): { x: number; y: number; w: number; h: number; z: number }[] {
+export function currentPlacementSnapshot(): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+}[] {
   return [...useLibraryStore.getState().placements.values()].map((p) => ({
     x: p.x,
     y: p.y,
@@ -57,6 +63,16 @@ function currentPlacementSnapshot(): { x: number; y: number; w: number; h: numbe
     h: p.h,
     z: p.z,
   }));
+}
+
+/** The centre of a free spot of `size` as near as possible to `from`, so notes, swatches and frames
+ * added from the + menu don't pile up at the viewport centre (Patch 1 · B7). */
+export function freeCentreFor(
+  from: { x: number; y: number },
+  size: { w: number; h: number },
+): { x: number; y: number } {
+  const topLeft = findFreeSpot(from, size, makeIsOccupied(currentPlacementSnapshot()));
+  return { x: topLeft.x + size.w / 2, y: topLeft.y + size.h / 2 };
 }
 
 function nextZ(existing: { z: number }[]): number {

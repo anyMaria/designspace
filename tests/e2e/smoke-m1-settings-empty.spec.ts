@@ -28,7 +28,7 @@ test('empty-state + Add opens the add menu, and Settings Canvas/Library sections
   await page.waitForTimeout(200);
   await page.getByRole('tab', { name: 'Pan' }).click();
   await page.getByRole('tab', { name: 'Wide' }).click();
-  await page.getByRole('tab', { name: 'On' }).click();
+  await page.getByRole('tab', { name: 'On', exact: true }).click();
   await page.getByRole('switch', { name: 'Minimap' }).click();
   await page.screenshot({ path: 'test-results/settings-canvas.png' });
 

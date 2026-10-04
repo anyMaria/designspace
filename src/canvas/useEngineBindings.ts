@@ -1,3 +1,4 @@
+import { swatchColorsOf } from '@/lib/palette';
 import { useEffect } from 'react';
 import type { Engine } from './Engine';
 import { itemToCard } from './itemCards';
@@ -52,11 +53,19 @@ export function useEngineBindings(engine: Engine | null, platform: Platform): vo
       // clipboard with just one of them.
       if (ids.length === 1) {
         const item = useLibraryStore.getState().items.get(ids[0]);
-        if (item?.kind === 'swatch' && item.color) {
+        // A palette (several colours) copies nothing on select: click a cell for that (below).
+        if (item?.kind === 'swatch' && item.color && swatchColorsOf(item).length <= 1) {
           void copySwatchHex(platform, item.color);
           useToastStore.getState().show(en.swatches.copied(item.color));
         }
       }
+    });
+    const offCell = engine.on('swatchCellClick', (id, index) => {
+      const item = useLibraryStore.getState().items.get(id);
+      const hex = item ? swatchColorsOf(item)[index]?.hex : undefined;
+      if (!hex) return;
+      void copySwatchHex(platform, hex);
+      useToastStore.getState().show(en.swatches.copied(hex));
     });
     const offMove = engine.on('move', (updates) => {
       void useHistoryStore.getState().execute(createMoveItemsCommand(platform, updates));
@@ -70,6 +79,7 @@ export function useEngineBindings(engine: Engine | null, platform: Platform): vo
       unsubscribeSelection();
       offSelect();
       offMove();
+      offCell();
       offResize();
     };
   }, [engine, platform]);

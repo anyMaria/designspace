@@ -99,22 +99,19 @@ describe('createExtractPaletteCommand', () => {
     });
     await command.do();
 
-    // Only 3 distinct hexes fed in, so all 3 come out (the 5–8 target is a ceiling, not a floor).
-    expect(items).toHaveLength(3);
-    // Red had the highest combined weight (0.6 + 0.5), so it comes first.
-    expect(items[0].color).toBe('#e05a5a');
-    for (const item of items) {
-      expect(useLibraryStore.getState().items.get(item.id)?.kind).toBe('swatch');
-      expect(useLibraryStore.getState().placements.has(item.id)).toBe(true);
-    }
+    // One palette, not one swatch per colour. Only 3 distinct hexes fed in, so 3 colours come out
+    // (the 5–8 target is a ceiling, not a floor); red had the highest combined weight.
+    expect(items).toHaveLength(1);
+    expect(items[0].swatchColors?.map((c) => c.hex)).toEqual(['#e05a5a', '#efd05a', '#5a8fe0']);
+    expect(items[0].title).toBe('Palette from 2 items');
+    expect(useLibraryStore.getState().items.get(items[0].id)?.kind).toBe('swatch');
+    expect(useLibraryStore.getState().placements.get(items[0].id)).toMatchObject({ w: 216 });
 
     await command.undo();
-    for (const item of items) {
-      expect(useLibraryStore.getState().items.has(item.id)).toBe(false);
-    }
+    expect(useLibraryStore.getState().items.has(items[0].id)).toBe(false);
   });
 
-  it('produces no swatches when the source items have no palette', async () => {
+  it('produces no swatches when the source items have no palette', () => {
     const platform = makePlatform();
     useLibraryStore.setState({ items: new Map([['a', makeImageItem('a', [])]]) });
     const { command, items } = createExtractPaletteCommand(platform, ['a'], 'board-1', true, {
@@ -122,6 +119,6 @@ describe('createExtractPaletteCommand', () => {
       y: 0,
     });
     expect(items).toHaveLength(0);
-    await expect(command.do()).resolves.not.toThrow();
+    expect(() => command.do()).not.toThrow();
   });
 });

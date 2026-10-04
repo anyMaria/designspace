@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Criterion } from '@/lib/connections';
 
-export type ConnectionsMode = 'hover' | 'showAll';
+export type ConnectionsMode = 'hover' | 'showAll' | 'off';
 
 const DEFAULT_CRITERIA: Criterion[] = ['vibe', 'tag', 'manual'];
 const MAX_ACTIVE_CRITERIA = 3;

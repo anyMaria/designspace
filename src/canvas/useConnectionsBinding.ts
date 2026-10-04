@@ -62,6 +62,14 @@ export function useConnectionsBinding(engine: Engine | null, platform: Platform)
   useEffect(() => {
     if (!engine) return;
 
+    if (mode === 'off') {
+      // Connections are switched off: no lines, hubs or dimming at all.
+      engine.setConnections([]);
+      engine.setShowAllHubs([]);
+      useConnectionsUiStore.getState().setShowAllOverLimit(false);
+      return;
+    }
+
     if (mode === 'showAll') {
       engine.setConnections([]); // Hover's lines/dim don't apply while Show all owns the canvas
 

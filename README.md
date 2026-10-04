@@ -98,3 +98,7 @@ your last one is more than a day old.
 
 See [CLAUDE.md](CLAUDE.md) for the stack, commands and how to work in this repo, and
 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §7 for the full build/CI setup.
+
+## Credits
+
+- Typeface: [Urbanist](https://fonts.google.com/specimen/Urbanist) by Corey Hu, SIL Open Font License 1.1 (`src/design/fonts/urbanist/OFL.txt`).

@@ -3,6 +3,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { readImage, readText, writeImage, writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { Image } from '@tauri-apps/api/image';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import type {
   AppPaths,
   BackupInfo,
@@ -76,7 +77,10 @@ export class TauriPlatform implements Platform {
     put: (key: string, bytes: Uint8Array) =>
       invoke<void>('cache_put', { key, bytes: Array.from(bytes) }),
     has: (keys: string[]) => invoke<boolean[]>('cache_has', { keys }),
-    url: (key: string): string => convertFileSrc(`cache/${key}`, 'media'),
+    url: (key: string, version = 0): string => {
+      const url = convertFileSrc(`cache/${key}`, 'media');
+      return version > 0 ? `${url}?v=${version}` : url; // the protocol ignores the query
+    },
     delete: async (keys: string[]): Promise<void> => {
       for (const key of keys) await invoke<void>('cache_delete', { prefix: key });
     },
@@ -160,6 +164,11 @@ export class TauriPlatform implements Platform {
   machineSettings = {
     read: (): Promise<string | null> => invoke<string | null>('machine_settings_read'),
     write: (json: string): Promise<void> => invoke<void>('machine_settings_write', { json }),
+  };
+
+  window = {
+    isFullscreen: (): Promise<boolean> => getCurrentWindow().isFullscreen(),
+    setFullscreen: (on: boolean): Promise<void> => getCurrentWindow().setFullscreen(on),
   };
 
   clipboard = {

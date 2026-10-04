@@ -99,7 +99,9 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        const visibleIds = [...useLibraryStore.getState().placements.keys()];
+        // Not trashed items: their placements stay in the store while they sit in the Trash.
+        const { placements, items } = useLibraryStore.getState();
+        const visibleIds = [...placements.keys()].filter((id) => !items.get(id)?.deletedAt);
         useLibraryStore.getState().setSelection(visibleIds);
         return;
       }

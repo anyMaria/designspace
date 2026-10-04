@@ -2746,3 +2746,212 @@ covering import flows (`app-shell`, `smoke-m1-settings-empty`, `smoke-m2-list`) 
 ---
 
 *(Later milestones append below this line.)*
+
+## Patch 1: owner review of the v0.1.0 Windows build (planning session, 2026-10-03)
+
+The owner installed the Windows build and reported that nothing showed (photos, links, fonts: "only a
+light purple square"), that opacity dropped "all of a sudden" until things were illegible, that pinch
+didn't zoom and that Files… only offered images, plus a list of feature requests. This session only
+diagnosed and planned; the work itself is specified task by task in `docs/PATCH_1_PLAN.md`, with
+screenshots and mockups in `docs/patch-1/`. The root causes, recorded here because each one passed
+every existing test:
+
+- **`media://` never worked on Windows.** Tauri's `convertFileSrc` runs `encodeURIComponent` over the
+  whole path (`tauri-2.12.0/scripts/core.js`), so `/` arrives as `%2F`; `media_protocol.rs` split the raw
+  path on `/` without decoding, so every request was a 404. The browser dev build serves `blob:` URLs and
+  never goes through this code, which is why no cloud test could see it. Behind it, a second mismatch:
+  `cache_put` flattens `t128/<id>` to the file `t128_<id>`, but the protocol looked for the nested path.
+- **The canvas only requested a texture when a card first became visible** (`cullItems` →
+  `requestLod` for newly visible ids). A thumbnail that finished while its card was on screen was never
+  shown, and zooming in never upgraded `t128` to `t512`. Reproduced in the browser build by panning away
+  and back (`docs/patch-1/bug-stale-texture-*.png`).
+- **Imports keep their 320×320 placeholder forever** (the M5-4/M5-5 "logged deviation"), so every
+  non-square picture is squashed (`bug-squashed.png`). It would have been the next thing the owner saw.
+- **Dimming:** `setConnections([{ fromId, candidates: [] }])` still dimmed everything else to 35 %, and
+  only the sprite was dimmed, not its text label. Reproduced: selecting an unclassified demo item drops
+  its neighbour from rgb(148,184,158) to rgb(70,73,77).
+- **Pinch:** wry 0.57 maps `zoomHotkeysEnabled` to both `IsZoomControlEnabled` and
+  `IsPinchZoomEnabled` (`src/webview2/mod.rs:639,660`); with pinch off, WebView2 never passes touchpad
+  pinches to the page. The fix (Patch 1, A9) turns the flag on and blocks page zoom in JavaScript.
+- **Files…:** the Windows dialog pre-selects the first filter, which was "Images".
+
+Also found: the migrator never backed up before migrating (required by `CLAUDE.md`; fixed with the first
+new migration, Patch 1 C0), links whose cover failed were never retried, and both Connections and
+Rediscover used the same `Share2` icon. The owner's Urbanist font files (v1.303, OFL) were added under
+`src/design/fonts/urbanist/` so the coding sessions have them; they are wired up in Patch 1 task B5.
+
+## Patch 1 · Phase A: make your things show up (v0.2.0)
+
+All nine tasks (A1–A9) are in. What changed, and what could not be checked without Windows:
+
+- **A1 `media://`:** a new pure module `designspace_core::media_url` decodes the percent-encoded path
+  *before* splitting it, and cache keys go through the same `cache_file_name` that `cache_put` uses.
+  Every error status is now logged (`media:// 404 for …`), so the next problem of this kind shows in
+  Settings → About → Open logs folder. Path safety is unchanged (`..` is still rejected after decoding).
+- **A2:** every `fetch` of a media/cache URL now throws on a non-2xx answer instead of reading an error
+  page as a file. A failed read of an original marks the item `error` (it used to stay `pending`).
+  Settings → About → Diagnostics → "Check media loading" fetches a few originals and thumbnails.
+  Its strings live in `en.settings.diagnostics` (next to the existing Drop inspector strings), not in a
+  new `en.diagnostics` group as the plan's Appendix B named it.
+- **A3:** `TextureManager` keeps LRU order in a `Map`, exposes `touch`, and passes the key to
+  `destroyItem`; its default cache is 1,500 textures. The engine tracks the texture key each card shows
+  (the key contains the URL), asks for the right texture on every cull pass, and resets a sprite whose
+  texture was evicted. Covered by `tests/e2e/patch1-thumbnails.spec.ts`.
+- **A4:** after a successful ingest the 320×320 placeholder is reshaped to the picture's aspect
+  (`fitPlacementsToAspect`). Deliberately *not* a Command: it is derived data like the thumbnail, and an
+  Undo would bring the squashed card back. Placements the owner already resized are left alone. Font
+  cards become 320×200. Links reshape to their cover's aspect.
+- **A5:** `CURRENT_DERIVED_V` is now 2, so every library is re-derived once on the first launch after
+  the update. Links with a cover are re-queued through the image worker too. More than 20 items shows
+  "Refreshing previews for N items…".
+- **A6:** a link card shows the site and title until its cover is actually ready.
+- **A7:** "All supported files" is the first Files… filter (Windows pre-selects the first one).
+- **A8:** dimming rules moved to the pure `canvas/cardAlpha.ts`. Nothing dims when no source has a
+  candidate; a card's label and badge fade with its picture; nothing dims while a card is dragged;
+  group/hub highlights are cleared when the pointer leaves the map, when the stars are redrawn away from
+  the pointer, when the List unmounts or scrolls. Connections has a third Display option, "Off".
+  A hovered connection line is released when the pointer is more than 6 px (+ the 4 px parallel-line
+  offset) from it.
+- **A9:** `zoomHotkeysEnabled` is now `true` (wry maps it to both zoom keys and touchpad pinch), a
+  capture-phase guard (`app/pageZoomGuard.ts`) cancels the browser's own Ctrl+wheel / Ctrl +/−/0 page
+  zoom, and the canvas wheel handler still zooms the map. **Deviation from plan §2.2**, as the Patch 1
+  plan said. Caveat for a future macOS/Linux build: there, `zoomHotkeysEnabled` injects Tauri's own
+  Ctrl/⌘ +/− zoom script (needs `core:webview:allow-set-webview-zoom`); check that it respects
+  `defaultPrevented` before shipping on those platforms.
+
+**Not verifiable in the cloud (Owner checks on Windows):** the protocol fix itself (the browser build
+serves `blob:` URLs and never goes through Rust), pinch on a real trackpad, the Files… dialog's default
+filter, and the one-off re-derive of an existing library.
+
+## Patch 1 · Phase B: feel and clarity (v0.3.0)
+
+- **B1 full screen:** `platform.window.{isFullscreen,setFullscreen}`; the window-state plugin no longer
+  restores full screen (the "Open in full screen" setting decides). Toggling asks the window for its
+  real state first, since the OS can leave full screen on its own. On the browser build the setting is
+  ignored at boot (the Fullscreen API needs a user gesture).
+- **B2:** `IconButton` has no native `title` any more; the styled `Tooltip` (with `shortcut`) replaces it.
+- **B3:** the hover name pill stays hidden for the card and camera state it was timed for; any change
+  of either hides it at once, and the 350 ms timer shows it again. Duration is `motion.hoverName`.
+- **B4:** lines clip to each card's screen box (6 px gap); Show all edges leave the picture's edge and
+  stop 2 px short of the star.
+- **B5 Urbanist:** replaces Manrope and Unbounded. Urbanist has no tabular figures (checked with
+  fontkit), so zoom %, the import counter and the search count have fixed `min-width`s. Canvas text
+  goes through `uiTextStyle`, and `CanvasView` waits for the font before mounting the engine.
+- **B6:** the menu's rules live in the pure `canvas/contextMenuItems.ts`; `ContextMenu.tsx` maps ids to
+  the existing actions. Later phases add their own ids there.
+- **B7:** `freeCentreFor` (importItems.ts) places new notes, swatches and frames in the nearest free
+  spot to the viewport centre. The note stays 220×220 until Phase D1 changes its default (the plan's
+  280×212 belongs to D1). Double-click on empty canvas still creates the note where you clicked.
+
+**Not verifiable in the cloud (Owner checks on Windows):** real full screen and F11 in WebView2, and the
+window-state plugin no longer restoring full screen.
+
+## Patch 1 · Phase C: palettes (v0.4.0)
+
+- **Model:** a palette is the existing `swatch` item with a list of colours (`items.swatch_colors`,
+  migration 002). One colour is drawn as a plain swatch, two or more as a two-column card whose size
+  is a pure function of the colour count (`lib/palette.ts`). Old swatches (only `color`) keep working
+  through `swatchColorsOf`.
+- **C0:** migration `002_patch1.sql` adds `swatch_colors`, `description`, `description_text` and
+  `thumb_v` (the last two are for Phases E and F). `ensureLibraryReady` now backs up before migrating an
+  existing library on Tauri; a failed backup is logged and the migration still runs, because this
+  migration only adds columns. A future destructive migration must stop instead.
+- **C2:** colour changes are one command that rewrites the colour columns and resizes every placement
+  (the size is derived from the colours, so resizing is not a separate undo step). "Extract palette"
+  now makes one palette placed 48 units to the right of the selection (it used to make 5–8 swatches).
+  Combine puts the colours in reading order (rows within 40 units, then left to right) and trashes the
+  old swatches in the same undo step.
+- **C3:** cards that draw themselves have a "decor" container instead of a visible sprite
+  (`canvas/decor/paletteDecor.ts`); notes will use it in Phase D1. Palettes have no resize handles.
+  Clicking a colour cell of an already selected palette copies that colour; a single swatch still
+  copies its hex when selected or clicked.
+- **C4:** the editor lives in the Details panel for swatches/palettes (name, reorderable colour grid,
+  HSV wheel with Value, H/S/V sliders, hex field, Pick from a photo, Eyedropper where the webview has
+  it, Remove, Copy all). Dragging a control edits local state and commits one command on release.
+  "Pick from a photo" reads the `t512` thumbnail at the clicked point (`engine.startPointPick`).
+  Double-click on a swatch/palette opens the panel on Details (no Focus view). A new swatch from the
+  + menu is selected right away.
+- **C5:** right-click: Combine into palette (2+ swatches), Edit palette and Copy all colors (one).
+  Swatches no longer offer "Extract palette" (their derived `palette` field would have made it appear).
+- **Fixed on the way:** Ctrl+A also selected items sitting in the Trash.
+- **Not done (optional in the plan):** dragging a swatch onto a palette to add its colour.
+- **Not verifiable in the cloud:** the Eyedropper (a Chromium API the cloud browser exposes but WebView2
+  may not), and the pre-migration backup (Tauri only).
+
+## Patch 1 · Phase D: notebook notes and #actions (v0.5.0)
+
+- **D1:** notes draw themselves through the decor container (`canvas/decor/noteDecor.ts`): paper with the
+  top-right corner cut and a fold, ruled lines every 30 units, and the text as a Pixi `Text` clipped by
+  a mask the size of the paper. Text comes from `lib/noteTagged.ts` (`<b>`, `<i>`, `<dshash>` tags);
+  Pixi only parses tags that exist in `tagStyles`. New notes are 280×212; existing notes keep their
+  size. Added the dark **Ink** colour. After the camera settles, world-space text is re-rasterised at
+  1×/2×/4× so it stays sharp when zoomed in. Pixi puts the first line about 5 px higher than CSS's 30 px
+  line box, so `noteGeometry.textOffsetY` nudges the canvas text down to match the editor.
+- **D2:** the editor is laid out in world units and scaled with the camera, with the same paper CSS, so
+  opening a note moves no letter. The colour dots float above the paper. Hashtags are decorated while
+  typing (`lib/tiptap/hashtagDecorations.ts`, needs `@tiptap/pm`). On close the note grows (never
+  shrinks) to fit its text, in the same undo step as the text. One e2e spec (`smoke-m4-notes`) now
+  double-clicks further from the corner, since a 280-wide note centred near the corner went off screen.
+- **D3:** selecting only notes no longer switches the panel to Details; one note shows `NoteDetails`
+  (colours, Edit note, its #actions). Bulk edits apply to media kinds only and the panel says how many
+  notes/palettes weren't classified. A right-click on notes shows a short menu of its own.
+- **D4:** a third panel tab, "Actions" (with a count), lists every #hashtag in notes and, once Phase E
+  lands, in descriptions (`lib/actions.ts`). Click goes to the item (switching space when needed),
+  hover highlights it. Search already finds hashtags (checked in `patch1-actions.spec.ts`). Ticking
+  actions off is not in Patch 1 (Q6).
+
+## Patch 1 · CI fixes after Phase D, and Phase E: descriptions and the thought bubble (v0.6.0)
+
+- **CI after Phase D:** the browser tests failed on the GitHub runner only (all green locally): two
+  specs hung on a debug `page.screenshot` that nothing asserted (removed), the suggestions-tray spec
+  clicked while the "Created board" toast covered the button (now waits for the toast to go), and the
+  PDF Focus view logged pdf.js's expected `RenderingCancelledException` when the document was
+  destroyed mid-render (now ignored in the viewer, a real fix, not a test change). The next CI run was green.
+- **E1:** `items.description` (TipTap JSON) and `description_text` (for search) via one undoable command;
+  the search index has a `description` field.
+- **E2:** the thought bubble (`canvas/ThoughtBubbleOverlay.tsx`, a sibling of the hover-name overlay
+  rather than inside it, to keep each overlay small) sits 6 px right of and 26 px above a media card's
+  top-right corner, or inside the corner when that would leave the window. It shows while the card or
+  the bubble is hovered, for 400 ms after, and while that item's panel is open.
+- **E3:** the panel is anchored beside the card (as tall as the card, 240 px minimum, 320–480 px wide,
+  on the left when there is no room on the right) and hidden, not closed, while the item is off
+  screen. One undoable save per editing session (blur or close, only when the text changed).
+- **E4:** Details shows the first 4 lines and an Open button; right-click offers Add/Edit description
+  for a single media item. Hashtags in descriptions appear in the Actions tab (`lib/actions.ts`).
+- The e2e persistence check loads `/` after writing, not `/?seed=demo`: the demo flag re-seeds a fresh
+  library on every load, so the description would (correctly) be gone.
+
+## Patch 1 · Phase F: fonts on the map (v0.7.0)
+
+- **F1:** `cache.url(key, version)` adds `?v=<thumb_v>` on Tauri (the `media://` handler ignores the
+  query; the browser build's blob URLs are replaced on every `put`). Every thumbnail URL is built with
+  `lib/thumbs.ts`'s `thumbUrl` (the AI queue still uses the plain key). Each ingest success runs
+  `thumb_v = thumb_v + 1` in the same `UPDATE` and bumps `thumbV` in the store, so the canvas
+  (whose texture keys contain the URL, A3) reloads re-made thumbnails by itself.
+- **F2:** a library setting `fontPreviewText` (default "Sphinx of black quartz, judge my vow"). The
+  specimen wraps it onto at most two lines with an ellipsis (`wrapLines`, unit-tested with a fake
+  measure) instead of squeezing it with `fillText`'s `maxWidth`. Editing it in Settings → Canvas or
+  pressing "Show this text on all font cards" in the type tester saves it and re-queues every font
+  (`rerenderFontSpecimens`), so cards update one at a time. The type tester's sample field starts with
+  the preview text and still changes freely.
+
+## Patch 1 · Phase G: minimap with connections, and the Overview (v0.8.0)
+
+- **G1:** the minimap is one DPR-aware `<canvas>` (240×160) repainted once per animation frame:
+  every item with its real shape and card colour (at least 2 px), My connections (white), the current
+  hover/selection lines in their criterion colours (new engine event `connectionsChanged`), and the
+  viewport rectangle. The criterion → colour map moved to `canvas/criterionColor.ts` so the minimap
+  and Overview share it with the engine. Click/drag still navigates; double-click or the expand button
+  opens the Overview.
+- **G2:** the Overview (`features/overview/`) is a full-window layer (below dialogs) with its own 2D
+  canvas and camera. Pure, unit-tested parts: `overviewModel.ts` (nodes, member→hub edges, My
+  connections as direct lines, the 5,000-line cap, `nodeAt`) and `overviewCamera.ts`. "My layout" uses
+  real positions; "Clusters" runs the Constellations worker with the active criteria and caches the
+  result. Thumbnails are `t128` bitmaps (long side 16 px) loaded lazily into a cache of at most 2,000;
+  hover enlarges a node to 40 px, shows its name and fades the rest; double-click closes the Overview,
+  selects the item and flies the real camera to it. `O` toggles it.
+- **Deviation:** the plan also lists direct item-to-item "Similar look" lines. They are not drawn: that
+  criterion has no discrete value to make hubs from, and N² cosine lines are exactly what the Overview
+  is meant to avoid. Terms, colour and My connections are drawn. Easy to add later if wanted.
+- **Not verifiable in the cloud:** performance of the Overview at 10,000 items on a real GPU (the
+  canvas draws only what is on screen and caps bitmaps, but it was only measured on the demo library).

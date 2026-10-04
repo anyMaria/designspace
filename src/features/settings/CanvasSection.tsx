@@ -2,15 +2,23 @@ import type { ReactNode } from 'react';
 import { Tabs, Toggle } from '@/design/components';
 import { useUiStore } from '@/state/uiStore';
 import { en } from '@/i18n/en';
+import type { Platform } from '@/platform/types';
+import { useSettingsStore } from '@/state/settingsStore';
+import { applyFontPreview } from '@/features/focus/applyFontPreview';
 
 /** Settings → Canvas (§2.14): mouse wheel mode, dot grid density, minimap on/off, reduce motion. */
-export function CanvasSection() {
+export function CanvasSection({ platform }: { platform: Platform }) {
+  const fontPreview = useSettingsStore((s) => s.fontPreviewText);
   const wheelMode = useUiStore((s) => s.wheelMode);
   const setWheelMode = useUiStore((s) => s.setWheelMode);
   const dotGridDensity = useUiStore((s) => s.dotGridDensity);
   const setDotGridDensity = useUiStore((s) => s.setDotGridDensity);
   const minimapOpen = useUiStore((s) => s.minimapOpen);
   const toggleMinimap = useUiStore((s) => s.toggleMinimap);
+  const startFullscreen = useUiStore((s) => s.startFullscreen);
+  const setStartFullscreen = useUiStore((s) => s.setStartFullscreen);
+  const showNames = useUiStore((s) => s.showNamesOnHover);
+  const setShowNames = useUiStore((s) => s.setShowNamesOnHover);
   const reduceMotion = useUiStore((s) => s.reduceMotion);
   const setReduceMotion = useUiStore((s) => s.setReduceMotion);
 
@@ -45,6 +53,40 @@ export function CanvasSection() {
         <span>{en.settings.canvas.minimap}</span>
         <Toggle checked={minimapOpen} onChange={toggleMinimap} label={en.settings.canvas.minimap} />
       </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>{en.fullscreen.setting}</span>
+        <Toggle
+          checked={startFullscreen}
+          onChange={() => setStartFullscreen(!startFullscreen)}
+          label={en.fullscreen.setting}
+        />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>{en.settings.canvas.showNames}</span>
+        <Toggle
+          checked={showNames}
+          onChange={() => setShowNames(!showNames)}
+          label={en.settings.canvas.showNames}
+        />
+      </div>
+
+      <Field label={en.font.previewSetting}>
+        <input
+          aria-label={en.font.previewSetting}
+          key={fontPreview}
+          className="ds-chip-input__field"
+          defaultValue={fontPreview}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+          }}
+          onBlur={(e) => {
+            const next = e.target.value.trim();
+            if (next && next !== fontPreview) void applyFontPreview(platform, next);
+          }}
+        />
+      </Field>
 
       <Field label={en.settings.canvas.reduceMotion}>
         <Tabs

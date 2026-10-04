@@ -1,20 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
-  Share2,
+  Shuffle,
+  Waypoints,
   MousePointer2,
   Hand,
   Settings as SettingsIcon,
   PanelRight,
   Download,
+  Fullscreen,
+  Minimize,
 } from 'lucide-react';
 import type { Platform, LibraryInfo } from '@/platform';
 import { useUiStore } from '@/state/uiStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
+import { toggleFullscreen } from './fullscreen';
 import { useSoftLimitNotice } from './useSoftLimitNotice';
 import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
+import { CanvasHoverOverlay } from '@/canvas/CanvasHoverOverlay';
+import { ThoughtBubbleOverlay } from '@/canvas/ThoughtBubbleOverlay';
 import type { Engine } from '@/canvas/Engine';
 import { useEngineBindings } from '@/canvas/useEngineBindings';
 import { useCanvasShortcuts } from '@/canvas/useCanvasShortcuts';
@@ -32,6 +38,10 @@ import { ImportProgressCard } from '@/features/import/ImportProgressCard';
 import { ToastHost } from '@/features/toasts/ToastHost';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
+import { PaletteEditor } from '@/features/palettes/PaletteEditor';
+import { NoteDetails } from '@/features/notes/NoteDetails';
+import { ActionsPanel } from '@/features/actions/ActionsPanel';
+import { useActions } from '@/features/actions/useActions';
 import { BulkDetailsPanel } from '@/features/details/BulkDetailsPanel';
 import { TriageView } from '@/features/triage/TriageView';
 import { openInboxTriage } from '@/features/triage/openInboxTriage';
@@ -54,6 +64,8 @@ import { BoardsGallery } from '@/features/boards/BoardsGallery';
 import { useBoardStore } from '@/state/boardStore';
 import { useBoardUiStore } from '@/state/boardUiStore';
 import { useNoteCanvasBinding } from '@/canvas/useNoteCanvasBinding';
+import { OverviewOverlay } from '@/features/overview/OverviewOverlay';
+import { DescriptionPanel } from '@/features/description/DescriptionPanel';
 import { NoteEditor } from '@/features/notes/NoteEditor';
 import { useFrameCanvasBinding } from '@/canvas/useFrameCanvasBinding';
 import { FrameRenameDialog } from '@/features/frames/FrameRenameDialog';
@@ -80,7 +92,7 @@ export interface ShellProps {
 }
 
 export function Shell({ platform, library, libraryBoardId, benchCount }: ShellProps) {
-  useGlobalShortcuts();
+  useGlobalShortcuts(platform);
   useUndoRedoShortcuts();
   useSoftLimitNotice();
   const tool = useUiStore((s) => s.tool);
@@ -89,8 +101,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const panelOpen = useUiStore((s) => s.panelOpen);
   const togglePanel = useUiStore((s) => s.togglePanel);
   const panelTab = useUiStore((s) => s.panelTab);
+  const { count: actionCount } = useActions();
   const setPanelTab = useUiStore((s) => s.setPanelTab);
   const minimapOpen = useUiStore((s) => s.minimapOpen);
+  const fullscreen = useUiStore((s) => s.fullscreen);
   const settingsOpen = useUiStore((s) => s.settingsOpen);
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
   const [engine, setEngine] = useState<Engine | null>(null);
@@ -118,7 +132,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   // the panel switches to Details"), extended here to canvas selection generally since the List
   // panel's own click-to-select doesn't exist until it does (M2-8).
   useEffect(() => {
-    if (selection.size >= 1) setPanelTab('details');
+    // Only notes selected: stay where you are (a note isn't classified, so Details has little to
+    // show). Anything else switches to Details.
+    const { items: all } = useLibraryStore.getState();
+    if ([...selection].some((id) => all.get(id)?.kind !== 'note')) setPanelTab('details');
   }, [selection, setPanelTab]);
 
   useEngineBindings(engine, platform);
@@ -146,6 +163,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         benchCount={benchCount}
         onEngineReady={setEngine}
       />
+      <CanvasHoverOverlay engine={engine} />
+      <ThoughtBubbleOverlay engine={engine} />
 
       {/* Library map / Board empty state — §2.14 */}
       {placementCount === 0 && !benchCount && (
@@ -209,8 +228,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           </button>
         )}
         <IconButton
-          icon={<Share2 size={20} strokeWidth={1.75} />}
+          icon={<Shuffle size={20} strokeWidth={1.75} />}
           label={en.rediscover}
+          shortcut="R"
+          tooltipPlacement="bottom"
           onClick={() => triggerRediscover(engine)}
         />
       </div>
@@ -227,18 +248,36 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         }}
       >
         <IconButton
+          icon={
+            fullscreen ? (
+              <Minimize size={20} strokeWidth={1.75} />
+            ) : (
+              <Fullscreen size={20} strokeWidth={1.75} />
+            )
+          }
+          label={fullscreen ? en.fullscreen.exit : en.fullscreen.enter}
+          shortcut="F11"
+          tooltipPlacement="bottom"
+          onClick={() => void toggleFullscreen(platform)}
+        />
+        <IconButton
           icon={<Download size={20} strokeWidth={1.75} />}
           label={en.export.action}
+          tooltipPlacement="bottom"
           onClick={() => useExportUiStore.getState().setOpen(true)}
         />
         <IconButton
           icon={<SettingsIcon size={20} strokeWidth={1.75} />}
           label={en.settings.title}
+          shortcut="Ctrl+,"
+          tooltipPlacement="bottom"
           onClick={() => setSettingsOpen(true)}
         />
         <IconButton
           icon={<PanelRight size={20} strokeWidth={1.75} />}
           label={en.panel.list}
+          shortcut="L"
+          tooltipPlacement="bottom"
           active={panelOpen}
           onClick={togglePanel}
         />
@@ -300,6 +339,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             <IconButton
               icon={<Search size={20} strokeWidth={1.75} />}
               label={en.dock.search}
+              shortcut="Ctrl+K"
               onClick={() => useSearchStore.getState().open()}
             />
             {searchFilterActive && (
@@ -320,8 +360,9 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           </span>
           <span style={{ position: 'relative' }}>
             <IconButton
-              icon={<Share2 size={20} strokeWidth={1.75} />}
+              icon={<Waypoints size={20} strokeWidth={1.75} />}
               label={en.dock.connections}
+              shortcut="C"
               active={useConnectionsUiStore((s) => s.isOpen)}
               onClick={() => useConnectionsUiStore.getState().toggle()}
             />
@@ -331,12 +372,14 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           <IconButton
             icon={<MousePointer2 size={20} strokeWidth={1.75} />}
             label={en.dock.selectTool}
+            shortcut="V"
             active={tool === 'select'}
             onClick={() => setTool('select')}
           />
           <IconButton
             icon={<Hand size={20} strokeWidth={1.75} />}
             label={en.dock.handTool}
+            shortcut="H"
             active={tool === 'hand'}
             onClick={() => setTool('hand')}
           />
@@ -346,7 +389,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
       </div>
 
       {/* Bottom-left: minimap — §2.1 */}
-      {minimapOpen && (
+      {minimapOpen && engine && (
         <Panel
           style={{
             position: 'absolute',
@@ -381,11 +424,14 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             tabs={[
               { id: 'list', label: en.panel.list },
               { id: 'details', label: en.panel.details },
+              { id: 'actions', label: `${en.actions.tab} ${actionCount}` },
             ]}
             value={panelTab}
             onChange={setPanelTab}
           />
-          {panelTab === 'list' ? (
+          {panelTab === 'actions' ? (
+            <ActionsPanel platform={platform} engine={engine} />
+          ) : panelTab === 'list' ? (
             listExpanded ? (
               <div
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -397,6 +443,10 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             )
           ) : selectedItems.length > 1 ? (
             <BulkDetailsPanel platform={platform} items={selectedItems} />
+          ) : selectedItem?.kind === 'note' ? (
+            <NoteDetails platform={platform} item={selectedItem} />
+          ) : selectedItem?.kind === 'swatch' ? (
+            <PaletteEditor platform={platform} item={selectedItem} engine={engine} />
           ) : selectedItem ? (
             <DetailsPanel platform={platform} item={selectedItem} engine={engine} />
           ) : (
@@ -447,6 +497,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
         />
       )}
       <FocusView platform={platform} />
+      <DescriptionPanel platform={platform} engine={engine} />
+      <OverviewOverlay platform={platform} engine={engine} />
       <NoteEditor platform={platform} engine={engine} />
       <TriageView platform={platform} />
       {useBoardUiStore((s) => s.galleryOpen) && <BoardsGallery platform={platform} />}

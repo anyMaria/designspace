@@ -1,3 +1,4 @@
+import { thumbUrl } from '@/lib/thumbs';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -86,6 +87,9 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(288);
+
+  // A group highlight must never outlive the list (its mouse-leave won't fire on unmount).
+  useEffect(() => () => engine?.setHoverHighlight(null), [engine]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -290,7 +294,11 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
           <p style={{ color: 'var(--text-3)' }}>{emptyMessage}</p>
         </div>
       ) : (
-        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+        <div
+          ref={scrollRef}
+          onScroll={() => engine?.setHoverHighlight(null)}
+          style={{ flex: 1, overflowY: 'auto', position: 'relative' }}
+        >
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const row = rows[virtualRow.index];
@@ -444,7 +452,7 @@ function Tile({
     >
       {item.status === 'ok' && (
         <img
-          src={platform.cache.url(`t128/${id}`)}
+          src={thumbUrl(platform, item, 128)}
           alt=""
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />

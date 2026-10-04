@@ -1,8 +1,10 @@
+import { thumbUrl } from '@/lib/thumbs';
+import { swatchColorsOf } from '@/lib/palette';
 import type { Item, Placement } from '@/state/types';
 import type { Platform } from '@/platform/types';
 import type { ItemCard } from './Engine';
 import { noteColors, type NoteColor } from '@/design/tokens';
-import { noteBodyToPlainText } from '@/lib/noteText';
+import { noteBodyToTaggedText } from '@/lib/noteTagged';
 import { en } from '@/i18n/en';
 
 const FALLBACK_COLOR = 0x33203d; // --surface-2, used until a palette exists
@@ -44,15 +46,19 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       dominantColor,
       thumbUrl128: null,
       thumbUrl512: null,
-      noteText: noteBodyToPlainText(item.body),
+      noteText: noteBodyToTaggedText(item.body),
       frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
       pageCount: null,
+      swatchColors: null,
+      swatchName: null,
+      noteColor: colorName,
     };
   }
 
   if (item.kind === 'swatch') {
+    const colors = swatchColorsOf(item).map((c) => c.hex);
     return {
       id: item.id,
       x: placement.x,
@@ -61,15 +67,17 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       h: placement.h,
       z: placement.z,
       kind: 'swatch',
-      dominantColor: item.color ? hexToInt(item.color) : FALLBACK_COLOR,
+      dominantColor: hexToInt(colors[0]),
       thumbUrl128: null,
       thumbUrl512: null,
-      // "Color block with its HEX and an optional name" (§2.11's spec table).
-      noteText: [item.title || null, item.color?.toUpperCase() ?? null].filter(Boolean).join('\n'),
+      noteText: null, // drawn by decor/paletteDecor.ts, not as a text label
       frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
       pageCount: null,
+      swatchColors: colors,
+      swatchName: item.title.trim() || null,
+      noteColor: null,
     };
   }
 
@@ -86,19 +94,22 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
       z: placement.z,
       kind: 'link',
       dominantColor,
-      thumbUrl128: thumbReady ? platform.cache.url(`t128/${item.id}`) : null,
-      thumbUrl512: thumbReady ? platform.cache.url(`t512/${item.id}`) : null,
+      thumbUrl128: thumbReady ? thumbUrl(platform, item, 128) : null,
+      thumbUrl512: thumbReady ? thumbUrl(platform, item, 512) : null,
       // "Preview image (or custom cover) + footer: favicon · domain · 2-line title" (§2.4's spec
       // table) — a plain-text approximation (domain + title, no favicon glyph) reusing the same
-      // Text-overlay machinery as the note/swatch/unsupported-fallback labels, shown whenever
-      // there's no cover image to fill the card (the "clean domain card" case, §2.3).
-      noteText: hasCover
+      // Text-overlay machinery as the note/swatch/unsupported-fallback labels, shown until the
+      // cover is ready (also while it loads or if it failed; the "clean domain card" case, §2.3).
+      noteText: thumbReady
         ? null
         : [safeDomain(item.url), item.title || null].filter(Boolean).join('\n'),
       frameId: placement.frameId,
       durationMs: null,
       videoUrl: null,
       pageCount: null,
+      swatchColors: null,
+      swatchName: null,
+      noteColor: null,
     };
   }
 
@@ -127,13 +138,16 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     z: placement.z,
     kind: item.kind,
     dominantColor,
-    thumbUrl128: ready ? platform.cache.url(`t128/${item.id}`) : null,
-    thumbUrl512: ready ? platform.cache.url(`t512/${item.id}`) : null,
+    thumbUrl128: ready ? thumbUrl(platform, item, 128) : null,
+    thumbUrl512: ready ? thumbUrl(platform, item, 512) : null,
     noteText: fallbackText,
     frameId: placement.frameId,
     durationMs: item.kind === 'video' ? (item.durationMs ?? null) : null,
     videoUrl:
       item.kind === 'video' && item.filePath ? platform.media.originalUrl(item.filePath) : null,
     pageCount: item.kind === 'pdf' ? (item.pageCount ?? null) : null,
+    swatchColors: null,
+    swatchName: null,
+    noteColor: null,
   };
 }

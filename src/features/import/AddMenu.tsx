@@ -5,26 +5,38 @@ import type { Platform, FileFilter } from '@/platform/types';
 import type { Engine } from '@/canvas/Engine';
 import type { Rect } from '@/lib/geometry';
 import { en } from '@/i18n/en';
-import { importFiles, importPaths } from './importItems';
+import { freeCentreFor, importFiles, importPaths } from './importItems';
 import { detectMediaKind } from '@/lib/fileKinds';
 import { useToastStore } from '@/state/toastStore';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { useBoardStore } from '@/state/boardStore';
 import { useHistoryStore } from '@/commands/history';
 import { createCreateNoteCommand } from '@/commands/noteCommands';
-import { createCreateSwatchCommand } from '@/commands/swatchCommands';
-import { createCreateFrameCommand } from '@/commands/frameCommands';
+import { noteGeometry } from '@/design/tokens';
+import { SWATCH_SIZE, createCreateSwatchCommand } from '@/commands/swatchCommands';
+import { DEFAULT_FRAME_SIZE, createCreateFrameCommand } from '@/commands/frameCommands';
 import { useNoteEditStore } from '@/state/noteEditStore';
 import { FolderConfirmDialog, type FolderConfirmState } from './FolderConfirmDialog';
 import { LinkDialog } from './LinkDialog';
 import { importLink } from './importLink';
 import { useSettingsStore } from '@/state/settingsStore';
+import { useUiStore } from '@/state/uiStore';
+import { useLibraryStore } from '@/state/libraryStore';
+import {
+  ALL_SUPPORTED_EXTENSIONS,
+  FONT_EXTENSIONS,
+  IMAGE_EXTENSIONS,
+  PDF_EXTENSIONS,
+  VIDEO_EXTENSIONS,
+} from '@/lib/fileKinds';
 
+// Windows pre-selects the first filter, so "All supported files" must come first.
 const MEDIA_FILTERS: FileFilter[] = [
-  { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg'] },
-  { name: 'Videos', extensions: ['mp4', 'webm', 'm4v', 'mov'] },
-  { name: 'PDFs', extensions: ['pdf'] },
-  { name: 'Fonts', extensions: ['ttf', 'otf', 'woff', 'woff2'] },
+  { name: en.addMenu.filterAll, extensions: ALL_SUPPORTED_EXTENSIONS },
+  { name: en.addMenu.filterImages, extensions: IMAGE_EXTENSIONS },
+  { name: en.addMenu.filterVideos, extensions: VIDEO_EXTENSIONS },
+  { name: en.addMenu.filterPdfs, extensions: PDF_EXTENSIONS },
+  { name: en.addMenu.filterFonts, extensions: FONT_EXTENSIONS },
 ];
 
 export interface AddMenuProps {
@@ -97,7 +109,10 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setOpen(false);
     const space = currentSpace();
     if (!space) return;
-    const point = dropPoint();
+    const point = freeCentreFor(dropPoint(), {
+      w: noteGeometry.defaultW,
+      h: noteGeometry.defaultH,
+    });
     const { command, item } = createCreateNoteCommand(
       platform,
       space.boardId,
@@ -117,15 +132,23 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setOpen(false);
     const space = currentSpace();
     if (!space) return;
-    const point = dropPoint();
-    const { command } = createCreateSwatchCommand(
+    const point = freeCentreFor(dropPoint(), { w: SWATCH_SIZE, h: SWATCH_SIZE });
+    const { command, item } = createCreateSwatchCommand(
       platform,
       space.boardId,
       space.isLibraryBoard,
       point.x,
       point.y,
     );
-    void useHistoryStore.getState().execute(command);
+    // Select it right away so the palette editor shows (no hex copy: that is for clicking).
+    void useHistoryStore
+      .getState()
+      .execute(command)
+      .then(() => {
+        useLibraryStore.getState().setSelection([item.id]);
+        engine?.setSelection([item.id]);
+        useUiStore.setState({ panelOpen: true, panelTab: 'details' });
+      });
   }
 
   function handleAddLink(): void {
@@ -137,7 +160,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setOpen(false);
     const space = currentSpace();
     if (!space) return;
-    const point = dropPoint();
+    const point = freeCentreFor(dropPoint(), DEFAULT_FRAME_SIZE);
     const { command } = createCreateFrameCommand(platform, space.boardId, point.x, point.y);
     void useHistoryStore.getState().execute(command);
   }

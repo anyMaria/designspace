@@ -34,11 +34,20 @@ export function CanvasView({ tool, wheelMode, benchCount, onEngineReady }: Canva
     engineRef.current = eng;
     let cancelled = false;
 
-    void eng
-      .mount(container, {
-        getTool: () => toolRef.current,
-        getWheelMode: () => wheelModeRef.current,
-      })
+    // Pixi rasterises text once; if the UI font isn't loaded yet it would keep the fallback.
+    const fontsReady = Promise.all(
+      ['500', '600', '700'].map((w) => document.fonts.load(`${w} 16px Urbanist`)),
+    ).catch(() => undefined);
+
+    void fontsReady
+      .then(() =>
+        cancelled
+          ? undefined
+          : eng.mount(container, {
+              getTool: () => toolRef.current,
+              getWheelMode: () => wheelModeRef.current,
+            }),
+      )
       .then(() => {
         if (cancelled) return;
         setEngine(eng);
@@ -68,7 +77,7 @@ export function CanvasView({ tool, wheelMode, benchCount, onEngineReady }: Canva
     // UI overlays, which sit in a later sibling and must always hit-test above the canvas.
     <div
       ref={containerRef}
-      style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}
+      style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden', touchAction: 'none' }}
     >
       {engine && <DotGrid engine={engine} />}
     </div>

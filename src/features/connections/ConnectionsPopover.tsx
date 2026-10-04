@@ -154,6 +154,7 @@ export function ConnectionsPopover() {
                 tabs={[
                   { id: 'hover', label: en.connections.onHover },
                   { id: 'showAll', label: en.connections.showAll },
+                  { id: 'off', label: en.connections.displayOff },
                 ]}
                 value={mode}
                 onChange={(v) => useConnectionsUiStore.getState().setMode(v)}

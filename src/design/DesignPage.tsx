@@ -71,7 +71,11 @@ export function DesignPage() {
             active
           />
           <IconButton icon={<Hand size={20} strokeWidth={1.75} />} label="Hand tool" />
-          <IconButton icon={<SettingsIcon size={20} strokeWidth={1.75} />} label="Settings" />
+          <IconButton
+            icon={<SettingsIcon size={20} strokeWidth={1.75} />}
+            label="Settings"
+            shortcut="Ctrl+,"
+          />
         </Row>
       </Section>
 
@@ -143,6 +147,9 @@ export function DesignPage() {
       <Section title="Tooltip">
         <Tooltip label="Add files, folders, links, notes and swatches">
           <Button variant="secondary">Hover me</Button>
+        </Tooltip>
+        <Tooltip label="Search" shortcut="Ctrl+K" placement="bottom">
+          <Button variant="secondary">With a shortcut, below</Button>
         </Tooltip>
       </Section>
 

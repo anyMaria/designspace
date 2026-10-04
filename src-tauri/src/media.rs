@@ -5,6 +5,7 @@
 use crate::error::{AppError, AppResult};
 use crate::state::{AppState, ChunkedUpload};
 use chrono::Datelike;
+use designspace_core::media_url::cache_file_name;
 use designspace_core::{hash::sha256_hex, media_naming::media_rel_path, path_safety};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
@@ -275,12 +276,6 @@ fn cache_dir(app: &AppHandle, library_id: &str) -> AppResult<std::path::PathBuf>
         .join(library_id);
     fs::create_dir_all(&dir)?;
     Ok(dir)
-}
-
-/// Cache keys are opaque strings (often containing `/`, e.g. `t128/<itemId>`); flatten them into
-/// a single safe file name rather than trusting them as a nested path.
-fn cache_file_name(key: &str) -> String {
-    key.replace(['/', '\\'], "_").replace("..", "_")
 }
 
 fn current_library_id(state: &State<'_, AppState>) -> AppResult<String> {

@@ -1,5 +1,5 @@
 import type { Platform } from './types';
-import { runMigrations } from '@/db/migrator';
+import { LATEST_SCHEMA_VERSION, readSchemaVersion, runMigrations } from '@/db/migrator';
 import { newId } from '@/lib/ids';
 import { logger } from '@/lib/logger';
 
@@ -11,6 +11,19 @@ export interface BootstrapResult {
 /** Runs migrations and makes sure the one `boards.kind = 'library'` row exists (§5.2). Call
  * this once a library is open (immediately for BrowserPlatform; after first-run for Tauri). */
 export async function ensureLibraryReady(platform: Platform): Promise<string> {
+  // Back up before migrating an existing library (CLAUDE.md "Migrations only"). A failed backup is
+  // logged and we carry on, because migration 002 only adds columns. A future destructive migration
+  // (dropping or rewriting data) must stop here instead.
+  if (platform.kind === 'tauri') {
+    const existing = await readSchemaVersion(platform.db);
+    if (existing > 0 && existing < LATEST_SCHEMA_VERSION) {
+      try {
+        await platform.backups.now();
+      } catch (err) {
+        logger.error('Backup before migrating failed; migrating anyway', err);
+      }
+    }
+  }
   const { from, to } = await runMigrations(platform.db);
   if (to !== from) logger.info(`Migrated the library database from schema v${from} to v${to}`);
 
