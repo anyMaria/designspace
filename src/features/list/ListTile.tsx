@@ -1,3 +1,5 @@
+import { en } from '@/i18n/en';
+import { useLibraryStore } from '@/state/libraryStore';
 import { Star } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
@@ -117,6 +119,42 @@ function TileBody({ platform, item }: { platform: Platform; item: Item }) {
         >
           {item.title}
         </span>
+      </div>
+    );
+  }
+
+  if (item.kind === 'font' && item.fontCollection) {
+    const names = item.fontCollection.ids
+      .slice(0, 3)
+      .map((id) => useLibraryStore.getState().items.get(id)?.title ?? '')
+      .filter(Boolean);
+    return (
+      <div
+        style={{
+          ...fill,
+          padding: 8,
+          background: 'var(--surface-2)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          overflow: 'hidden',
+          fontSize: 11,
+        }}
+      >
+        <strong>{en.fontCollection.families(item.fontCollection.ids.length)}</strong>
+        {names.map((n) => (
+          <span
+            key={n}
+            style={{
+              color: 'var(--text-2)',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+            }}
+          >
+            {n}
+          </span>
+        ))}
       </div>
     );
   }

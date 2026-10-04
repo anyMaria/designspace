@@ -5,6 +5,7 @@ import { useLibraryStore } from '@/state/libraryStore';
 import { useFocusStore } from '@/state/focusStore';
 import { IconButton } from '@/design/components';
 import { en } from '@/i18n/en';
+import type { Engine } from '@/canvas/Engine';
 import { PdfFocusViewer } from './PdfFocusViewer';
 import { FontFocusViewer } from './FontFocusViewer';
 import { LinkFocusViewer } from './LinkFocusViewer';
@@ -15,7 +16,7 @@ import { useEscape } from '@/app/useEscape';
  * Details column (those fields don't exist until M2's classification panel). ← / → walk the
  * currently loaded item order; a real "list order, or results newest-first" needs the List
  * panel's sort, which is also M2. */
-export function FocusView({ platform }: { platform: Platform }) {
+export function FocusView({ platform, engine }: { platform: Platform; engine: Engine | null }) {
   const itemId = useFocusStore((s) => s.itemId);
   const close = useFocusStore((s) => s.close);
   const item = useLibraryStore((s) => (itemId ? s.items.get(itemId) : undefined));
@@ -181,7 +182,7 @@ export function FocusView({ platform }: { platform: Platform }) {
             {en.pdf.unsupportedFallback}
           </div>
         ) : (
-          <PdfFocusViewer key={item.id} platform={platform} item={item} />
+          <PdfFocusViewer key={item.id} platform={platform} item={item} engine={engine} />
         ))}
       {item.kind === 'font' &&
         item.filePath &&

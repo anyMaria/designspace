@@ -24,6 +24,7 @@ const APP_COMMANDS: &[&str] = &[
     "cache_delete",
     "cache_prune_orphans",
     "media_read_image",
+    "media_read_pdf",
     "backup_now",
     "backup_list",
     "backup_restore",

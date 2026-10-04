@@ -13,7 +13,7 @@ import {
 } from '@/commands/itemTermCommands';
 import { Chip, Button, TermCombobox } from '@/design/components';
 import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
-import { isMediaKind } from '@/lib/itemKinds';
+import { isMediaItem } from '@/lib/itemKinds';
 import { en } from '@/i18n/en';
 
 /** Details panel for several selected items — §2.6 "Several items selected". Single-item editing
@@ -31,7 +31,7 @@ export function BulkDetailsPanel({
   const allIds = useMemo(() => selected.map((i) => i.id), [selected]);
   // Classification (Type, Vibe, Movement, Tags, Artist) only applies to collected media; notes and
   // palettes are left out (Patch 1 · D3).
-  const items = useMemo(() => selected.filter((i) => isMediaKind(i.kind)), [selected]);
+  const items = useMemo(() => selected.filter((i) => isMediaItem(i)), [selected]);
   const itemIds = useMemo(() => items.map((i) => i.id), [items]);
   const noteCount = selected.filter((i) => i.kind === 'note').length;
   const paletteCount = selected.filter((i) => i.kind === 'swatch').length;
@@ -149,7 +149,7 @@ export function BulkDetailsPanel({
                 flexShrink: 0,
               }}
             >
-              {isMediaKind(item.kind) && item.status === 'ok' && (
+              {isMediaItem(item) && item.status === 'ok' && (
                 <img
                   src={thumbUrl(platform, item, 128)}
                   alt=""

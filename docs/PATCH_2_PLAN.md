@@ -1293,7 +1293,7 @@ e2e: copy `src/design/fonts/urbanist/Urbanist-VariableFont_wght.ttf` and `Urbani
 (make the layout maths a pure `specimenLayout(size)` returning the font sizes and y positions) gives the numbers above.
 **Owner checks:** pick Semibold and Large on a family: the card redraws with big, readable text.
 
-### F5 · Type collections `[ ]`
+### F5 · Type collections `[x]`
 **Files:** new `src/lib/fontCollection.ts` (+ test), `src/design/tokens.ts`, new `src/canvas/decor/fontCollectionDecor.ts`,
 `src/canvas/Engine.ts`, `src/canvas/itemCards.ts`, new `src/commands/fontCollectionCommands.ts` (+ test),
 `src/commands/itemCommands.ts`, `src/commands/boardCommands.ts`, `src/canvas/contextMenuItems.ts` (+ test),
@@ -1365,7 +1365,7 @@ collection tile with "2 families"; hovering a row (after giving it a Vibe shared
 their own proportions; the PDF viewer's "Split into pages…" uses the same window. Size: M. Version at the end:
 **0.15.0**. Mockup: `docs/patch-2/pdf-picker.png`.
 
-### G1 · Page ranges, single-page files and layout by proportions (pure parts) `[ ]`
+### G1 · Page ranges, single-page files and layout by proportions (pure parts) `[x]`
 **Files:** new `src/lib/pageRange.ts` (+ test), `src/features/focus/splitPdfIntoPages.ts` (+ test),
 `src/features/import/importItems.ts` (+ test).
 
@@ -1387,7 +1387,7 @@ their own proportions; the PDF viewer's "Split into pages…" uses the same wind
 (3 pages): indices `[0,2]` → two one-page files named `sample p1.pdf`, `sample p3.pdf`; building page 1 twice gives equal
 bytes; `planBatchPlacements` with aspects `[0.707, 1.414]` gives rects of those proportions, left to right.
 
-### G2 · The page picker `[ ]`
+### G2 · The page picker `[x]`
 **Files:** `src-tauri/src/media.rs`, `lib.rs`, `build.rs`, `capabilities/default.json`, `src/platform/types.ts` + both
 platforms, new `src/state/pdfPickerStore.ts` (+ test), new `src/features/pdfPages/PdfPagePicker.tsx`, `src/app/Shell.tsx`, `en.ts`.
 
@@ -1415,7 +1415,7 @@ platforms, new `src/state/pdfPickerStore.ts` (+ test), new `src/features/pdfPage
 **Tests:** `pdfPickerStore.test.ts` (two requests are answered in order; cancel resolves null). Component behaviour is
 covered by G3's e2e.
 
-### G3 · Wire the picker into adding and splitting `[ ]`
+### G3 · Wire the picker into adding and splitting `[x]`
 **Files:** `src/features/import/useDropAndPaste.ts`, `src/features/import/AddMenu.tsx` (or wherever Files… lives),
 `src/features/import/importItems.ts`, `src/features/focus/PdfFocusViewer.tsx`, `src/features/focus/FocusView.tsx`, `src/app/Shell.tsx`.
 

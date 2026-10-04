@@ -25,7 +25,8 @@ vi.mock('@/workers/fontIngestQueue', () => ({
 }));
 
 // Imported after the mocks above so `importItems.ts` picks up the mocked ingest queues.
-const { freeCentreFor, importFiles, importPaths } = await import('./importItems');
+const { freeCentreFor, importFiles, importPaths, planBatchPlacements } =
+  await import('./importItems');
 
 function makeFile(name: string, content = 'x', type = 'image/png'): File {
   return new File([content], name, { type });
@@ -321,5 +322,26 @@ describe('freeCentreFor', () => {
     expect(next).not.toEqual({ x: 500, y: 400 });
     const overlaps = Math.abs(next.x - 500) < 200 && Math.abs(next.y - 400) < 200; // two 200-wide boxes
     expect(overlaps).toBe(false);
+  });
+});
+
+describe('planBatchPlacements with page proportions (Patch 2 · G1)', () => {
+  it('lays pages out left to right at their own proportions', async () => {
+    const plan = await planBatchPlacements(makePlatform(), { x: 0, y: 0 }, 2, {
+      aspects: [0.707, 1.414],
+    });
+    const [a, b] = plan.primaryRects;
+    expect(a.w / a.h).toBeCloseTo(0.707, 2);
+    expect(b.w / b.h).toBeCloseTo(1.414, 2);
+    expect(b.x).toBeGreaterThan(a.x + a.w - 1);
+    expect(b.y).toBeCloseTo(a.y, 0);
+  });
+  it('a top-left anchor puts the batch right of and below the point', async () => {
+    const plan = await planBatchPlacements(makePlatform(), { x: 1000, y: 500 }, 1, {
+      aspects: [0.707],
+      anchor: 'topLeft',
+    });
+    expect(plan.primaryRects[0].x).toBeCloseTo(1000, 0);
+    expect(plan.primaryRects[0].y).toBeCloseTo(500, 0);
   });
 });

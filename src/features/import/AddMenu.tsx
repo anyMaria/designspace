@@ -6,6 +6,7 @@ import type { Engine } from '@/canvas/Engine';
 import type { Rect } from '@/lib/geometry';
 import { en } from '@/i18n/en';
 import { freeCentreFor, importFiles, importPaths } from './importItems';
+import { importFilesWithPdfChoice, importPathsWithPdfChoice } from './importWithPdfChoice';
 import { detectMediaKind } from '@/lib/fileKinds';
 import { useToastStore } from '@/state/toastStore';
 import { useAddMenuStore } from '@/state/addMenuStore';
@@ -64,7 +65,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
     setOpen(false);
     if (platform.kind === 'tauri') {
       const paths = await platform.dialogs.openFiles(MEDIA_FILTERS);
-      if (paths.length > 0) await importPaths(platform, paths, dropPoint(), flyTo);
+      if (paths.length > 0) await importPathsWithPdfChoice(platform, paths, dropPoint(), flyTo);
     } else {
       filesInputRef.current?.click();
     }
@@ -141,7 +142,7 @@ export function AddMenu({ platform, engine }: AddMenuProps) {
   function onFilesInputChange(e: ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (files.length > 0) void importFiles(platform, files, dropPoint(), flyTo);
+    if (files.length > 0) void importFilesWithPdfChoice(platform, files, dropPoint(), flyTo);
   }
 
   function onFolderInputChange(e: ChangeEvent<HTMLInputElement>): void {

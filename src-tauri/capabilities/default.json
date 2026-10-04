@@ -34,6 +34,7 @@
     "allow-cache-delete",
     "allow-cache-prune-orphans",
     "allow-media-read-image",
+    "allow-media-read-pdf",
     "allow-backup-now",
     "allow-backup-list",
     "allow-backup-restore",

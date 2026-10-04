@@ -216,3 +216,7 @@ export const paletteGeometry = {
   /** Hex labels inside cells only show when a cell is at least this many screen px wide. */
   labelMinCellPx: 72,
 } as const;
+
+/** The type collection card (Patch 2 · F5), in world units: width, header height, one row per
+ * family, space under the last row. */
+export const fontCollectionGeometry = { width: 360, header: 48, row: 56, padBottom: 8 } as const;

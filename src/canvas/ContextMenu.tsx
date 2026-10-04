@@ -35,6 +35,11 @@ import { sortItems } from '@/features/list/listGrouping';
 import { en } from '@/i18n/en';
 import { logger } from '@/lib/logger';
 import type { ContextMenuState } from './useContextMenu';
+import {
+  createAddToFontCollectionCommand,
+  createMakeFontCollectionCommand,
+  createRemoveFromFontCollectionCommand,
+} from '@/commands/fontCollectionCommands';
 import { contextMenuItemIds, type ContextMenuItemId } from './contextMenuItems';
 import type { Item } from '@/state/types';
 import { useEscape } from '@/app/useEscape';
@@ -117,8 +122,47 @@ export function ContextMenu({
   function tidyUp(): void {
     onClose();
     const sortBy = useListStore.getState().sortBy;
-    const ordered = sortItems(ids, sortBy, useLibraryStore.getState().items);
+    // Type collections and their rows have a fixed layout (Patch 2 · F5): tidy leaves them alone.
+    const { items, placements } = useLibraryStore.getState();
+    const tidyable = ids.filter(
+      (id) => !items.get(id)?.fontCollection && !placements.get(id)?.parentId,
+    );
+    const ordered = sortItems(tidyable, sortBy, items);
     void useHistoryStore.getState().execute(createTidyUpCommand(platform, ordered));
+  }
+
+  function makeTypeCollection(): void {
+    onClose();
+    const made = createMakeFontCollectionCommand(platform, ids);
+    if (!made) return;
+    void useHistoryStore
+      .getState()
+      .execute(made.command)
+      .then(() => {
+        useLibraryStore.getState().setSelection([made.id]);
+        engine?.setSelection([made.id]);
+      });
+  }
+
+  function addToTypeCollection(): void {
+    onClose();
+    const state = useLibraryStore.getState();
+    const collection = selectedItems.find((i) => !!i.fontCollection);
+    if (!collection) return;
+    const families = ids.filter((id) => id !== collection.id);
+    void useHistoryStore
+      .getState()
+      .execute(createAddToFontCollectionCommand(platform, collection.id, families))
+      .then(() => state.setSelection([collection.id]));
+  }
+
+  function removeFromTypeCollection(): void {
+    onClose();
+    const parentId = memberOf;
+    if (!parentId) return;
+    void useHistoryStore
+      .getState()
+      .execute(createRemoveFromFontCollectionCommand(platform, parentId, ids[0]));
   }
 
   function backToInbox(): void {
@@ -245,6 +289,9 @@ export function ContextMenu({
     cropPlacement.cropX !== null &&
     (imageAspect === null || isCropped(cropPlacement, imageAspect));
 
+  // A family that is a row of a type collection (Patch 2 · F5).
+  const memberOf =
+    ids.length === 1 ? (useLibraryStore.getState().placements.get(ids[0])?.parentId ?? null) : null;
   function setFavorite(on: boolean): void {
     onClose();
     void useHistoryStore
@@ -276,6 +323,9 @@ export function ContextMenu({
   const selectedItems = ids
     .map((id) => useLibraryStore.getState().items.get(id))
     .filter((i): i is Item => !!i);
+
+  const collectionName =
+    selectedItems.find((i) => !!i.fontCollection)?.title ?? en.fontCollection.defaultName;
 
   type Entry = { id: string; label: string; disabled?: boolean; onSelect: () => void };
   const colorEntries = Object.fromEntries(
@@ -342,6 +392,21 @@ export function ContextMenu({
       label: en.colorStudio.makePalette,
       onSelect: makePalette,
     },
+    'make-type-collection': {
+      id: 'make-type-collection',
+      label: en.fontCollection.make,
+      onSelect: makeTypeCollection,
+    },
+    'add-to-type-collection': {
+      id: 'add-to-type-collection',
+      label: en.fontCollection.addTo(collectionName),
+      onSelect: addToTypeCollection,
+    },
+    'remove-from-type-collection': {
+      id: 'remove-from-type-collection',
+      label: en.fontCollection.removeFrom,
+      onSelect: removeFromTypeCollection,
+    },
     'combine-palette': {
       id: 'combine-palette',
       label: en.palettes.combine,
@@ -388,7 +453,11 @@ export function ContextMenu({
         <Popover>
           <Menu
             aria-label="Item"
-            items={contextMenuItemIds(selectedItems, { onBoard, cropped }).map((id) => entries[id])}
+            items={contextMenuItemIds(selectedItems, {
+              onBoard,
+              cropped,
+              inCollection: !!memberOf,
+            }).map((id) => entries[id])}
           />
         </Popover>
       </div>

@@ -5,6 +5,7 @@ import { justifiedRows } from '@/lib/packing';
 import { unionRects } from '@/lib/geometry';
 import type { Command } from './types';
 import type { Item } from '@/state/types';
+import { applyFreeMembers, planFreeMembers } from './fontCollectionCommands';
 
 /** Drags and resizes only update the engine while moving and commit one command on pointer-up
  * — §4.11. All three commands below follow the same do/undo shape: snapshot the previous
@@ -31,7 +32,27 @@ function applyPositions(platform: Platform, updates: PositionUpdate[]): Promise<
   return platform.db.batch(statements);
 }
 
-export function createMoveItemsCommand(platform: Platform, updates: PositionUpdate[]): Command {
+/** A collection moves with its families: add each member of a moved collection (same shift). */
+function withCollectionMembers(updates: PositionUpdate[]): PositionUpdate[] {
+  const { items, placements } = useLibraryStore.getState();
+  const have = new Set(updates.map((u) => u.id));
+  const out = [...updates];
+  for (const u of updates) {
+    const ids = items.get(u.id)?.fontCollection?.ids;
+    const from = placements.get(u.id);
+    if (!ids || !from) continue;
+    for (const memberId of ids) {
+      const m = placements.get(memberId);
+      if (!m || have.has(memberId) || m.parentId !== u.id) continue;
+      have.add(memberId);
+      out.push({ id: memberId, x: m.x + (u.x - from.x), y: m.y + (u.y - from.y) });
+    }
+  }
+  return out;
+}
+
+export function createMoveItemsCommand(platform: Platform, requested: PositionUpdate[]): Command {
+  const updates = withCollectionMembers(requested);
   const previous: PositionUpdate[] = updates.map((u) => {
     const p = useLibraryStore.getState().placements.get(u.id);
     return { id: u.id, x: p?.x ?? u.x, y: p?.y ?? u.y };
@@ -230,6 +251,10 @@ export function createStackOrderCommand(
  * as they were and undo/restore is exact. On the Library map, Delete/Backspace always trashes
  * (§2.2) — "Remove from board" without trashing is a Board-only distinction that lands in M4. */
 export function createTrashCommand(platform: Platform, ids: string[]): Command {
+  // Trashing a type collection frees its families (a column under it), and undo re-attaches them.
+  const freeing = planFreeMembers(
+    ids.filter((id) => !!useLibraryStore.getState().items.get(id)?.fontCollection),
+  );
   async function setDeleted(deletedAt: string | null): Promise<void> {
     const statements = [];
     for (const id of ids) {
@@ -247,12 +272,16 @@ export function createTrashCommand(platform: Platform, ids: string[]): Command {
   return {
     label: ids.length > 1 ? `Move ${ids.length} items to Trash` : 'Move to Trash',
     do: async () => {
+      await applyFreeMembers(platform, freeing, 'after');
       await setDeleted(new Date().toISOString());
       // Trashed items leave the selection (undo doesn't restore it; nothing else does either).
       const { selection, setSelection } = useLibraryStore.getState();
       setSelection([...selection].filter((id) => !ids.includes(id)));
     },
-    undo: () => setDeleted(null),
+    undo: async () => {
+      await setDeleted(null);
+      await applyFreeMembers(platform, freeing, 'before');
+    },
   };
 }
 

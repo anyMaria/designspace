@@ -71,6 +71,7 @@ function makeDerivatives(overrides: Partial<FontDerivatives> = {}): FontDerivati
     vendorId: null,
     t128: new ArrayBuffer(4),
     t512: new ArrayBuffer(4),
+    trow: new ArrayBuffer(4),
     ...overrides,
   };
 }

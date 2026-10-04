@@ -101,6 +101,8 @@ export interface Platform {
     /** The bytes of a picture chosen with the file dialog, for sampling colours (Color studio) —
      * never stored in the library. Tauri only: only picture formats, at most 64 MB. */
     readImage(path: string): Promise<ArrayBuffer>;
+    /** The bytes of a PDF picked with the file dialog (Patch 2 · G2); Tauri only. */
+    readPdf(path: string): Promise<ArrayBuffer>;
   };
 
   cache: {

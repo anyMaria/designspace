@@ -3081,3 +3081,45 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   Color studio, Copy all). `createExtractPaletteCommand`, the old wheel/slider editor and `ColorWheel` were removed.
   `Engine.startPointPick` and `lib/pickColor.ts` are now unused by the UI but kept (tested, tiny).
 - **Cloud limits:** the clipboard-paste path and the real image decode of large files are only checked on Windows.
+
+## Patch 2 · Phase F: font families and type collections (v0.14.0)
+
+- **F1:** migration `005_fonts.sql` adds `font_files` (one row per file), `items.font_family_key/font_card/font_collection`
+  and `placements.parent_id`. A family stays a `kind = 'font'` item; `items.file_path` points at its main file so Show in
+  Explorer and the media check keep working. A type collection is a font item with no file and
+  `font_collection = {"ids":[…]}`. `readMeta` now also reads the style name, weight, italic flag, named instances and
+  vendor id.
+- **F2:** `mergeFontFamilies` runs once at start (guarded by `meta.font_families_v`), after the pre-migration backup, and
+  folds the old "one item per file" fonts into families per group in one batch. Merged item rows are deleted (not trashed,
+  so no file goes to the Recycle Bin); terms, connections, placements per space and fields are carried over.
+- **F3:** a font dropped or picked is grouped by family key (same family in one batch, or an existing family in the
+  library: the files are added to it as styles with one undoable command). Duplicate detection also looks in
+  `font_files` (Rust `find_duplicate` + TS `findByHash`). Purging a family sends every one of its files to the Recycle
+  Bin. **Deviation:** the font card version is `FONT_DERIVED_V = 3` (not 1 as in the plan), because existing font items
+  already carry `derived_v = 2` and must be redrawn once with the new family card.
+- **F4:** the card shows the owner's chosen style, weight (variable fonts), text size and text; Details → On the card
+  edits them (one command each, the card is redrawn) and lists the family's styles written in each style. The type
+  tester has a style select and "Show on the card". One `FontFace` is registered per file, never several under one name.
+- **F5:** type collections. Right-click two or more families → Make a type collection; Add to…, Remove from collection;
+  Details lets you rename, reorder and remove. Dragging the header or any row moves the whole collection (the engine
+  expands the group; `createMoveItemsCommand` does too). Rows are the families' own cards drawn from a `trow/<id>` strip
+  (z = collection + 0.5); no resize handles on a collection or its rows; tidy-up skips them; trashing a collection frees
+  its families in the same undo step. Create-board from a selection leaves a collection out (its families go as plain
+  cards); adding a collection to a board brings its rows along.
+- **Cloud limits:** the real Windows font set (many families, WOFF2/OTF variety) is for the owner to try.
+
+## Patch 2 · Phase G: choosing PDF pages (v0.15.0)
+
+- **G1:** `parsePageRange`/`formatPageRange` (1-based text, 0-based result), `buildSinglePagePdfs` (one-page files made
+  without metadata updates, so the same page twice has identical bytes and duplicate detection works), and
+  `planBatchPlacements`/`importFiles` take layout options (`aspects`, `rowHeight`, `anchor`). The default row height for
+  a multi-item batch is now 320 (the plan's value) instead of 240, so batch placeholders are real 320 squares that
+  `fitPlacementsToAspect` can reshape.
+- **G2:** Rust `media_read_pdf` (only `.pdf`, ≤ 512 MB, raw binary IPC; `is_allowed_pdf` is unit-tested) and
+  `media.readPdf`. `pdfPickerStore` asks several PDFs one after the other. `PdfPagePicker` (wide `Dialog`): Select all /
+  None, a range field (invalid text turns red and changes nothing), page tiles drawn at their own proportions and
+  rendered lazily when scrolled into view, Add as one PDF / Add these n pages separately (or Add n pages when splitting).
+- **G3:** drop, paste and Files… ask for pages when a PDF has more than one (`importFilesWithPdfChoice`,
+  `importPathsWithPdfChoice`); Folder… and onboarding add whole files without asking. The PDF viewer's **Split into
+  pages…** opens the picker in split mode and puts the chosen pages to the right of the PDF (the original stays).
+- **Cloud limits:** the Tauri path (`readPdf` on a real Windows file) is for the owner to try.

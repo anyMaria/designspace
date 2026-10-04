@@ -31,7 +31,36 @@ function safeDomain(url: string | null | undefined): string | null {
  * a flat color card (their own `color` token) with a plain-text snippet the engine draws as a
  * `Text` child (see `Engine.setLibraryItems`'s note-label handling and Spike S4 in DECISIONS.md
  * for why that's a plain-text snippet rather than a full `HTMLText` render of the rich content). */
-export function itemToCard(item: Item, placement: Placement, platform: Platform): ItemCard {
+export function itemToCard(
+  item: Item,
+  placement: Placement,
+  platform: Platform,
+  /** The z of the collection this card is a row of, so the row sits just above it (F5). */
+  parentZ?: number,
+): ItemCard {
+  // A type collection (Patch 2 · F5): drawn by the engine, no thumbnail.
+  if (item.kind === 'font' && item.fontCollection) {
+    return {
+      ...baseCard(item, placement),
+      kind: 'font',
+      dominantColor: FALLBACK_COLOR,
+      collection: { title: item.title, count: item.fontCollection.ids.length },
+    };
+  }
+  // A family that is a row of a collection shows its row strip.
+  if (item.kind === 'font' && placement.parentId) {
+    const ready = item.status === 'ok';
+    const url = ready ? platform.cache.url(`trow/${item.id}`, item.thumbV ?? 0) : null;
+    return {
+      ...baseCard(item, placement),
+      z: (parentZ ?? placement.z) + 0.5,
+      kind: 'font',
+      dominantColor: FALLBACK_COLOR,
+      thumbUrl128: url,
+      thumbUrl512: url,
+      parentId: placement.parentId,
+    };
+  }
   if (item.kind === 'note') {
     const colorName = (item.color as NoteColor | null) ?? DEFAULT_NOTE_COLOR;
     const dominantColor = noteColors[colorName] ?? noteColors[DEFAULT_NOTE_COLOR];
@@ -157,5 +186,31 @@ export function itemToCard(item: Item, placement: Placement, platform: Platform)
     favorite: item.favorite,
     cropX: placement.cropX,
     cropY: placement.cropY,
+  };
+}
+
+/** The fields every kind of card has, with nothing kind-specific filled in. */
+function baseCard(item: Item, placement: Placement): ItemCard {
+  return {
+    id: item.id,
+    x: placement.x,
+    y: placement.y,
+    w: placement.w,
+    h: placement.h,
+    z: placement.z,
+    kind: item.kind,
+    dominantColor: FALLBACK_COLOR,
+    thumbUrl128: null,
+    thumbUrl512: null,
+    noteText: null,
+    durationMs: null,
+    videoUrl: null,
+    pageCount: null,
+    swatchColors: null,
+    swatchName: null,
+    noteColor: null,
+    favorite: item.favorite,
+    cropX: null,
+    cropY: null,
   };
 }

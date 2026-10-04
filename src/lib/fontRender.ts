@@ -49,6 +49,8 @@ export interface FontMeta {
 export interface FontDerivatives extends FontMeta {
   t128: ArrayBuffer;
   t512: ArrayBuffer;
+  /** The strip a family shows as a row of a type collection (Patch 2 · F5), transparent. */
+  trow: ArrayBuffer;
 }
 
 function toHexColor(packed: number): string {
@@ -235,6 +237,32 @@ function drawSpecimen(
   return canvas;
 }
 
+const ROW_W = 720;
+const ROW_H = 112; // 360 × 56 world units × 2
+
+function drawRowStrip(
+  localFamily: string,
+  meta: FontMeta,
+  options: SpecimenOptions,
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = ROW_W;
+  canvas.height = ROW_H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context unavailable');
+  const weight = options.wght !== null ? String(Math.round(options.wght)) : 'normal';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = toHexColor(colors.text1);
+  ctx.font = `${weight} 52px "${localFamily}"`;
+  ctx.fillText(meta.family, 32, ROW_H / 2 + 2, ROW_W / 2 + 120);
+  ctx.font = `500 24px ${fonts.ui}`;
+  ctx.fillStyle = toHexColor(colors.text3);
+  ctx.textAlign = 'right';
+  const n = options.styleCount;
+  ctx.fillText(`${n} style${n === 1 ? '' : 's'}`, ROW_W - 32, ROW_H / 2 + 2);
+  return canvas;
+}
+
 function canvasToWebp(canvas: HTMLCanvasElement): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -292,11 +320,12 @@ export async function extractFontDerivatives(
   try {
     // The specimen's family-name line is drawn in the UI font; make sure it is ready.
     await document.fonts.load(`600 24px ${fonts.ui}`).catch(() => []);
-    const [t128, t512] = await Promise.all([
+    const [t128, t512, trow] = await Promise.all([
       canvasToWebp(drawSpecimen(localFamily, meta, THUMB_W, THUMB_H, previewText, options)),
       canvasToWebp(drawSpecimen(localFamily, meta, SPECIMEN_W, SPECIMEN_H, previewText, options)),
+      canvasToWebp(drawRowStrip(localFamily, meta, options)),
     ]);
-    return { ...meta, t128, t512 };
+    return { ...meta, t128, t512, trow };
   } finally {
     document.fonts.delete(face);
   }

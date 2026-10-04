@@ -371,6 +371,12 @@
    * get their normal :focus-visible ring. */
   outline: none;
 }
+
+/* The PDF page picker is a wide window (Patch 2 · G2). */
+.ds-dialog.ds-pdf-picker {
+  width: min(960px, calc(100vw - 48px));
+  max-width: none;
+}
 .ds-dialog--settings {
   width: min(760px, calc(100vw - 2 * var(--space-6)));
   max-width: none;

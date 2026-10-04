@@ -5,7 +5,8 @@ import type { DbRow, Platform } from '@/platform/types';
 export async function requeueMissingThumbnails(platform: Platform): Promise<number> {
   const rows = await platform.db.select<DbRow>(
     `SELECT id FROM items WHERE deleted_at IS NULL AND status = 'ok'
-       AND (kind IN ('image','video','pdf','font') OR (kind = 'link' AND cover_path IS NOT NULL))`,
+       AND (kind IN ('image','video','pdf') OR (kind = 'font' AND font_collection IS NULL)
+            OR (kind = 'link' AND cover_path IS NOT NULL))`,
   );
   const missing: string[] = [];
   for (let i = 0; i < rows.length; i += 500) {

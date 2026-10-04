@@ -4,6 +4,7 @@
 import 'pixi.js/unsafe-eval';
 import { cardAlpha, connectionRelatedSet } from './cardAlpha';
 import { drawPalette, paletteDrawKey } from './decor/paletteDecor';
+import { drawFontCollection, fontCollectionDrawKey } from './decor/fontCollectionDecor';
 import { CRITERION_COLOR } from './criterionColor';
 import { drawNotePaper, notePaperKey } from './decor/noteDecor';
 import { paletteCellAt } from '@/lib/palette';
@@ -103,6 +104,10 @@ export interface ItemCard {
   /** Patch 2 · C3: the crop focus (0–1) of a picture the owner has cropped; null = not cropped. */
   cropX: number | null;
   cropY: number | null;
+  /** Patch 2 · F5: the type collection this family is a row of; null otherwise. */
+  parentId?: string | null;
+  /** Patch 2 · F5: set on a type collection card (drawn by `decor/fontCollectionDecor.ts`). */
+  collection?: { title: string; count: number } | null;
 }
 
 interface EngineEvents {
@@ -538,7 +543,7 @@ export class Engine {
 
   /** Whether this card draws itself through a decor container instead of its sprite. */
   private isSelfDrawn(card: ItemCard): boolean {
-    return card.kind === 'swatch' || card.kind === 'note';
+    return card.kind === 'swatch' || card.kind === 'note' || !!card.collection;
   }
 
   private removeDecor(id: string): void {
@@ -583,6 +588,14 @@ export class Engine {
         this.decorKey.set(card.id, key);
         const label = this.noteLabels.get(card.id);
         if (label) label.mask = this.noteMasks.get(card.id) ?? null;
+      }
+      return;
+    }
+    if (card.collection) {
+      const key = fontCollectionDrawKey(card);
+      if (this.decorKey.get(card.id) !== key) {
+        drawFontCollection(decor, { w: card.w, h: card.h, ...card.collection });
+        this.decorKey.set(card.id, key);
       }
       return;
     }
@@ -891,6 +904,19 @@ export class Engine {
     );
   }
 
+  /** Dragging a type collection or any of its rows moves the collection and all its rows. */
+  private withCollectionGroup(ids: string[]): string[] {
+    const out = new Set(ids);
+    for (const id of ids) {
+      const card = this.cards.get(id);
+      const root = card?.parentId ?? (card?.collection ? id : null);
+      if (!root) continue;
+      out.add(root);
+      for (const c of this.cards.values()) if (c.parentId === root) out.add(c.id);
+    }
+    return [...out];
+  }
+
   private interactableCards(): ItemCard[] {
     const all = [...this.cards.values()];
     if (!this.searchMatches) return all;
@@ -984,6 +1010,8 @@ export class Engine {
 
   /** The resize handle of `card` under a world point (a whole edge counts, not only the pill). */
   private resizeHandleUnder(card: ItemCard, world: { x: number; y: number }): ResizeHandle | null {
+    // A type collection and its rows are laid out by their commands, never resized by hand.
+    if (card.collection || card.parentId) return null;
     return resizeHandleAt(card, world, {
       tolerance: resizeHandles.hitTolerance / this.camera.zoom,
       handles: resizePolicyFor(card.kind).handles,
@@ -1128,7 +1156,7 @@ export class Engine {
         }
         mode = 'move';
         moveOrigin = new Map(
-          [...this.selection].map((id) => {
+          this.withCollectionGroup([...this.selection]).map((id) => {
             const c = this.cards.get(id);
             return [id, { x: c?.x ?? 0, y: c?.y ?? 0 }];
           }),
@@ -1283,7 +1311,7 @@ export class Engine {
           if (cell !== null) this.emit('swatchCellClick', card.id, cell);
         }
       } else if (mode === 'move' && moved) {
-        const updates = [...this.selection].map((id) => {
+        const updates = [...moveOrigin.keys()].map((id) => {
           const c = this.cards.get(id);
           return { id, x: c?.x ?? 0, y: c?.y ?? 0 };
         });
@@ -1513,7 +1541,7 @@ export class Engine {
 
     if (selected.length === 1) {
       const card = selected[0];
-      const handles = resizePolicyFor(card.kind).handles;
+      const handles = card.collection || card.parentId ? [] : resizePolicyFor(card.kind).handles;
       const { corner, sideLong, sideShort } = resizeHandles;
       const w = card.w * this.camera.zoom;
       const h = card.h * this.camera.zoom;

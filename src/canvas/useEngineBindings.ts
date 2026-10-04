@@ -34,7 +34,10 @@ export function useEngineBindings(engine: Engine | null, platform: Platform): vo
       const cards = [];
       for (const [id, placement] of placements) {
         const item = items.get(id);
-        if (item && !item.deletedAt) cards.push(itemToCard(item, placement, platform));
+        if (item && !item.deletedAt) {
+          const parentZ = placement.parentId ? placements.get(placement.parentId)?.z : undefined;
+          cards.push(itemToCard(item, placement, platform, parentZ));
+        }
       }
       engine?.setLibraryItems(cards);
     }

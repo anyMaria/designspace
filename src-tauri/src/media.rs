@@ -322,6 +322,35 @@ pub fn media_read_image(path: String) -> AppResult<tauri::ipc::Response> {
     Ok(tauri::ipc::Response::new(fs::read(p)?))
 }
 
+const MAX_PDF_BYTES: u64 = 512 * 1024 * 1024;
+
+/// Pure, unit-tested: only `.pdf` files can be read by `media_read_pdf`.
+fn is_allowed_pdf(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
+}
+
+/// Reads a PDF chosen with the file dialog so the page picker can show its pages before anything is
+/// copied into the library (Patch 2 · G2). Raw binary IPC: arrives as an `ArrayBuffer`.
+#[tauri::command]
+pub fn media_read_pdf(path: String) -> AppResult<tauri::ipc::Response> {
+    let p = Path::new(&path);
+    if !is_allowed_pdf(p) {
+        return Err(AppError::new(
+            "not_pdf",
+            "Only PDF files can be read this way.",
+        ));
+    }
+    if fs::metadata(p)?.len() > MAX_PDF_BYTES {
+        return Err(AppError::new(
+            "too_large",
+            "This PDF is larger than 512 MB.",
+        ));
+    }
+    Ok(tauri::ipc::Response::new(fs::read(p)?))
+}
+
 /// Pure, unit-tested: ULID-named direct children of `root` not in `keep`.
 fn orphan_cache_dirs(root: &Path, keep: &HashSet<String>) -> Vec<PathBuf> {
     let Ok(entries) = fs::read_dir(root) else {
@@ -535,6 +564,15 @@ mod tests {
         let keep = HashSet::from([kept]);
         let orphans = orphan_cache_dirs(dir.path(), &keep);
         assert_eq!(orphans, vec![dir.path().join(other)]);
+    }
+
+    #[test]
+    fn is_allowed_pdf_accepts_pdf_only() {
+        assert!(is_allowed_pdf(Path::new("C:\\docs\\Book.PDF")));
+        assert!(is_allowed_pdf(Path::new("a.pdf")));
+        assert!(!is_allowed_pdf(Path::new("a.pdf.exe")));
+        assert!(!is_allowed_pdf(Path::new("secrets.txt")));
+        assert!(!is_allowed_pdf(Path::new("pdf")));
     }
 
     #[test]

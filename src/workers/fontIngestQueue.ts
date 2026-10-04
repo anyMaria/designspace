@@ -67,7 +67,7 @@ export class FontIngestQueue {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${res.url}`);
       const bytes = await res.arrayBuffer();
-      const { t128, t512, ...meta } = await extractFontDerivatives(
+      const { t128, t512, trow, ...meta } = await extractFontDerivatives(
         bytes,
         item.itemId,
         card.text ?? useSettingsStore.getState().fontPreviewText,
@@ -76,6 +76,7 @@ export class FontIngestQueue {
 
       await this.platform.cache.put(`t128/${item.itemId}`, new Uint8Array(t128));
       await this.platform.cache.put(`t512/${item.itemId}`, new Uint8Array(t512));
+      await this.platform.cache.put(`trow/${item.itemId}`, new Uint8Array(trow));
       queueAiAnalysis(this.platform, item.itemId);
       await this.platform.db.execute(
         `UPDATE items SET font_meta = ?, status = 'ok', thumb_v = thumb_v + 1, derived_v = ?, updated_at = ? WHERE id = ?`,

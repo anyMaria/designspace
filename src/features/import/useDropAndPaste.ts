@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Engine } from '@/canvas/Engine';
 import type { Platform } from '@/platform/types';
-import { importFiles } from './importItems';
+import { importFilesWithPdfChoice } from './importWithPdfChoice';
 import { importLink } from './importLink';
 import { useBoardStore } from '@/state/boardStore';
 import { useSettingsStore } from '@/state/settingsStore';
@@ -54,7 +54,9 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
       const files = e.dataTransfer?.files;
       if (files && files.length > 0) {
         e.preventDefault();
-        void importFiles(platform, Array.from(files), point, (rect) => engine?.flyTo(rect));
+        void importFilesWithPdfChoice(platform, Array.from(files), point, (rect) =>
+          engine?.flyTo(rect),
+        );
         return;
       }
 
@@ -81,14 +83,14 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
 
       const fileItems = Array.from(e.clipboardData?.files ?? []);
       if (fileItems.length > 0) {
-        void importFiles(platform, fileItems, point, (rect) => engine?.flyTo(rect));
+        void importFilesWithPdfChoice(platform, fileItems, point, (rect) => engine?.flyTo(rect));
         return;
       }
 
       const bytes = await platform.clipboard.readImage();
       if (bytes) {
         const file = new File([bytes.slice()], `pasted-${Date.now()}.png`, { type: 'image/png' });
-        void importFiles(platform, [file], point, (rect) => engine?.flyTo(rect));
+        void importFilesWithPdfChoice(platform, [file], point, (rect) => engine?.flyTo(rect));
         return;
       }
 

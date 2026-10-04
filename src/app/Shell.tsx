@@ -33,6 +33,7 @@ import { ContextMenu } from '@/canvas/ContextMenu';
 import { ZoomMenu } from '@/canvas/ZoomMenu';
 import { Minimap } from '@/canvas/Minimap';
 import { useFocusViewBinding } from '@/canvas/useFocusViewBinding';
+import { PdfPagePicker } from '@/features/pdfPages/PdfPagePicker';
 import { FocusView } from '@/features/focus/FocusView';
 import { useDropAndPaste } from '@/features/import/useDropAndPaste';
 import { useListDragToBoard } from '@/features/list/useListDragToBoard';
@@ -42,6 +43,7 @@ import { ImportProgressCard } from '@/features/import/ImportProgressCard';
 import { ToastHost } from '@/features/toasts/ToastHost';
 import { useAddMenuStore } from '@/state/addMenuStore';
 import { DetailsPanel } from '@/features/details/DetailsPanel';
+import { FontCollectionDetails } from '@/features/details/FontCollectionDetails';
 import { PaletteEditor } from '@/features/palettes/PaletteEditor';
 import { NoteDetails } from '@/features/notes/NoteDetails';
 import { ActionsPanel } from '@/features/actions/ActionsPanel';
@@ -422,6 +424,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
             <BulkDetailsPanel platform={platform} items={selectedItems} />
           ) : selectedItem?.kind === 'note' ? (
             <NoteDetails platform={platform} item={selectedItem} />
+          ) : selectedItem?.kind === 'font' && selectedItem.fontCollection ? (
+            <FontCollectionDetails platform={platform} item={selectedItem} />
           ) : selectedItem?.kind === 'swatch' ? (
             <PaletteEditor platform={platform} item={selectedItem} />
           ) : selectedItem ? (
@@ -473,7 +477,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           onClose={closeContextMenu}
         />
       )}
-      <FocusView platform={platform} />
+      <FocusView platform={platform} engine={engine} />
+      <PdfPagePicker />
       <DescriptionPanel platform={platform} engine={engine} />
       <OverviewOverlay platform={platform} engine={engine} />
       <NoteEditor platform={platform} engine={engine} />

@@ -127,4 +127,34 @@ describe('description entries', () => {
       'add-favorite',
     );
   });
+
+  describe('type collections (Patch 2 · F5)', () => {
+    const fam = (id: string) => item({ id, kind: 'font', filePath: 'f.ttf' });
+    const col = (id: string, ids: string[]) =>
+      item({ id, kind: 'font', filePath: null, fontCollection: { ids } });
+    it('offers Make a type collection for two or more families, never for one', () => {
+      expect(contextMenuItemIds([fam('a'), fam('b')], ctx)).toContain('make-type-collection');
+      expect(contextMenuItemIds([fam('a')], ctx)).not.toContain('make-type-collection');
+      expect(contextMenuItemIds([fam('a'), item({ id: 'p' })], ctx)).not.toContain(
+        'make-type-collection',
+      );
+    });
+    it('offers Add to … for one collection plus families that are not in it', () => {
+      expect(contextMenuItemIds([col('c', ['a']), fam('b')], ctx)).toContain(
+        'add-to-type-collection',
+      );
+      expect(contextMenuItemIds([col('c', ['a']), fam('a')], ctx)).not.toContain(
+        'add-to-type-collection',
+      );
+    });
+    it('offers Remove from collection for one member, and a collection is not media', () => {
+      expect(contextMenuItemIds([fam('a')], { ...ctx, inCollection: true })).toContain(
+        'remove-from-type-collection',
+      );
+      const ids = contextMenuItemIds([col('c', ['a'])], ctx);
+      expect(ids).not.toContain('add-favorite');
+      expect(ids).not.toContain('back-to-inbox');
+      expect(ids).not.toContain('show-in-explorer');
+    });
+  });
 });

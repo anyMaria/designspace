@@ -1,3 +1,4 @@
+import { fontCollectionRows, fontCollectionSize } from '@/lib/fontCollection';
 import type { Platform } from '@/platform/types';
 import type { DbStatement } from '@/platform/types';
 import { useBoardStore } from '@/state/boardStore';
@@ -61,6 +62,9 @@ export function createBoardFromItemsCommand(
   name: string,
   sourceFilter: unknown,
 ): { command: Command; board: Board } {
+  // A type collection has a fixed layout of its own and does not go onto a board by itself; its
+  // families do (as plain cards).
+  itemIds = itemIds.filter((id) => !useLibraryStore.getState().items.get(id)?.fontCollection);
   const board: Board = {
     id: newId(),
     kind: 'board',
@@ -191,11 +195,29 @@ export function createDuplicateBoardCommand(
         w: number;
         h: number;
         z: number;
-      }>('SELECT item_id, x, y, w, h, z FROM placements WHERE board_id = ?', [boardId]);
+        crop_x: number | null;
+        crop_y: number | null;
+        parent_id: string | null;
+      }>(
+        'SELECT item_id, x, y, w, h, z, crop_x, crop_y, parent_id FROM placements WHERE board_id = ?',
+        [boardId],
+      );
       for (const p of placementRows) {
         statements.push({
-          sql: 'INSERT INTO placements (board_id, item_id, x, y, w, h, z, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          params: [copy.id, p.item_id, p.x, p.y, p.w, p.h, p.z, now],
+          sql: 'INSERT INTO placements (board_id, item_id, x, y, w, h, z, crop_x, crop_y, parent_id, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          params: [
+            copy.id,
+            p.item_id,
+            p.x,
+            p.y,
+            p.w,
+            p.h,
+            p.z,
+            p.crop_x,
+            p.crop_y,
+            p.parent_id,
+            now,
+          ],
         });
       }
 
@@ -240,7 +262,11 @@ export function createRemoveFromBoardCommand(
   boardId: string,
   itemIds: string[],
 ): Command {
-  const removed = itemIds
+  // Removing a type collection removes its rows with it (Patch 2 · F5).
+  const withRows = new Set(itemIds);
+  for (const p of useLibraryStore.getState().placements.values())
+    if (p.parentId && withRows.has(p.parentId)) withRows.add(p.itemId);
+  const removed = [...withRows]
     .map((id) => useLibraryStore.getState().placements.get(id))
     .filter((p): p is NonNullable<typeof p> => !!p && p.boardId === boardId);
 
@@ -257,8 +283,21 @@ export function createRemoveFromBoardCommand(
     undo: async () => {
       for (const p of removed) useLibraryStore.getState().upsertPlacement(p);
       const statements: DbStatement[] = removed.map((p) => ({
-        sql: 'INSERT INTO placements (board_id, item_id, x, y, w, h, z, frame_id, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        params: [p.boardId, p.itemId, p.x, p.y, p.w, p.h, p.z, p.frameId, p.addedAt],
+        sql: 'INSERT INTO placements (board_id, item_id, x, y, w, h, z, frame_id, crop_x, crop_y, parent_id, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        params: [
+          p.boardId,
+          p.itemId,
+          p.x,
+          p.y,
+          p.w,
+          p.h,
+          p.z,
+          p.frameId,
+          p.cropX,
+          p.cropY,
+          p.parentId,
+          p.addedAt,
+        ],
       }));
       if (statements.length > 0) await platform.db.batch(statements);
     },
@@ -315,30 +354,41 @@ export function createAddToBoardCommand(
     addedAt: new Date().toISOString(),
   };
 
+  // A type collection brings its families along as rows (Patch 2 · F5).
+  const memberIds = item?.fontCollection?.ids ?? [];
+  const rows = fontCollectionRows(memberIds.length, placement);
+  if (item?.fontCollection) {
+    const size = fontCollectionSize(memberIds.length);
+    placement.w = size.w;
+    placement.h = size.h;
+  }
+  const memberPlacements: Placement[] = memberIds.map((id, i) => ({
+    ...placement,
+    itemId: id,
+    ...rows[i],
+    parentId: itemId,
+  }));
+  const all = [placement, ...memberPlacements];
+
   return {
     label: 'Add to board',
     do: async () => {
-      useLibraryStore.getState().upsertPlacement(placement);
-      await platform.db.execute(
-        'INSERT INTO placements (board_id, item_id, x, y, w, h, z, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [
-          placement.boardId,
-          placement.itemId,
-          placement.x,
-          placement.y,
-          placement.w,
-          placement.h,
-          placement.z,
-          placement.addedAt,
-        ],
+      for (const p of all) useLibraryStore.getState().upsertPlacement(p);
+      await platform.db.batch(
+        all.map((p) => ({
+          sql: 'INSERT INTO placements (board_id, item_id, x, y, w, h, z, parent_id, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          params: [p.boardId, p.itemId, p.x, p.y, p.w, p.h, p.z, p.parentId, p.addedAt],
+        })),
       );
     },
     undo: async () => {
-      useLibraryStore.getState().removePlacements([itemId]);
-      await platform.db.execute('DELETE FROM placements WHERE board_id = ? AND item_id = ?', [
-        boardId,
-        itemId,
-      ]);
+      useLibraryStore.getState().removePlacements(all.map((p) => p.itemId));
+      await platform.db.batch(
+        all.map((p) => ({
+          sql: 'DELETE FROM placements WHERE board_id = ? AND item_id = ?',
+          params: [boardId, p.itemId],
+        })),
+      );
     },
   };
 }

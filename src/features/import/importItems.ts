@@ -111,6 +111,15 @@ async function fetchPlacementSnapshot(
   }));
 }
 
+/** How a batch is laid out (Patch 2 · G1): `aspects` are the items' real proportions in input
+ * order (default square), `rowHeight` the target row height, and `anchor` says whether the drop
+ * point is the centre of the batch (default) or where its top-left corner should go. */
+export interface BatchLayoutOptions {
+  aspects?: number[];
+  rowHeight?: number;
+  anchor?: 'centre' | 'topLeft';
+}
+
 export interface BatchPlacementPlan {
   primaryBoardId: string;
   primaryRects: Rect[];
@@ -129,6 +138,7 @@ export async function planBatchPlacements(
   platform: Platform,
   dropPoint: DropPoint,
   count: number,
+  opts?: BatchLayoutOptions,
 ): Promise<BatchPlacementPlan> {
   const libraryBoardId = await findLibraryBoardId(platform);
   const currentBoardId = useBoardStore.getState().currentBoardId;
@@ -136,7 +146,7 @@ export async function planBatchPlacements(
     currentBoardId && currentBoardId !== libraryBoardId ? currentBoardId : libraryBoardId;
 
   const currentSnapshot = currentPlacementSnapshot();
-  const primaryRects = placeBatch(dropPoint, count, currentSnapshot);
+  const primaryRects = placeBatch(dropPoint, count, currentSnapshot, opts);
   const primaryZStart = nextZ(currentSnapshot);
 
   if (primaryBoardId === libraryBoardId) {
@@ -156,27 +166,39 @@ export async function planBatchPlacements(
     primaryRects,
     primaryZStart,
     extraBoardId: libraryBoardId,
-    extraRects: placeBatch(LIBRARY_ARRIVAL_ORIGIN, count, librarySnapshot),
+    extraRects: placeBatch(LIBRARY_ARRIVAL_ORIGIN, count, librarySnapshot, opts),
     extraZStart: nextZ(librarySnapshot),
   };
 }
 
 /** Placement rects for a batch, in input order — a single item lands where dropped (or the
  * nearest free spot); several land as a justified-row grid anchored near the drop point (§2.3). */
-function placeBatch(dropPoint: DropPoint, count: number, occupied: Rect[]): Rect[] {
+function placeBatch(
+  dropPoint: DropPoint,
+  count: number,
+  occupied: Rect[],
+  opts?: BatchLayoutOptions,
+): Rect[] {
   if (count === 0) return [];
   const isOccupied = makeIsOccupied(occupied);
-  if (count === 1) {
+  const hasAspects = !!opts?.aspects && opts.aspects.length > 0;
+  if (count === 1 && !hasAspects) {
     const pos = findFreeSpot(dropPoint, { w: PLACEHOLDER_SIZE, h: PLACEHOLDER_SIZE }, isOccupied);
     return [{ x: pos.x, y: pos.y, w: PLACEHOLDER_SIZE, h: PLACEHOLDER_SIZE }];
   }
   const ids = Array.from({ length: count }, (_, i) => String(i));
   const rows = justifiedRows(
-    ids.map((id) => ({ id, aspect: 1 })),
+    ids.map((id, i) => ({ id, aspect: opts?.aspects?.[i] ?? 1 })),
     { x: 0, y: 0 },
+    { rowHeight: opts?.rowHeight ?? PLACEHOLDER_SIZE },
   );
   const bounds = unionRects(rows) ?? { x: 0, y: 0, w: PLACEHOLDER_SIZE, h: PLACEHOLDER_SIZE };
-  const anchor = findFreeSpot(dropPoint, { w: bounds.w, h: bounds.h }, isOccupied);
+  // `findFreeSpot` aims at a centre; for a top-left anchor aim at the centre of the batch.
+  const target =
+    opts?.anchor === 'topLeft'
+      ? { x: dropPoint.x + bounds.w / 2, y: dropPoint.y + bounds.h / 2 }
+      : dropPoint;
+  const anchor = findFreeSpot(target, { w: bounds.w, h: bounds.h }, isOccupied);
   const dx = anchor.x - bounds.x;
   const dy = anchor.y - bounds.y;
   return rows.map((r) => ({ x: r.x + dx, y: r.y + dy, w: r.w, h: r.h }));
@@ -540,6 +562,7 @@ export async function importFiles(
   files: File[],
   dropPoint: DropPoint,
   flyTo?: FlyTo,
+  layout?: BatchLayoutOptions,
 ): Promise<void> {
   const supported = files.filter((f) => detectMediaKind(f.name) !== null);
   for (const f of files) {
@@ -549,7 +572,7 @@ export async function importFiles(
   }
   if (supported.length === 0) return;
 
-  const plan = await planBatchPlacements(platform, dropPoint, supported.length);
+  const plan = await planBatchPlacements(platform, dropPoint, supported.length, layout);
   const store = useImportStore.getState();
   store.begin(supported.length);
 

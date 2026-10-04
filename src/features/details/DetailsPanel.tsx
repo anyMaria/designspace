@@ -25,7 +25,7 @@ import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
 import { formatBytes } from '@/lib/formatBytes';
 import { formatDuration } from '@/lib/formatDuration';
 import { findSimilarItemIds } from '@/lib/ai/findSimilar';
-import { isMediaKind } from '@/lib/itemKinds';
+import { isMediaItem } from '@/lib/itemKinds';
 import { useDescriptionStore } from '@/state/descriptionStore';
 import { en } from '@/i18n/en';
 import { SuggestionsSection } from '@/features/ai/SuggestionsSection';
@@ -199,7 +199,7 @@ export function DetailsPanel({
         <FontCardSection platform={platform} item={item} />
       )}
 
-      {isMediaKind(item.kind) && (
+      {isMediaItem(item) && (
         <Field label={en.description.field}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             <p

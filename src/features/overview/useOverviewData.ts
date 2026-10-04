@@ -13,7 +13,7 @@ import {
 } from '@/lib/connections';
 import { itemColorOf } from '@/lib/itemColor';
 import { thumbUrl } from '@/lib/thumbs';
-import { isMediaKind } from '@/lib/itemKinds';
+import { isMediaItem } from '@/lib/itemKinds';
 import { logger } from '@/lib/logger';
 import {
   defaultLayoutWorkerFactory,
@@ -109,7 +109,7 @@ export function useOverviewData(platform: Platform): { model: OverviewModel; arr
         title: item.title.trim() || item.fileName || item.kind,
         aspect: p.h > 0 ? p.w / p.h : 1,
         thumbUrl:
-          nodesMode === 'thumbnails' && isMediaKind(item.kind) && item.status === 'ok'
+          nodesMode === 'thumbnails' && isMediaItem(item) && item.status === 'ok'
             ? thumbUrl(platform, item, 128)
             : null,
       });
