@@ -121,7 +121,7 @@ holding `text/plain` = a URL, and a Link tile appears in the List; the same with
 **Owner checks:** copy a link from Chrome's address bar, click the map, press Ctrl+V: a link card appears under the
 pointer.
 
-### A2 · Esc always gets you out of full screen `[ ]`
+### A2 · Esc always gets you out of full screen `[x]`
 **Files:** `src/app/App.tsx`, `src/app/escapeStack.ts` (+ test), `src/app/fullscreen.ts` (+ test),
 `src/canvas/useCanvasShortcuts.ts`, `src/platform/tauri/TauriPlatform.ts`, `src/platform/browser/BrowserPlatform.ts`,
 `src-tauri/capabilities/default.json`, new `src/app/FullscreenExitPill.tsx`, `src/app/Shell.tsx`, `en.ts`.

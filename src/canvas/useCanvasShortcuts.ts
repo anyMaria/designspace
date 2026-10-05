@@ -36,7 +36,7 @@ import { isBlockingOverlayOpen } from '@/app/overlayGate';
  * docs/DECISIONS.md; cheap to add once stacking order is exercised for real. */
 export function useCanvasShortcuts(engine: Engine | null, platform: Platform): void {
   // Esc, when nothing is open (Patch 2 · C1): first cancel a pending pick or deselect a line,
-  // then clear the selection. Full screen is next in line (App.tsx, priority 30).
+  // then leave full screen (App.tsx, priority 15), then clear the selection.
   useEffect(() => {
     if (!engine) return;
     const removePick = escapeStack.addBase(10, () => {

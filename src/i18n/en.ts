@@ -529,7 +529,7 @@ export const en = {
     focusView: 'Focus view',
     nextPicture: 'Next picture',
     previousPicture: 'Previous picture',
-    escapeLadder: 'Close, deselect, then leave full screen',
+    escapeLadder: "Close what's open, leave full screen, then deselect",
     zoomToFit: 'Zoom to fit',
     zoomToSelection: 'Zoom to selection',
     zoomTo100: 'Zoom to 100%',
@@ -687,6 +687,7 @@ export const en = {
   fullscreen: {
     enter: 'Full screen',
     exit: 'Exit full screen',
+    exitPill: 'Exit full screen · Esc',
     hint: 'Full screen · press Esc or F11 to leave',
     setting: 'Open in full screen',
   },

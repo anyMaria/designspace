@@ -77,12 +77,12 @@ export function App() {
   useEffect(() => installEscapeListener(window, isTypingTarget), []);
 
   // Full screen follows the window (the browser's own Esc leaves it too); with nothing else to
-  // close, Esc leaves it (the last base handler).
+  // close, Esc leaves it (priority 15: after cancelling a mode, before clearing the selection).
   const platformForEsc = boot.phase === 'ready' ? boot.platform : null;
   useEffect(() => {
     if (!platformForEsc) return;
     const unwatch = watchFullscreen(platformForEsc);
-    const removeBase = escapeStack.addBase(30, () => {
+    const removeBase = escapeStack.addBase(15, () => {
       if (!useUiStore.getState().fullscreen) return false;
       void setFullscreen(platformForEsc, false);
       return true;

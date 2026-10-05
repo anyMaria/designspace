@@ -63,7 +63,7 @@ describe('typing', () => {
     s.addBase(0, base);
     const dialog = vi.fn(() => true);
     const remove = s.push(dialog);
-    expect(s.handle(true)).toBe(false);
+    expect(s.handle(true)).toBe('blur');
     expect(dialog).not.toHaveBeenCalled();
     expect(base).not.toHaveBeenCalled();
     remove();
@@ -73,7 +73,48 @@ describe('typing', () => {
   });
 });
 
+describe('typing with nothing open', () => {
+  it('asks to leave the field', () => {
+    expect(createEscapeStack().handle(true)).toBe('blur');
+  });
+});
+
+describe('full screen versus the selection', () => {
+  it('leaves full screen before clearing the selection (priority 15 < 20)', () => {
+    const s = createEscapeStack();
+    const calls: string[] = [];
+    s.addBase(20, () => (calls.push('selection'), true));
+    s.addBase(15, () => (calls.push('fullscreen'), true));
+    s.addBase(10, () => false);
+    expect(s.handle()).toBe(true);
+    expect(calls).toEqual(['fullscreen']);
+  });
+});
+
 describe('installEscapeListener', () => {
+  it('blurs a focused field that ignores Esc, and leaves one that takes it', () => {
+    const s = createEscapeStack();
+    const isTyping = (t: EventTarget | null) => t instanceof HTMLInputElement;
+    const uninstall = installEscapeListener(window, isTyping, s);
+    const plain = document.createElement('input');
+    const own = document.createElement('input');
+    own.addEventListener('keydown', (e) => e.preventDefault());
+    document.body.append(plain, own);
+    plain.focus();
+    plain.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    );
+    expect(document.activeElement).not.toBe(plain);
+    own.focus();
+    own.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    );
+    expect(document.activeElement).toBe(own);
+    uninstall();
+    plain.remove();
+    own.remove();
+  });
+
   it('handles Esc in the capture phase and respects typing', () => {
     const s = createEscapeStack();
     const layer = vi.fn(() => true);

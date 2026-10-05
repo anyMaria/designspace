@@ -176,11 +176,15 @@ export class TauriPlatform implements Platform {
     isFullscreen: (): Promise<boolean> => getCurrentWindow().isFullscreen(),
     setFullscreen: (on: boolean): Promise<void> => getCurrentWindow().setFullscreen(on),
     onFullscreenChange: (cb: (on: boolean) => void): (() => void) => {
-      const unlisten = getCurrentWindow().onResized(() => {
-        void getCurrentWindow().isFullscreen().then(cb);
-      });
-      return () => void unlisten.then((f) => f());
+      const check = () => void getCurrentWindow().isFullscreen().then(cb);
+      const unlistenResize = getCurrentWindow().onResized(check);
+      const unlistenFocus = getCurrentWindow().onFocusChanged(check);
+      return () => {
+        void unlistenResize.then((f) => f());
+        void unlistenFocus.then((f) => f());
+      };
     },
+    focus: (): Promise<void> => getCurrentWindow().setFocus(),
   };
 
   clipboard = {

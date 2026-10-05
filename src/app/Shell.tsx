@@ -17,6 +17,7 @@ import { useUiStore } from '@/state/uiStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
 import { toggleFullscreen } from './fullscreen';
+import { FullscreenExitPill } from './FullscreenExitPill';
 import { useSoftLimitNotice } from './useSoftLimitNotice';
 import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
@@ -468,6 +469,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
 
       {dragOver && <DropOverlay />}
       <ImportProgressCard />
+      <FullscreenExitPill platform={platform} />
       <ToastHost />
       {contextMenu && (
         <ContextMenu

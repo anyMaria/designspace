@@ -246,21 +246,40 @@ export class BrowserPlatform implements Platform {
     },
   };
 
-  window = {
-    isFullscreen: (): Promise<boolean> => Promise.resolve(document.fullscreenElement !== null),
-    setFullscreen: async (on: boolean): Promise<void> => {
-      if (on && document.fullscreenElement === null) {
-        await document.documentElement.requestFullscreen();
-      } else if (!on && document.fullscreenElement !== null) {
-        await document.exitFullscreen();
-      }
-    },
-    onFullscreenChange: (cb: (on: boolean) => void): (() => void) => {
-      const handler = () => cb(document.fullscreenElement !== null);
-      document.addEventListener('fullscreenchange', handler);
-      return () => document.removeEventListener('fullscreenchange', handler);
-    },
-  };
+  window = (() => {
+    // `?fakeFullscreen` keeps the state in memory, so the browser's own Esc handling never
+    // interferes with end-to-end tests (Patch 3 · A2).
+    const fake =
+      typeof location !== 'undefined' && new URLSearchParams(location.search).has('fakeFullscreen');
+    let fakeOn = false;
+    const fakeListeners = new Set<(on: boolean) => void>();
+    return {
+      isFullscreen: (): Promise<boolean> =>
+        Promise.resolve(fake ? fakeOn : document.fullscreenElement !== null),
+      setFullscreen: async (on: boolean): Promise<void> => {
+        if (fake) {
+          fakeOn = on;
+          fakeListeners.forEach((cb) => cb(on));
+          return;
+        }
+        if (on && document.fullscreenElement === null) {
+          await document.documentElement.requestFullscreen();
+        } else if (!on && document.fullscreenElement !== null) {
+          await document.exitFullscreen();
+        }
+      },
+      onFullscreenChange: (cb: (on: boolean) => void): (() => void) => {
+        if (fake) {
+          fakeListeners.add(cb);
+          return () => fakeListeners.delete(cb);
+        }
+        const handler = () => cb(document.fullscreenElement !== null);
+        document.addEventListener('fullscreenchange', handler);
+        return () => document.removeEventListener('fullscreenchange', handler);
+      },
+      focus: (): Promise<void> => Promise.resolve(),
+    };
+  })();
 
   clipboard = {
     readImage: async (): Promise<Uint8Array | null> => {
