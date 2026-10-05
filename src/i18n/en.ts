@@ -527,6 +527,8 @@ export const en = {
     selectAll: 'Select all',
     moveToTrash: 'Move to Trash',
     focusView: 'Focus view',
+    nextPicture: 'Next picture',
+    previousPicture: 'Previous picture',
     escapeLadder: 'Close, deselect, then leave full screen',
     zoomToFit: 'Zoom to fit',
     zoomToSelection: 'Zoom to selection',

@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
+import { browseOrder, neighbourId } from '@/lib/browseOrder';
 import { useFocusStore } from '@/state/focusStore';
 import { IconButton } from '@/design/components';
 import { en } from '@/i18n/en';
@@ -21,8 +22,13 @@ export function FocusView({ platform, engine }: { platform: Platform; engine: En
   const close = useFocusStore((s) => s.close);
   const item = useLibraryStore((s) => (itemId ? s.items.get(itemId) : undefined));
   const items = useLibraryStore((s) => s.items);
+  const placements = useLibraryStore((s) => s.placements);
 
-  const order = useMemo(() => [...items.keys()], [items]);
+  // Reading order on the current space, the same order Shift+Space / Ctrl+Space use on the map.
+  const order = useMemo(() => {
+    const browse = browseOrder(items, placements);
+    return itemId && !browse.includes(itemId) ? [...browse, itemId] : browse;
+  }, [items, placements, itemId]);
   const index = itemId ? order.indexOf(itemId) : -1;
   const hasPrev = index > 0;
   const hasNext = index >= 0 && index < order.length - 1;
@@ -43,6 +49,11 @@ export function FocusView({ platform, engine }: { platform: Platform; engine: En
         useFocusStore.getState().open(order[index - 1]);
       } else if (e.key === 'ArrowRight' && hasNext) {
         useFocusStore.getState().open(order[index + 1]);
+      } else if (e.code === 'Space' && (e.shiftKey || e.ctrlKey) && !e.altKey) {
+        // Shift+Space: the next one, Ctrl+Space: the previous one (wraps around).
+        e.preventDefault();
+        const next = neighbourId(order, itemId, e.shiftKey ? 1 : -1);
+        if (next && next !== itemId) useFocusStore.getState().open(next);
       }
     }
     window.addEventListener('keydown', onKeyDown);

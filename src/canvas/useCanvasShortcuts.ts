@@ -20,6 +20,7 @@ import { triggerRediscover } from '@/features/rediscover/triggerRediscover';
 import { openInboxTriage } from '@/features/triage/openInboxTriage';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
+import { browseOrder, neighbourId } from '@/lib/browseOrder';
 import { isTypingTarget } from '@/lib/isTypingTarget';
 import { showTrashToast } from '@/features/trash/trashToast';
 import { escapeStack } from '@/app/escapeStack';
@@ -68,6 +69,22 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
       if (isTypingTarget(e.target) || isBlockingOverlayOpen()) return;
       const selection = [...useLibraryStore.getState().selection];
       const reduceMotion = prefersReducedMotion();
+
+      // Shift+Space: the next picture, Ctrl+Space: the previous one (selects it and flies to it).
+      // Focus view has its own copy of this, so the map stands down while it is open.
+      if (e.code === 'Space' && (e.shiftKey || e.ctrlKey) && !e.altKey) {
+        if (useFocusStore.getState().itemId) return;
+        e.preventDefault();
+        const { items, placements, selection } = useLibraryStore.getState();
+        const current = selection.size === 1 ? [...selection][0] : null;
+        const next = neighbourId(browseOrder(items, placements), current, e.shiftKey ? 1 : -1);
+        if (next) {
+          useLibraryStore.getState().setSelection([next]);
+          engine!.setSelection([next]);
+          engine!.zoomToIds([next], reduceMotion);
+        }
+        return;
+      }
 
       if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
         e.preventDefault();

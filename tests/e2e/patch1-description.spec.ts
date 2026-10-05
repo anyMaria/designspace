@@ -29,7 +29,10 @@ test('a description written in the bubble panel persists and is searchable', asy
 
   const panel = page.getByTestId('description-panel');
   await expect(panel).toBeVisible();
+  await expect(panel.getByText('What do you see? Why does it matter?')).toBeVisible();
   await page.keyboard.type('Zephyrine blue gradient with a #dig-into note');
+  // The placeholder goes away as soon as there is text.
+  await expect(panel.getByText('What do you see? Why does it matter?')).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
 

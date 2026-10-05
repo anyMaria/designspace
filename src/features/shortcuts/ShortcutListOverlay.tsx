@@ -21,6 +21,8 @@ const ROWS: ShortcutRow[] = [
   { action: en.shortcuts.selectAll, keys: ['Ctrl', 'A'] },
   { action: en.shortcuts.moveToTrash, keys: ['Delete'] },
   { action: en.shortcuts.focusView, keys: ['Enter'] },
+  { action: en.shortcuts.nextPicture, keys: ['Shift', 'Space'] },
+  { action: en.shortcuts.previousPicture, keys: ['Ctrl', 'Space'] },
   { action: en.shortcuts.escapeLadder, keys: ['Esc'] },
   { action: en.shortcuts.zoomToFit, keys: ['Shift', '1'] },
   { action: en.shortcuts.zoomToSelection, keys: ['Shift', '2'] },
