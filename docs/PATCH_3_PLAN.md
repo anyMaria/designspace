@@ -246,7 +246,7 @@ platforms (`embeddings`), `loadSettings.ts`, `en.ts`, `package.json` (`models:fe
 **Goal:** you can tell kinds apart at a glance, write a description where you read it, and every link has a picture or
 says it needs one. Size: M. Version **0.17.0**.
 
-### B1 · A small icon for each kind `[ ]`
+### B1 · A small icon for each kind `[x]`
 **Files:** `ListTile.tsx`, `src/canvas/CanvasHoverOverlay.tsx`, `DetailsPanel.tsx`, `src/lib/kindIcon.tsx` (from A3),
 `tokens.ts`.
 
@@ -256,7 +256,7 @@ Details header shows icon + label ("Video", "Palette"…). Size S tiles keep the
 **Tests:** `ListTile` test: each kind renders its icon's `aria-label`.
 **Owner checks:** in the List, videos, PDFs, links, fonts, palettes and notes each have their own little icon.
 
-### B2 · Write the description right in Details `[ ]`
+### B2 · Write the description right in Details `[x]`
 **Files:** new `src/features/details/InlineDescription.tsx`, `DetailsPanel.tsx`, `DescriptionPanel.tsx`, `en.ts`.
 
 **Do**

@@ -36,6 +36,17 @@ export function InlineDescription({ platform, itemId }: { platform: Platform; it
   }, [editor, itemId, platform]);
   useEffect(() => () => saveRef.current(), []);
 
+  // Undo/redo (or a change from elsewhere) rewrites the stored description while this field is
+  // not being typed in: show it.
+  const stored = useLibraryStore((s) => s.items.get(itemId)?.description);
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || editor.isFocused) return;
+    const next = (stored as object | null | undefined) ?? emptyNoteBody();
+    if (JSON.stringify(editor.getJSON()) !== JSON.stringify(next)) {
+      editor.commands.setContent(next);
+    }
+  }, [stored, editor]);
+
   return (
     <div
       className="ds-inline-description ds-description-editor"

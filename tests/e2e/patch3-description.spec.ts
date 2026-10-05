@@ -12,14 +12,21 @@ test('a description typed in Details is saved, persists, and Ctrl+Z undoes it', 
     .setInputFiles('tests/e2e/fixtures/wide-circle.png');
   await page.waitForTimeout(2500); // let the picture finish ingesting
 
-  // The import selects the picture, so Details is showing.
   const field = page.getByTestId('inline-description');
   await expect(field).toBeVisible();
-  await field.getByText('Add a description…').click();
+  await expect(field).toContainText('Add a description…');
+  await field.locator('.ProseMirror').click();
   await page.keyboard.type('Quiet blue circle');
   // Click elsewhere in the panel to leave the field.
   await page.getByTestId('details-kind').click();
   await expect(page.getByTestId('description-panel')).toBeHidden();
+
+  // Ctrl+Z (focus out of the field) removes the description; redo brings it back.
+  await expect(page.getByTestId('description-panel')).toBeHidden();
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('inline-description')).not.toContainText('Quiet blue circle');
+  await page.keyboard.press('Control+Shift+z');
+  await expect(page.getByTestId('inline-description')).toContainText('Quiet blue circle');
 
   // Persisted: wait for the debounced save, then reload and search for it.
   await page.waitForTimeout(2500);
@@ -29,13 +36,4 @@ test('a description typed in Details is saved, persists, and Ctrl+Z undoes it', 
   await page.keyboard.press('Control+k');
   await page.getByPlaceholder('Search your library…').fill('quiet');
   await expect(page.getByText(/^1 of 1$/)).toBeVisible({ timeout: 15_000 });
-  await page.keyboard.press('Escape');
-
-  // Ctrl+Z (focus on the map) removes the description again.
-  await page.mouse.click(640, 650);
-  await page.locator('button.ds-list-tile').first().click();
-  await expect(page.getByTestId('inline-description')).toContainText('Quiet blue circle');
-  await page.mouse.click(640, 700);
-  await page.keyboard.press('Control+z');
-  await expect(page.getByTestId('inline-description')).not.toContainText('Quiet blue circle');
 });
