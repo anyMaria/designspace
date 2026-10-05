@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ExternalLink, Sparkles, X } from 'lucide-react';
+import { ExternalLink, Maximize2, Sparkles, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
 import type { Engine } from '@/canvas/Engine';
@@ -7,6 +7,9 @@ import { useTermStore } from '@/state/termStore';
 import { useFocusStore } from '@/state/focusStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
+import { InlineDescription } from './InlineDescription';
+import { KindIcon } from '@/lib/kindIcon';
+import { kindLabelOf } from '@/lib/kindMeta';
 import { useEmbeddingsStore } from '@/state/embeddingsStore';
 import { useHistoryStore } from '@/commands/history';
 import { createSetItemFieldCommand } from '@/commands/itemCommands';
@@ -154,6 +157,20 @@ export function DetailsPanel({
     <div
       style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', overflowY: 'auto' }}
     >
+      <div
+        data-testid="details-kind"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-2)',
+          color: 'var(--text-2)',
+          fontSize: 'var(--text-sm)',
+        }}
+      >
+        <KindIcon item={item} size={16} />
+        {kindLabelOf(item)}
+      </div>
+
       {item.kind === 'image' && item.status === 'ok' && (
         <button
           type="button"
@@ -195,31 +212,17 @@ export function DetailsPanel({
       )}
 
       {isMediaItem(item) && (
-        <Field label={en.description.field}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-            <p
-              style={{
-                margin: 0,
-                display: '-webkit-box',
-                WebkitLineClamp: 4,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                whiteSpace: 'pre-wrap',
-                color: item.descriptionText?.trim() ? 'var(--text-1)' : 'var(--text-3)',
-              }}
-            >
-              {item.descriptionText?.trim() || en.description.empty}
-            </p>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                engine?.zoomToIds([item.id]);
-                useDescriptionStore.getState().open(item.id);
-              }}
-            >
-              {en.description.open}
-            </Button>
-          </div>
+        <Field
+          label={en.description.field}
+          action={
+            <IconButton
+              icon={<Maximize2 size={14} strokeWidth={1.75} />}
+              label={en.description.openBeside}
+              onClick={() => useDescriptionStore.getState().open(item.id)}
+            />
+          }
+        >
+          <InlineDescription key={item.id} platform={platform} itemId={item.id} />
         </Field>
       )}
 
@@ -428,10 +431,29 @@ export function DetailsPanel({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  action,
+  children,
+}: {
+  label: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-      <span style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>{label}</span>
+      <span
+        style={{
+          color: 'var(--text-2)',
+          fontSize: 'var(--text-sm)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        {label}
+        {action}
+      </span>
       {children}
     </div>
   );

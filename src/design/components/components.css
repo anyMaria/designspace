@@ -662,3 +662,27 @@
   max-width: none;
   height: min(560px, 80vh);
 }
+
+/* Patch 3 · B2: the description field in Details. */
+.ds-inline-description {
+  position: relative;
+  background: var(--surface-2);
+  border-radius: var(--radius-input);
+  padding: var(--space-2) var(--space-3);
+  min-height: 3.2em;
+  /* Grows to 12 lines, then scrolls. */
+  max-height: calc(12 * 1.5em + 2 * var(--space-2));
+  overflow-y: auto;
+  cursor: text;
+}
+.ds-inline-description:focus-within {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+}
+.ds-inline-description__placeholder {
+  position: absolute;
+  pointer-events: none;
+  color: var(--text-3);
+}
+.ds-inline-description .ProseMirror {
+  min-height: 1.5em;
+}

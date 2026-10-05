@@ -7,6 +7,8 @@ import { noteColors, noteStyles, type NoteColor } from '@/design/tokens';
 import { swatchColorsOf } from '@/lib/palette';
 import { sourceDomain } from '@/lib/search';
 import { Thumb } from '@/design/components';
+import { KindIcon } from '@/lib/kindIcon';
+import { kindLabelOf } from '@/lib/kindMeta';
 
 const css = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
@@ -16,6 +18,25 @@ export function ListTile({ platform, item }: { platform: Platform; item: Item })
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <TileBody platform={platform} item={item} />
+      <span
+        data-testid="kind-badge"
+        title={kindLabelOf(item)}
+        style={{
+          position: 'absolute',
+          bottom: 4,
+          left: 4,
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          background: 'rgba(30, 16, 36, 0.72)',
+          color: 'var(--text-1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <KindIcon item={item} size={12} label />
+      </span>
       {item.favorite && (
         <span
           aria-label="favorite"

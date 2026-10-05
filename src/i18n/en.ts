@@ -120,6 +120,7 @@ export const en = {
     field: 'Description',
     empty: 'Add a description…',
     close: 'Close',
+    openBeside: 'Open beside the card',
   },
   actions: {
     tab: 'Actions',

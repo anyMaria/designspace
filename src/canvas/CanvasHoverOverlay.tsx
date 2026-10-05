@@ -9,6 +9,7 @@ import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import { useConnectionIndex } from '@/features/connections/useConnectionIndex';
 import { scoreCandidates } from '@/lib/connections';
 import { en } from '@/i18n/en';
+import { KindIcon } from '@/lib/kindIcon';
 
 const CRITERION_KEY = {
   type: 'criterionType',
@@ -113,7 +114,14 @@ export function CanvasHoverOverlay({ engine }: { engine: Engine | null }) {
           textOverflow: 'ellipsis',
         }}
       >
-        {name}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {item && (
+            <span style={{ display: 'inline-flex', color: 'var(--text-2)', flex: 'none' }}>
+              <KindIcon item={item} size={14} />
+            </span>
+          )}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+        </span>
       </div>
       {noneText && (
         <div
