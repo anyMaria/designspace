@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import { X } from 'lucide-react';
 import type { Engine } from '@/canvas/Engine';
 import { useCameraState } from '@/canvas/useCameraState';
@@ -50,6 +50,13 @@ function DescriptionPanelInner({
     extensions: noteExtensions,
     content: (item?.description as object | null | undefined) ?? emptyNoteBody(),
     autofocus: 'end',
+  });
+
+  // Follow the editor's own state: `useEditor` does not re-render on typing, so without this the
+  // placeholder would stay on screen after the first character.
+  const isEmpty = useEditorState({
+    editor,
+    selector: (ctx) => ctx.editor?.isEmpty ?? true,
   });
 
   // The latest save function, for handlers that outlive a render (blur, unmount, Esc).
@@ -166,7 +173,7 @@ function DescriptionPanelInner({
         className="ds-description-editor"
         onBlur={() => saveRef.current()}
       >
-        {editor?.isEmpty && (
+        {isEmpty && (
           <span
             aria-hidden
             style={{

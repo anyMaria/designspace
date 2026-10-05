@@ -63,6 +63,8 @@ export function attachCanvasInput(
   function onKeyDown(e: KeyboardEvent) {
     if (
       e.code === 'Space' &&
+      !e.shiftKey && // Shift+Space / Ctrl+Space walk through the pictures instead
+      !e.ctrlKey &&
       !isTypingTarget(e.target) &&
       !spacePressed &&
       !isBlockingOverlayOpen()

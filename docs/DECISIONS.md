@@ -3123,3 +3123,19 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   `importPathsWithPdfChoice`); Folder… and onboarding add whole files without asking. The PDF viewer's **Split into
   pages…** opens the picker in split mode and puts the chosen pages to the right of the PDF (the original stays).
 - **Cloud limits:** the Tauri path (`readPdf` on a real Windows file) is for the owner to try.
+
+## Patch 2 · follow-up (v0.15.1)
+
+- **Description placeholder:** the thought-bubble description editor kept showing "What do you see?…" while typing, because
+  TipTap's `useEditor` does not re-render on typing. The panel now follows `useEditorState(editor.isEmpty)`.
+- **Shift+Space / Ctrl+Space:** next / previous picture (reading order on the current space, wrapping around), on the
+  map (selects it and flies to it) and in Focus view. `Space` pan ignores them. Listed in the shortcut list.
+- **Windows "virus" warning:** the installer is not code-signed, and Windows Defender / SmartScreen distrust unsigned,
+  not-yet-known installers (a false positive, nothing is in the app that phones home). Without a signing certificate this
+  cannot be fully removed. Done: the installer now carries a publisher, copyright and description, installs per-user (no
+  administrator rights), and the build prints the installer's SHA-256 in the run summary so a download can be checked.
+  To remove the warning for good: sign the installer (Azure Trusted Signing, SignPath's free open-source programme, or a
+  code-signing certificate). Until then: SmartScreen → "More info" → "Run anyway", and optionally report the file at
+  https://www.microsoft.com/wdsi/filesubmission as a false positive.
+- **Workflow warning:** "Node.js 20 is deprecated" in the Actions logs: both workflows now set
+  `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`.

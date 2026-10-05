@@ -9,6 +9,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Run the JavaScript actions on Node 24 (Node 20 is deprecated; this removes the warning).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   web:
     name: Lint, typecheck, unit tests, build, e2e
