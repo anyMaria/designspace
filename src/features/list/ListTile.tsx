@@ -6,7 +6,7 @@ import type { Item } from '@/state/types';
 import { noteColors, noteStyles, type NoteColor } from '@/design/tokens';
 import { swatchColorsOf } from '@/lib/palette';
 import { sourceDomain } from '@/lib/search';
-import { thumbUrl } from '@/lib/thumbs';
+import { Thumb } from '@/design/components';
 
 const css = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
@@ -162,14 +162,12 @@ function TileBody({ platform, item }: { platform: Platform; item: Item }) {
   const hasThumb = item.status === 'ok';
   const isFont = item.kind === 'font';
   return (
-    <div style={{ ...fill, background: 'var(--surface-2)' }}>
-      {hasThumb && (
-        <img
-          src={thumbUrl(platform, item, 128)}
-          alt=""
-          style={{ ...fill, objectFit: isFont ? 'contain' : 'cover' }}
-        />
-      )}
-    </div>
+    <Thumb
+      platform={platform}
+      item={item}
+      size={128}
+      fit={isFont ? 'contain' : 'cover'}
+      enabled={hasThumb}
+    />
   );
 }

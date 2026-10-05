@@ -1,4 +1,3 @@
-import { thumbUrl } from '@/lib/thumbs';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { X, ArrowUpDown } from 'lucide-react';
 import type { Platform } from '@/platform/types';
@@ -12,7 +11,7 @@ import {
   createRemoveItemTermCommand,
   createSetItemTypeCommand,
 } from '@/commands/itemTermCommands';
-import { TermCombobox, Chip, IconButton, Toggle, Button } from '@/design/components';
+import { TermCombobox, Chip, IconButton, Toggle, Button, Thumb } from '@/design/components';
 import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from '@/features/details/useTermOptions';
 import { en } from '@/i18n/en';
 import { useSuggestions } from '@/features/ai/useSuggestions';
@@ -226,13 +225,17 @@ export function TriageView({ platform }: { platform: Platform }) {
               padding: 'var(--space-6)',
             }}
           >
-            {item.status === 'ok' && (
-              <img
-                src={thumbUrl(platform, item, 512)}
+            <div style={{ width: '100%', height: '100%' }}>
+              <Thumb
+                platform={platform}
+                item={item}
+                size={512}
+                fit="contain"
                 alt={item.title}
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                enabled={item.status === 'ok'}
+                style={{ background: 'transparent' }}
               />
-            )}
+            </div>
           </div>
           <div
             style={{

@@ -150,7 +150,7 @@ twice → no longer full screen and the card is still selected.
 **Owner checks:** enter full screen, click a picture, press Esc once: you're out. In full screen, move the mouse to the
 top edge: the "Exit full screen" pill appears.
 
-### A3 · Previews always appear `[ ]`
+### A3 · Previews always appear `[x]`
 **Files:** new `src/lib/thumbLoader.ts` (+ test), new `src/design/components/Thumb.tsx`, new
 `src/lib/kindIcon.tsx`, `ListTile.tsx`, `ListPanel.tsx`, `SpaceSwitcher.tsx`, `DetailsPanel.tsx`,
 `BulkDetailsPanel.tsx`, `TriageView.tsx`, `SuggestionsTray.tsx`, `ImageTab.tsx`, `problemReport.ts`,

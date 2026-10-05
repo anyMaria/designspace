@@ -19,6 +19,19 @@ export const en = {
     note: 'Note',
     swatch: 'Swatch',
   },
+  /** Names for the small kind icons and badges (Patch 3 · A3, B1). A swatch with one colour is
+   * "Color"; with several it is a "Palette". */
+  kinds: {
+    image: 'Image',
+    video: 'Video',
+    pdf: 'PDF',
+    link: 'Link',
+    font: 'Font',
+    fontCollection: 'Type collection',
+    note: 'Note',
+    color: 'Color',
+    palette: 'Palette',
+  },
   spaceSwitcher: {
     library: 'Library',
     boards: 'Boards',
@@ -277,6 +290,7 @@ export const en = {
       mediaNoItems: 'No imported files to check yet.',
       mediaOk: (kind: string, size: string) => `${kind} · OK (${size})`,
       mediaFailed: (kind: string, status: string) => `${kind} · Failed (${status})`,
+      failedPreviews: (n: number) => `Previews that failed to load this session: ${n}`,
       mediaOriginal: 'Original',
       mediaThumbnail: 'Thumbnail',
     },

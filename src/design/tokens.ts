@@ -13,6 +13,10 @@ export const colors = {
   surface3: 0x3d2847,
   hairline: 0xffffff,
   hairlineAlpha: 0.08,
+  scrollbarThumb: 0xffffff,
+  scrollbarThumbAlpha: 0.16,
+  scrollbarThumbHover: 0xffffff,
+  scrollbarThumbHoverAlpha: 0.3,
 
   text1: 0xf4eef6,
   text2: 0xc9bcd0,

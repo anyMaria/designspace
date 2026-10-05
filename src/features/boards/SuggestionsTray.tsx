@@ -1,4 +1,3 @@
-import { thumbUrl } from '@/lib/thumbs';
 import { useMemo } from 'react';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
@@ -14,7 +13,7 @@ import { buildSearchIndex, search as runSearch, type Filter } from '@/lib/search
 import { isFilterActive } from '@/state/searchStore';
 import { boardSimilarSuggestions } from '@/lib/ai/boardSimilarSuggestions';
 import { LIST_ITEM_DRAG_MIME } from '@/features/list/useListDragToBoard';
-import { Panel } from '@/design/components';
+import { Panel, Thumb } from '@/design/components';
 import { en } from '@/i18n/en';
 
 // "aren't on the board yet" (§2.11) caps how many the tray shows at once — a board with a broad
@@ -167,17 +166,7 @@ function SuggestionTile({
           cursor: 'grab',
         }}
       >
-        {item.status === 'ok' && (
-          <img
-            src={thumbUrl(
-              platform,
-              { id, thumbV: useLibraryStore.getState().items.get(id)?.thumbV },
-              128,
-            )}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        )}
+        <Thumb platform={platform} item={item} size={128} enabled={item.status === 'ok'} />
       </div>
       <button
         type="button"

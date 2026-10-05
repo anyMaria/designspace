@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClipboardPaste, FolderOpen, Images } from 'lucide-react';
 import type { Platform } from '@/platform/types';
-import { Button, Tabs } from '@/design/components';
+import { Button, Tabs, Thumb } from '@/design/components';
 import { useLibraryStore } from '@/state/libraryStore';
 import { thumbUrl } from '@/lib/thumbs';
 import { IMAGE_EXTENSIONS } from '@/lib/fileKinds';
@@ -324,11 +324,7 @@ export function ImageTab({ platform }: { platform: Platform }) {
                     cursor: 'pointer',
                   }}
                 >
-                  <img
-                    src={thumbUrl(platform, item, 128)}
-                    alt=""
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
+                  <Thumb platform={platform} item={item} size={128} />
                 </button>
               ) : null,
             )}

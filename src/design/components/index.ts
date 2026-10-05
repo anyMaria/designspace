@@ -17,3 +17,4 @@ export * from './ProgressBar';
 export * from './Kbd';
 export * from './Swatch';
 export * from './EmptyState';
+export * from './Thumb';

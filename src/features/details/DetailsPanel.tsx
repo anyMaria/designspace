@@ -1,4 +1,3 @@
-import { thumbUrl } from '@/lib/thumbs';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ExternalLink, Sparkles, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
@@ -20,7 +19,7 @@ import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
 import { FontCardSection } from './FontCardSection';
 import { isFontCollection } from '@/lib/fontFamily';
 import { openFromPhoto } from '@/features/colorStudio/openStudio';
-import { TermCombobox, Swatch, Toggle, Button, IconButton } from '@/design/components';
+import { TermCombobox, Swatch, Toggle, Button, IconButton, Thumb } from '@/design/components';
 import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
 import { formatBytes } from '@/lib/formatBytes';
 import { formatDuration } from '@/lib/formatDuration';
@@ -169,11 +168,7 @@ export function DetailsPanel({
             background: 'var(--surface-2)',
           }}
         >
-          <img
-            src={thumbUrl(platform, item, 512)}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          />
+          <Thumb platform={platform} item={item} size={512} fit="contain" />
         </button>
       )}
 

@@ -165,8 +165,9 @@ fn try_handle<R: Runtime>(
         .header("Cross-Origin-Resource-Policy", "cross-origin");
 
     if root_kind == MediaRoot::Cache {
-        // Cache keys are content-addressed — safe to cache forever.
-        builder = builder.header(header::CACHE_CONTROL, "max-age=31536000, immutable");
+        // Cache keys are per item, not per content: a re-made thumbnail must never show stale.
+        // The `?v=` in the URL already busts the cache when a thumbnail changes.
+        builder = builder.header(header::CACHE_CONTROL, "no-cache");
     }
 
     let response = if let Some(range) = range_header {
