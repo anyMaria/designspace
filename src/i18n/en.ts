@@ -681,6 +681,9 @@ export const en = {
     reset: 'Reset crop',
     hint: 'Drag to move the picture · Enter or click outside to finish',
   },
+  paste: {
+    linkAdded: (domain: string) => `Link added · ${domain}`,
+  },
   fullscreen: {
     enter: 'Full screen',
     exit: 'Exit full screen',

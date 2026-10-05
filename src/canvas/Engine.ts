@@ -965,6 +965,14 @@ export class Engine {
     return this.camera.screenToWorld(clientX - rect.left, clientY - rect.top, vw, vh);
   }
 
+  /** The world point under the last pointer position, or null when the pointer is outside the
+   * canvas (Patch 3 · P3: a paste lands under the pointer when it is over the map). */
+  pointerWorld(): { x: number; y: number } | null {
+    if (!this.app || !this.lastPointer) return null;
+    const { width: vw, height: vh } = this.app.screen;
+    return this.camera.screenToWorld(this.lastPointer.x, this.lastPointer.y, vw, vh);
+  }
+
   /** The world point at the viewport center — the fallback drop point when the cursor is
    * outside the window (§2.3, paste). */
   viewportCenter(): { x: number; y: number } {

@@ -100,7 +100,7 @@ The planner chose these defaults. The owner can change any of them before its ph
 **Goal:** Ctrl+V pastes links, Esc always gets you out of full screen, previews always appear, the studio's image tab
 works and looks right, no button text wraps, and the app ships without the AI. Size: M. Version **0.16.0**.
 
-### A1 · Ctrl+V pastes links, text and pictures `[ ]`
+### A1 · Ctrl+V pastes links, text and pictures `[x]`
 **Files:** new `src/features/import/pasteKind.ts` (+ test), `src/features/import/useDropAndPaste.ts`,
 `src/canvas/Engine.ts` (`pointerWorld()`), `en.ts`.
 
