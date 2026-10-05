@@ -91,9 +91,12 @@ export function OverviewOverlay({
         style={{
           position: 'absolute',
           top: 'var(--space-4)',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          left: 'var(--space-4)',
+          // Leaves room for the close button; the bar wraps as a whole instead of squeezing labels.
+          right: 'calc(var(--space-4) + var(--hit-target-min) + var(--space-4))',
           display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
           gap: 'var(--space-3)',
           alignItems: 'center',
         }}

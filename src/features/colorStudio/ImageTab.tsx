@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ClipboardPaste, FolderOpen, Images } from 'lucide-react';
+import { ClipboardPaste, FolderOpen, ImagePlus, Images } from 'lucide-react';
 import type { Platform } from '@/platform/types';
-import { Button, Tabs, Thumb } from '@/design/components';
+import { Button, Dialog, SearchField, Thumb } from '@/design/components';
 import { useLibraryStore } from '@/state/libraryStore';
 import { thumbUrl } from '@/lib/thumbs';
 import { IMAGE_EXTENSIONS } from '@/lib/fileKinds';
@@ -12,11 +12,11 @@ import { useColorStudioStore } from './colorStudioStore';
 import { loadPixels, type LoadedPixels } from './imagePixels';
 
 const MOODS: Mood[] = ['colorful', 'bright', 'muted', 'deep', 'dark'];
-const BOX_W = 640;
-const BOX_H = 400;
 const LOUPE = 104;
 const LOUPE_SOURCE = 9; // source pixels across the loupe
 const PICTURE_KINDS = new Set(['image', 'video', 'pdf', 'link']);
+
+const fullWidth = { width: '100%', justifyContent: 'flex-start' } as const;
 
 type Positions = Record<string, { x: number; y: number }>;
 
@@ -36,6 +36,10 @@ export function ImageTab({ platform }: { platform: Platform }) {
   const [alsoAdd, setAlsoAdd] = useState(false);
   const [dragging, setDragging] = useState<{ id: string; index: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dropActive, setDropActive] = useState(false);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const areaRef = useRef<HTMLDivElement>(null);
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
   const loupeRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,11 +53,25 @@ export function ImageTab({ platform }: { platform: Platform }) {
     canvas.getContext('2d')?.drawImage(img.bitmap, 0, 0, img.width, img.height);
   }, [img]);
 
+  // The drop area fills the space; the picture fits inside it (Patch 3 · A4).
+  useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    const measure = () => setBox({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const display = useMemo(() => {
-    if (!img) return { w: BOX_W, h: BOX_H };
-    const scale = Math.min(BOX_W / img.width, BOX_H / img.height);
-    return { w: Math.round(img.width * scale), h: Math.round(img.height * scale) };
-  }, [img]);
+    if (!img || box.w <= 0 || box.h <= 0) return { w: 0, h: 0 };
+    const scale = Math.min((box.w - 24) / img.width, (box.h - 24) / img.height);
+    return {
+      w: Math.max(1, Math.round(img.width * scale)),
+      h: Math.max(1, Math.round(img.height * scale)),
+    };
+  }, [img, box]);
 
   /** Fills the unlocked spots (and their droppers) from the loaded picture. */
   function pick(loaded: LoadedPixels, how: 'locate' | Mood): void {
@@ -136,7 +154,11 @@ export function ImageTab({ platform }: { platform: Platform }) {
     }
   }
 
-  async function paste(): Promise<void> {
+  async function paste(fromEvent: File | null = null): Promise<void> {
+    if (fromEvent) {
+      await handleBlob(fromEvent, { file: fromEvent, fromLibrary: false, how: mood });
+      return;
+    }
     const bytes = await platform.clipboard.readImage();
     if (!bytes) {
       setError(en.colorStudio.nothingToPaste);
@@ -150,6 +172,27 @@ export function ImageTab({ platform }: { platform: Platform }) {
     });
   }
 
+  // Ctrl+V anywhere in the studio lands here (studioKeys switches to this tab first). The latest
+  // `paste` is kept in a ref so the subscription never goes stale.
+  const pasteRef = useRef(paste);
+  useEffect(() => {
+    pasteRef.current = paste;
+  });
+  useEffect(() => {
+    const take = () => {
+      const pending = useColorStudioStore.getState().pendingPaste;
+      if (!pending) return;
+      useColorStudioStore.getState().clearPendingPaste();
+      void pasteRef.current(pending.file);
+    };
+    const unsubscribe = useColorStudioStore.subscribe(take);
+    const timer = setTimeout(take, 0); // a paste that switched tabs and mounted us
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
+  }, []);
+
   async function fromLibrary(id: string): Promise<void> {
     const item = useLibraryStore.getState().items.get(id);
     if (!item) return;
@@ -160,6 +203,7 @@ export function ImageTab({ platform }: { platform: Platform }) {
 
   function onDrop(e: React.DragEvent): void {
     e.preventDefault();
+    setDropActive(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped?.type.startsWith('image/')) {
       void handleBlob(dropped, { file: dropped, fromLibrary: false, how: mood });
@@ -211,24 +255,60 @@ export function ImageTab({ platform }: { platform: Platform }) {
     const { items, placements } = useLibraryStore.getState();
     return [...placements.keys()]
       .map((id) => items.get(id))
-      .filter((i) => !!i && !i.deletedAt && i.status === 'ok' && PICTURE_KINDS.has(i.kind))
-      .slice(0, 80);
+      .filter((i) => !!i && !i.deletedAt && i.status === 'ok' && PICTURE_KINDS.has(i.kind));
     // The library does not change while the studio is open on this tab.
   }, []);
+  const shownLibraryItems = useMemo(() => {
+    const q = librarySearch.trim().toLowerCase();
+    const matches = q
+      ? libraryItems.filter((i) =>
+          `${i?.title ?? ''} ${i?.fileName ?? ''}`.toLowerCase().includes(q),
+        )
+      : libraryItems;
+    return matches.slice(0, 200);
+  }, [libraryItems, librarySearch]);
 
   return (
-    <div style={{ display: 'flex', gap: 'var(--space-5)', flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', width: 200 }}>
-        <Button variant="secondary" onClick={() => void openImage()}>
-          <FolderOpen size={14} style={{ marginRight: 6 }} />
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '240px minmax(0, 1fr)',
+        gap: 'var(--space-5)',
+        height: '100%',
+        minHeight: 360,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--space-2)',
+          minWidth: 0,
+          overflowY: 'auto',
+        }}
+      >
+        <Button
+          variant="secondary"
+          style={fullWidth}
+          icon={<FolderOpen size={14} />}
+          onClick={() => void openImage()}
+        >
           {en.colorStudio.openImage}
         </Button>
-        <Button variant="secondary" onClick={() => void paste()}>
-          <ClipboardPaste size={14} style={{ marginRight: 6 }} />
+        <Button
+          variant="secondary"
+          style={fullWidth}
+          icon={<ClipboardPaste size={14} />}
+          onClick={() => void paste()}
+        >
           {en.colorStudio.paste}
         </Button>
-        <Button variant="secondary" onClick={() => setFromLibraryOpen((v) => !v)}>
-          <Images size={14} style={{ marginRight: 6 }} />
+        <Button
+          variant="secondary"
+          style={fullWidth}
+          icon={<Images size={14} />}
+          onClick={() => setFromLibraryOpen(true)}
+        >
           {en.colorStudio.fromLibrary}
         </Button>
         <input
@@ -243,6 +323,11 @@ export function ImageTab({ platform }: { platform: Platform }) {
             if (picked) void handleBlob(picked, { file: picked, fromLibrary: false, how: mood });
           }}
         />
+        {error && (
+          <span role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>
+            {error}
+          </span>
+        )}
         <span
           style={{
             color: 'var(--text-2)',
@@ -252,15 +337,44 @@ export function ImageTab({ platform }: { platform: Platform }) {
         >
           {en.colorStudio.mood}
         </span>
-        <Tabs
+        <div
+          role="radiogroup"
           aria-label={en.colorStudio.mood}
-          value={mood}
-          onChange={chooseMood}
-          tabs={MOODS.map((m) => ({ id: m, label: en.colorStudio.moods[m] }))}
-        />
+          style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
+          {MOODS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={mood === m}
+              onClick={() => chooseMood(m)}
+              style={{
+                textAlign: 'left',
+                padding: 'var(--space-2) var(--space-3)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                font: 'inherit',
+                fontSize: 'var(--text-sm)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: mood === m ? 'var(--accent)' : 'transparent',
+                color: mood === m ? 'var(--on-accent)' : 'var(--text-1)',
+              }}
+            >
+              {en.colorStudio.moods[m]}
+            </button>
+          ))}
+        </div>
         {img && !cameFromLibrary && (
           <label
-            style={{ display: 'flex', gap: 8, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}
+            style={{
+              display: 'flex',
+              gap: 8,
+              fontSize: 'var(--text-sm)',
+              color: 'var(--text-2)',
+              marginTop: 'var(--space-3)',
+            }}
           >
             <input
               type="checkbox"
@@ -273,67 +387,111 @@ export function ImageTab({ platform }: { platform: Platform }) {
             {en.colorStudio.alsoAddImage}
           </label>
         )}
-        {error && (
-          <span style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{error}</span>
-        )}
       </div>
 
       <div
+        ref={areaRef}
         data-testid="studio-image-area"
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDropActive(true);
+        }}
+        onDragLeave={() => setDropActive(false)}
         onDrop={onDrop}
         style={{
           position: 'relative',
-          width: BOX_W,
-          maxWidth: '100%',
-          minHeight: BOX_H,
+          minWidth: 0,
+          minHeight: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          boxSizing: 'border-box',
+          borderRadius: 'var(--radius-panel)',
+          border: img
+            ? '2px solid transparent'
+            : `2px dashed ${dropActive ? 'var(--accent)' : 'var(--hairline)'}`,
+          background: dropActive ? 'var(--surface-1)' : 'transparent',
         }}
       >
         {fromLibraryOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 5,
-              background: 'var(--surface-1)',
-              borderRadius: 12,
-              padding: 'var(--space-3)',
-              overflowY: 'auto',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))',
-              gap: 8,
-              alignContent: 'start',
-            }}
+          <Dialog
+            title={en.colorStudio.fromLibrary}
+            className="ds-library-picker"
+            onClose={() => setFromLibraryOpen(false)}
           >
-            {libraryItems.map((item) =>
-              item ? (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-label={item.title || item.fileName || item.kind}
-                  onClick={() => void fromLibrary(item.id)}
-                  style={{
-                    border: 'none',
-                    padding: 0,
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    aspectRatio: '1',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Thumb platform={platform} item={item} size={128} />
-                </button>
-              ) : null,
-            )}
-          </div>
+            <SearchField
+              autoFocus
+              aria-label={en.colorStudio.searchLibrary}
+              placeholder={en.colorStudio.searchLibrary}
+              value={librarySearch}
+              onChange={(e) => setLibrarySearch(e.target.value)}
+            />
+            <div
+              style={{
+                marginTop: 'var(--space-3)',
+                overflowY: 'auto',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+                gap: 'var(--space-2)',
+                alignContent: 'start',
+              }}
+            >
+              {shownLibraryItems.length === 0 && (
+                <span style={{ color: 'var(--text-3)' }}>{en.colorStudio.noLibraryMatches}</span>
+              )}
+              {shownLibraryItems.map((item) =>
+                item ? (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-label={item.title || item.fileName || item.kind}
+                    onClick={() => void fromLibrary(item.id)}
+                    style={{
+                      border: 'none',
+                      padding: 0,
+                      borderRadius: 'var(--radius-sm)',
+                      overflow: 'hidden',
+                      aspectRatio: '1',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Thumb platform={platform} item={item} size={128} />
+                  </button>
+                ) : null,
+              )}
+            </div>
+          </Dialog>
         )}
         {!img && (
-          <div style={{ color: 'var(--text-3)', textAlign: 'center' }}>
+          <div
+            style={{
+              color: 'var(--text-3)',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 'var(--space-3)',
+              padding: 'var(--space-5)',
+            }}
+          >
+            <ImagePlus size={40} strokeWidth={1.25} aria-hidden />
             {en.colorStudio.dropImage}
           </div>
+        )}
+        {img && (
+          <Button
+            variant="secondary"
+            icon={<ImagePlus size={14} />}
+            onClick={() => void openImage()}
+            style={{
+              position: 'absolute',
+              top: 'var(--space-3)',
+              right: 'var(--space-3)',
+              zIndex: 2,
+            }}
+          >
+            {en.colorStudio.changeImage}
+          </Button>
         )}
         <div style={{ position: 'relative', display: img ? 'block' : 'none' }}>
           <canvas

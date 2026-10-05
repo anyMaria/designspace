@@ -181,7 +181,7 @@ request, LRU revokes). e2e `smoke-m2-list` still passes. New check in it: no hor
 **Owner checks:** close and reopen the app: every List tile shows its picture or, for a moment, an icon. Never a blank
 square. No sideways scrollbar in the List.
 
-### A4 · The Color studio's "From an image" works `[ ]`
+### A4 · The Color studio's "From an image" works `[x]`
 **Files:** `src/features/import/useDropAndPaste.ts`, `src/app/overlayGate.ts`,
 `src/features/colorStudio/ImageTab.tsx`, `src/features/colorStudio/studioKeys.ts`, `en.ts`.
 
@@ -205,7 +205,7 @@ droppers appear **and** the library item count is unchanged.
 **Owner checks:** open the Color studio → From an image. Drag a photo from Explorer onto it: colours appear, and the
 photo is *not* added to your map unless you tick the box. Ctrl+V a copied picture works too.
 
-### A5 · Button labels stay on one line `[ ]`
+### A5 · Button labels stay on one line `[x]`
 **Files:** `src/design/components/components.css`, `src/features/overview/OverviewOverlay.tsx`,
 `src/features/colorStudio/ColorStudio.tsx`.
 

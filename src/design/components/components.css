@@ -3,6 +3,7 @@
 
 .ds-button {
   display: inline-flex;
+  white-space: nowrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -116,6 +117,7 @@
 
 .ds-tabs {
   display: inline-flex;
+  max-width: 100%;
   padding: 3px;
   background: var(--surface-2);
   border-radius: var(--radius-pill);
@@ -123,6 +125,8 @@
 }
 .ds-tabs__tab {
   display: inline-flex;
+  flex: none;
+  white-space: nowrap;
   align-items: center;
   gap: 6px;
   border: none;
@@ -650,4 +654,11 @@
   to {
     opacity: 1;
   }
+}
+
+/* Patch 3 · A4: the Color studio's library picker is a roomy dialog. */
+.ds-dialog.ds-library-picker {
+  width: min(760px, 92vw);
+  max-width: none;
+  height: min(560px, 80vh);
 }

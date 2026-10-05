@@ -11,6 +11,7 @@ import { parseHttpUrl } from '@/lib/urlDetect';
 import { useToastStore } from '@/state/toastStore';
 import { en } from '@/i18n/en';
 import { classifyPaste } from './pasteKind';
+import { isBlockingOverlayOpen } from '@/app/overlayGate';
 
 /** Something worth showing the "Drop to add" overlay for — real files, or a URL dragged from a
  * browser tab/address bar (`text/uri-list`; some browsers also/instead put it on `text/plain`,
@@ -36,6 +37,7 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
     let dragDepth = 0;
 
     function onDragEnter(e: DragEvent) {
+      if (isBlockingOverlayOpen()) return;
       if (!isDroppableDrag(e.dataTransfer)) return;
       dragDepth++;
       setDragOver(true);
@@ -51,6 +53,12 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
     function onDrop(e: DragEvent) {
       dragDepth = 0;
       setDragOver(false);
+      // A full-window overlay (the Color studio) handles its own drops; keep the browser from
+      // opening the file, and add nothing to the library behind it (Patch 3 · A4).
+      if (isBlockingOverlayOpen()) {
+        if (isDroppableDrag(e.dataTransfer)) e.preventDefault();
+        return;
+      }
       const point = engine?.screenToWorld(e.clientX, e.clientY) ??
         engine?.viewportCenter() ?? { x: 0, y: 0 };
 
@@ -75,6 +83,7 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
     }
 
     async function onPaste(e: ClipboardEvent) {
+      if (isBlockingOverlayOpen()) return;
       const target = e.target;
       if (
         target instanceof HTMLElement &&

@@ -57,6 +57,9 @@ interface ColorStudioState {
   generateMode: 'harmonious' | 'random';
   /** A picture from the From an image tab to also add to the library on save (off by default). */
   imageToAdd: File | null;
+  /** A Ctrl+V in the studio waiting for the From an image tab to take it (Patch 3 · A4): the
+   * picture file when the paste event carried one, else null (read the clipboard instead). */
+  pendingPaste: { file: File | null } | null;
 
   openStudio: (
     source: StudioSource,
@@ -80,6 +83,8 @@ interface ColorStudioState {
   selectLiked: (hex: string | null) => void;
   setGenerateMode: (mode: 'harmonious' | 'random') => void;
   setImageToAdd: (file: File | null) => void;
+  requestPaste: (file: File | null) => void;
+  clearPendingPaste: () => void;
 }
 
 export const useColorStudioStore = create<ColorStudioState>((set, get) => ({
@@ -95,6 +100,7 @@ export const useColorStudioStore = create<ColorStudioState>((set, get) => ({
   likedSelected: null,
   generateMode: 'harmonious',
   imageToAdd: null,
+  pendingPaste: null,
 
   openStudio: (source, init) => {
     const spots = init.hexes.map((h) => newSpot(h));
@@ -112,7 +118,7 @@ export const useColorStudioStore = create<ColorStudioState>((set, get) => ({
       imageToAdd: null,
     });
   },
-  close: () => set({ open: false, dirty: false, imageToAdd: null }),
+  close: () => set({ open: false, dirty: false, imageToAdd: null, pendingPaste: null }),
   setTab: (tab) => set({ tab }),
   setName: (name) => set({ name, dirty: true }),
   select: (selected) => set({ selected }),
@@ -201,4 +207,6 @@ export const useColorStudioStore = create<ColorStudioState>((set, get) => ({
   selectLiked: (likedSelected) => set({ likedSelected }),
   setGenerateMode: (generateMode) => set({ generateMode }),
   setImageToAdd: (imageToAdd) => set({ imageToAdd }),
+  requestPaste: (file) => set({ tab: 'image', pendingPaste: { file } }),
+  clearPendingPaste: () => set({ pendingPaste: null }),
 }));
