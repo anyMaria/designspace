@@ -25,6 +25,7 @@
 
   /* Accent & stones */
   --accent: #e9a845;
+  --snap-guide: #ff5fa8; /* mirrors tokens.ts `snap.guide` */
   --on-accent: #2a1832;
   --sage: #93b89d;
   --blush: #f0b7b3;

@@ -3161,3 +3161,12 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   (or an offline add) sets `noPicture` but not `fetcherV`, so "Look for pictures" at start-up tries it again. The start-up
   prompt only runs when the network is allowed and Offline mode is off (P7). Vimeo's picture comes from its public oEmbed
   endpoint (one extra request, only for Vimeo links). YouTube links keep their title even if the page can't be read.
+
+## Patch 3 · Phase C (in progress)
+
+- **C2:** the snapping switch is a machine setting in `uiStore` / `settings.json` (next to "Show names on hover"), not a
+  library setting in `settingsStore`: it is a preference of this PC, like the other canvas switches. The engine only routes:
+  `snapSession.ts` collects the targets and `snapGuides.ts` draws; the maths is in `snapping.ts`.
+- **C3 was done together with C2** (same pointer-move code); it has its own e2e test.
+- Guides are drawn in screen space in the overlay layer, so they are one pixel wide at any zoom. Ctrl (or Cmd) frees a single
+  drag, and can be pressed or released mid-drag.

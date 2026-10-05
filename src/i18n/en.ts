@@ -340,6 +340,8 @@ export const en = {
       dotNormal: 'Normal',
       dotWide: 'Wide',
       minimap: 'Minimap',
+      snapping: 'Snap while moving and resizing',
+      snappingHint: 'Hold Ctrl to move freely',
       showNames: 'Show names on hover',
       reduceMotion: 'Reduce motion',
       motionSystem: 'System',

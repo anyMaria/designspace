@@ -346,7 +346,7 @@ export function snapResize(
 a pair, centred between two, column version, resize right edge to a neighbour's edge, resize matching a neighbour's
 width, resize with aspect kept snaps the dominant axis only, from-centre resize, 200 rects timing.
 
-### C2 · Snap while moving `[ ]`
+### C2 · Snap while moving `[x]`
 **Files:** new `src/canvas/snapGuides.ts` (drawing), `src/canvas/Engine.ts` (move branch of `onPointerMove`, ~1238),
 `src/canvas/spatialIndex.ts` (query of the visible rect), `src/state/settingsStore.ts` + `src/features/settings/CanvasSection.tsx`,
 `tokens.ts` (`snap = { thresholdPx: 6, guide: <accent pink>, guideWidthPx: 1 }`), `en.ts`.
@@ -365,7 +365,7 @@ after release the tops are equal. With Ctrl held → not equal.
 **Owner checks:** drag a picture near another: it clicks into line, and a pink line shows what it aligned to. Hold Ctrl
 to place it freely.
 
-### C3 · Snap while resizing `[ ]`
+### C3 · Snap while resizing `[x]`
 **Files:** `src/canvas/Engine.ts` (resize branch, ~1265), `snapGuides.ts`.
 
 **Do:** after `resizeRect(…)` compute `snapResize(startRect, next, handle, others, thresholdPx / zoom, …)` and use its

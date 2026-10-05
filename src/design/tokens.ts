@@ -224,3 +224,13 @@ export const paletteGeometry = {
 /** The type collection card (Patch 2 · F5), in world units: width, header height, one row per
  * family, space under the last row. */
 export const fontCollectionGeometry = { width: 360, header: 48, row: 56, padBottom: 8 } as const;
+
+/** Snapping while moving and resizing (Patch 3 · C2): how close counts as "on", and the guides. */
+export const snap = {
+  thresholdPx: 6,
+  guide: 0xff5fa8,
+  guideWidthPx: 1,
+  /** Cards considered at most, nearest first (the visible ones only). */
+  maxTargets: 300,
+  gapLabelFontSize: 11,
+} as const;

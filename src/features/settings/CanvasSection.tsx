@@ -19,6 +19,8 @@ export function CanvasSection({ platform }: { platform: Platform }) {
   const setStartFullscreen = useUiStore((s) => s.setStartFullscreen);
   const showNames = useUiStore((s) => s.showNamesOnHover);
   const setShowNames = useUiStore((s) => s.setShowNamesOnHover);
+  const snapping = useUiStore((s) => s.snapping);
+  const setSnapping = useUiStore((s) => s.setSnapping);
   const reduceMotion = useUiStore((s) => s.reduceMotion);
   const setReduceMotion = useUiStore((s) => s.setReduceMotion);
 
@@ -69,6 +71,20 @@ export function CanvasSection({ platform }: { platform: Platform }) {
           checked={showNames}
           onChange={() => setShowNames(!showNames)}
           label={en.settings.canvas.showNames}
+        />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ display: 'flex', flexDirection: 'column' }}>
+          {en.settings.canvas.snapping}
+          <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
+            {en.settings.canvas.snappingHint}
+          </span>
+        </span>
+        <Toggle
+          checked={snapping}
+          onChange={() => setSnapping(!snapping)}
+          label={en.settings.canvas.snapping}
         />
       </div>
 
