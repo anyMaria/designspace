@@ -13,6 +13,13 @@ export class LivePositions {
   private buf: Float32Array | null = null;
   /** Bumped by every frame. */
   version = 0;
+  private listeners = new Set<() => void>();
+
+  /** Called after every frame; returns the unsubscribe function. */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
 
   setIds(ids: string[]): void {
     this.ids = new Map(ids.map((id, i) => [id, i]));
@@ -22,6 +29,7 @@ export class LivePositions {
   update(positions: Float32Array): void {
     this.buf = positions;
     this.version++;
+    for (const l of this.listeners) l();
   }
 
   get ready(): boolean {
@@ -146,4 +154,82 @@ export function defaultGraphWorkerFactory(): WorkerLike {
   return new Worker(new URL('../../workers/graphSim.worker.ts', import.meta.url), {
     type: 'module',
   });
+}
+
+export interface GraphSnapshot {
+  /** Counts simulations started; a new one means a fresh layout. */
+  simId: number;
+  live: LivePositions | null;
+  hubs: GraphHub[] | null;
+  /** The first positions have arrived. */
+  ready: boolean;
+  failed: boolean;
+}
+
+const IDLE: GraphSnapshot = { simId: 0, live: null, hubs: null, ready: false, failed: false };
+
+/** Owns the running simulation for the Overview and exposes it as an external store
+ * (`subscribe` / `getSnapshot`, for `useSyncExternalStore`), so React never needs state set from
+ * inside an effect. */
+export class GraphController {
+  private snap: GraphSnapshot = IDLE;
+  private listeners = new Set<() => void>();
+  private sim: GraphSim | null = null;
+
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  getSnapshot = (): GraphSnapshot => this.snap;
+
+  /** Starts a new simulation, stopping any earlier one. */
+  start(init: GraphInit, factory: () => WorkerLike = defaultGraphWorkerFactory): void {
+    this.sim?.stop();
+    const sim = new GraphSim(factory, {
+      onGraph: (hubs) => this.update(sim, { hubs }),
+      onFrame: () => this.update(sim, { ready: true }),
+      onSettled: () => undefined,
+      onError: () => this.update(sim, { failed: true }),
+    });
+    this.sim = sim;
+    this.set({
+      simId: this.snap.simId + 1,
+      live: sim.live,
+      hubs: null,
+      ready: false,
+      failed: false,
+    });
+    sim.init(init);
+  }
+
+  stop(): void {
+    this.sim?.stop();
+    this.sim = null;
+    this.set({ ...IDLE, simId: this.snap.simId });
+  }
+
+  drag(id: string, x: number, y: number): void {
+    this.sim?.drag(id, x, y);
+  }
+
+  release(id: string): void {
+    this.sim?.release(id);
+  }
+
+  setSpacing(value: number): void {
+    this.sim?.setSpacing(value);
+  }
+
+  /** Ignores late answers from a simulation that has been replaced. */
+  private update(from: GraphSim, patch: Partial<GraphSnapshot>): void {
+    if (this.sim !== from) return;
+    if (Object.entries(patch).every(([k, v]) => this.snap[k as keyof GraphSnapshot] === v)) return;
+    this.set({ ...this.snap, ...patch });
+  }
+
+  private set(next: GraphSnapshot): void {
+    this.snap = next;
+    for (const l of this.listeners) l();
+  }
 }

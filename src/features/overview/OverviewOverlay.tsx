@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Engine } from '@/canvas/Engine';
 import { CRITERION_COLOR } from '@/canvas/criterionColor';
-import { IconButton, Slider, Tabs } from '@/design/components';
+import { Button, IconButton, Slider, Tabs } from '@/design/components';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import { prefersReducedMotion } from '@/lib/motion';
@@ -41,9 +40,7 @@ export function OverviewOverlay({
   const criteria = useConnectionsUiStore((s) => s.activeCriteria);
   const spacing = useOverviewStore((s) => s.spacing);
   const focusHubKey = useOverviewStore((s) => s.focusHubKey);
-  const { model, arranging } = useOverviewData(platform);
-  // The slider moves freely; the layout is only recomputed on release.
-  const [spacingDraft, setSpacingDraft] = useState<number | null>(null);
+  const { model, live, fitKey, status, retry, dragNode, releaseNode } = useOverviewData(platform);
 
   // Esc steps back one level: first a clicked star, then the Overview itself.
   useEscape(
@@ -65,12 +62,6 @@ export function OverviewOverlay({
     engine?.zoomToIds([id], prefersReducedMotion());
   }
 
-  function commitSpacing(): void {
-    if (spacingDraft === null) return;
-    useOverviewStore.getState().setSpacing(spacingDraft);
-    setSpacingDraft(null);
-  }
-
   const empty = model.nodes.length === 0;
   return (
     <div
@@ -85,6 +76,10 @@ export function OverviewOverlay({
         focusHubKey={focusHubKey}
         onFocusHub={(key) => useOverviewStore.getState().setFocusHubKey(key)}
         onOpen={openItem}
+        live={live}
+        fitKey={fitKey}
+        onDragNode={dragNode}
+        onReleaseNode={releaseNode}
       />
 
       <div
@@ -135,15 +130,28 @@ export function OverviewOverlay({
               min={OVERVIEW_SPACING_MIN}
               max={OVERVIEW_SPACING_MAX}
               step={0.1}
-              value={spacingDraft ?? spacing}
-              onChange={(e) => setSpacingDraft(Number(e.target.value))}
-              onPointerUp={commitSpacing}
-              onKeyUp={commitSpacing}
-              onBlur={commitSpacing}
+              value={spacing}
+              onChange={(e) => useOverviewStore.getState().setSpacing(Number(e.target.value))}
             />
           </label>
         )}
-        {arranging && <span style={{ color: 'var(--text-2)' }}>{en.overview.arranging}</span>}
+        {status === 'failed' && (
+          <span
+            role="alert"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              color: 'var(--danger)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            {en.overview.layoutFailed}
+            <Button variant="secondary" onClick={retry}>
+              {en.overview.tryAgain}
+            </Button>
+          </span>
+        )}
       </div>
 
       <div style={{ position: 'absolute', top: 'var(--space-4)', right: 'var(--space-4)' }}>

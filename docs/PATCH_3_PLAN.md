@@ -402,7 +402,7 @@ undo test. e2e: select three cards, Align top → same y; Ctrl+Z → back.
 **Goal:** the Overview behaves like Obsidian's graph: dots and stars can be dragged, the rest follows on springs, and
 Spacing visibly loosens or tightens the clusters. Size: M. Version **0.19.0**.
 
-### D1 · A live simulation in a worker `[ ]`
+### D1 · A live simulation in a worker `[x]`
 **Files:** new `src/workers/graphSim.worker.ts`, new `src/features/overview/graphSim.ts` (main-thread client, + test with
 a fake worker), `src/lib/constellations.ts` (export the force set-up), `useOverviewData.ts`, `OverviewCanvas.tsx`,
 `OverviewOverlay.tsx`, delete `runConstellationLayout.ts` if nothing else uses it, `en.ts`.
@@ -424,7 +424,7 @@ a fake worker), `src/lib/constellations.ts` (export the force set-up), `useOverv
 **Tests:** `graphSim.test.ts`: sends `init`, applies posted frames, sends `drag`/`release`, shows the error after a
 timeout. e2e `patch1-overview` updated (no "Arranging…" wait; poll for `settled`).
 
-### D2 · Drag dots and stars `[ ]`
+### D2 · Drag dots and stars `[x]`
 **Files:** `OverviewCanvas.tsx`.
 
 **Do:** pressing on a dot or a star and dragging moves it (`drag` messages, world coordinates). The neighbours follow
@@ -433,7 +433,7 @@ the rest to 30 %, as Obsidian does). Click and double-click keep their meaning (
 never changes the real map (P9).
 **Owner checks:** in the Overview (Clusters), drag a star: its pictures follow like on elastic bands, then settle.
 
-### D3 · Spacing that works `[ ]`
+### D3 · Spacing that works `[x]`
 **Files:** `graphSim.worker.ts`, `OverviewOverlay.tsx`, `overviewStore.ts`.
 
 **Do:** Spacing changes the **forces**, not a global scale: link distance × spacing, charge × spacing, while dot size

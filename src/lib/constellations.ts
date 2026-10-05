@@ -118,7 +118,7 @@ function buildHubLinks(nodes: HubNode[]): HubLink[] {
  * d3-force (seeded, deterministic), place each item at the weighted average of its hubs plus
  * seeded jitter (a disk for single-hub items, an outer ring for hub-less "Unclassified" items),
  * then relax the whole item set against uniform-size collision with a weak pull back toward those
- * targets. Runs synchronously — the caller (`workers/layout.worker.ts`) is what keeps this off
+ * targets. Runs synchronously — the caller (`workers/graphSim.worker.ts`) is what keeps this off
  * the main thread, not anything in here.
  *
  * `similar` ("Similar look") is deferred to M6 like everywhere else in M3 — the plan's "adds

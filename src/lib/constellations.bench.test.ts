@@ -5,7 +5,7 @@ import type { Item, ManualConnection, Term } from '@/state/types';
 
 /** §4.9's budget: "≤ 1.5 s for 3,000 items and ≤ 5 s for 10,000." Generous CI ceiling for the
  * same reason as the search/connections bench tests: catch a real regression, not chase CI
- * hardware — the worker wrapper (`layout.worker.ts`) is what actually keeps this off the main
+ * hardware — the worker wrapper (`graphSim.worker.ts`) is what actually keeps this off the main
  * thread; this measures the algorithm itself. */
 function makeItems(count: number): Item[] {
   const items: Item[] = [];

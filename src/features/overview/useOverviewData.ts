@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { Platform } from '@/platform/types';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useTermStore } from '@/state/termStore';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
 import { useConnectionsUiStore } from '@/state/connectionsUiStore';
-import { useEmbeddingsStore } from '@/state/embeddingsStore';
 import {
   buildConnectionIndex,
   computeHubs,
@@ -14,12 +13,7 @@ import {
 import { itemColorOf } from '@/lib/itemColor';
 import { thumbUrl } from '@/lib/thumbs';
 import { isMediaItem } from '@/lib/itemKinds';
-import { logger } from '@/lib/logger';
-import {
-  defaultLayoutWorkerFactory,
-  runConstellationLayout,
-} from '@/workers/runConstellationLayout';
-import type { ConstellationLayout } from '@/lib/constellations';
+import { prefersReducedMotion } from '@/lib/motion';
 import { useOverviewStore } from './overviewStore';
 import {
   buildOverviewModel,
@@ -27,28 +21,49 @@ import {
   type OverviewModel,
   type OverviewNode,
 } from './overviewModel';
+import { GraphController, type LivePositions } from './graphSim';
 
 // Criteria drawn as hubs: "similar" has no discrete value and "manual" is drawn as direct lines.
 const HUB_CRITERIA: Criterion[] = ['type', 'vibe', 'movement', 'tag', 'color'];
 
-/** The Overview's model for the current space (Patch 1 · G2). "My layout" uses real positions;
- * "Clusters" runs the clusters layout worker with the active criteria and caches the result
- * until the items or criteria change. */
-export function useOverviewData(platform: Platform): { model: OverviewModel; arranging: boolean } {
+export interface OverviewData {
+  model: OverviewModel;
+  /** Clusters: the live positions, moved by the simulation. Null in My layout (real positions). */
+  live: LivePositions | null;
+  /** Changes when the camera should fit again (opening, switching layout, a new simulation). */
+  fitKey: string;
+  /** 'failed': the layout worker failed or was too slow; show `retry`. */
+  status: 'ready' | 'arranging' | 'failed';
+  retry: () => void;
+  dragNode: (id: string, x: number, y: number) => void;
+  releaseNode: (id: string) => void;
+}
+
+/** The Overview's model for the current space. "My layout" uses real positions. "Clusters" runs the
+ * live graph (Patch 3 · D1): a worker keeps simulating items and stars, and the canvas reads their
+ * positions every frame. The simulation restarts only when the items, the criteria or the number
+ * of connections change; Spacing and dragging are messages to it. */
+export function useOverviewData(platform: Platform): OverviewData {
   const open = useOverviewStore((s) => s.open);
   const layout = useOverviewStore((s) => s.layout);
   const nodesMode = useOverviewStore((s) => s.nodes);
+  const epoch = useOverviewStore((s) => s.epoch);
+  const spacing = useOverviewStore((s) => s.spacing);
   const items = useLibraryStore((s) => s.items);
   const placements = useLibraryStore((s) => s.placements);
   const itemTerms = useTermStore((s) => s.itemTerms);
   const terms = useTermStore((s) => s.terms);
   const connections = useManualConnectionsStore((s) => s.connections);
-  const embeddings = useEmbeddingsStore((s) => s.vectors);
-  const spacing = useOverviewStore((s) => s.spacing);
   const activeCriteria = useConnectionsUiStore((s) => s.activeCriteria);
-  const [clusters, setClusters] = useState<{ key: string; layout: ConstellationLayout } | null>(
-    null,
-  );
+
+  const [controller] = useState(() => new GraphController());
+  const snap = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const { hubs, ready, failed, simId } = snap;
+  const [run, setRun] = useState(0);
+  const spacingRef = useRef(spacing);
+  useEffect(() => {
+    spacingRef.current = spacing;
+  }, [spacing]);
 
   const visibleIds = useMemo(
     () =>
@@ -58,51 +73,49 @@ export function useOverviewData(platform: Platform): { model: OverviewModel; arr
       }),
     [placements, items],
   );
-  const criteriaKey = activeCriteria.join(',');
-  const clustersKey = `${visibleIds.join('|')}#${criteriaKey}#${connections.size}#${spacing}`;
+  const clustersActive = open && layout === 'clusters';
+  const structureKey = `${visibleIds.join('|')}#${activeCriteria.join(',')}#${connections.size}`;
 
   useEffect(() => {
-    if (!open || layout !== 'clusters' || clusters?.key === clustersKey) return;
-    let cancelled = false;
-    const worker = defaultLayoutWorkerFactory();
-    runConstellationLayout(worker, {
+    if (!clustersActive) return;
+    controller.start({
       visibleItemIds: visibleIds,
       activeCriteria,
       items: [...items.values()],
       itemTerms,
       terms,
       manualConnections: [...connections.values()],
-      embeddings,
-      spacing,
-    })
-      .then((result) => {
-        if (!cancelled) setClusters({ key: clustersKey, layout: result });
-      })
-      .catch((err: unknown) => logger.error('Overview cluster layout failed', err))
-      .finally(() => worker.terminate());
-    return () => {
-      cancelled = true;
-      worker.terminate();
-    };
-    // Everything the layout reads is folded into `clustersKey`.
+      spacing: spacingRef.current,
+      reduceMotion: prefersReducedMotion(),
+    });
+    return () => controller.stop();
+    // Everything the simulation reads at the start is folded into `structureKey`; `run` restarts it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, layout, clustersKey]);
+  }, [controller, clustersActive, structureKey, run]);
 
-  const arranging = open && layout === 'clusters' && clusters?.key !== clustersKey;
+  // Spacing is live: no restart, only a message.
+  useEffect(() => {
+    controller.setSpacing(spacing);
+  }, [controller, spacing]);
+
+  const retry = useCallback(() => setRun((n) => n + 1), []);
+  const dragNode = useCallback(
+    (id: string, x: number, y: number) => controller.drag(id, x, y),
+    [controller],
+  );
+  const releaseNode = useCallback((id: string) => controller.release(id), [controller]);
 
   const model = useMemo<OverviewModel>(() => {
     if (!open) return { nodes: [], edges: [], hubs: [], tooLong: false };
-    const useClusters = layout === 'clusters' && clusters?.key === clustersKey;
     const nodes: OverviewNode[] = [];
     for (const id of visibleIds) {
       const item = items.get(id);
       const p = placements.get(id);
       if (!item || !p) continue;
-      const at = useClusters ? clusters.layout.itemPositions.get(id) : undefined;
       nodes.push({
         id,
-        x: at ? at.x : p.x + p.w / 2,
-        y: at ? at.y : p.y + p.h / 2,
+        x: p.x + p.w / 2,
+        y: p.y + p.h / 2,
         homeX: p.x + p.w / 2,
         homeY: p.y + p.h / 2,
         color: itemColorOf(item),
@@ -116,16 +129,14 @@ export function useOverviewData(platform: Platform): { model: OverviewModel; arr
     }
 
     const manual = [...connections.values()].map((c) => ({ fromId: c.fromId, toId: c.toId }));
-    let hubs: OverviewHubInput[];
+    let hubInputs: OverviewHubInput[];
     let overLimit = false;
-    if (useClusters) {
-      hubs = clusters.layout.hubs.map((h) => ({
+    if (layout === 'clusters') {
+      hubInputs = (hubs ?? []).map((h) => ({
         criterion: h.criterion,
         value: h.value,
         itemIds: h.itemIds,
         label: h.label,
-        x: h.x,
-        y: h.y,
       }));
     } else {
       const index = buildConnectionIndex(items.values(), itemTerms, terms, connections.values());
@@ -136,20 +147,19 @@ export function useOverviewData(platform: Platform): { model: OverviewModel; arr
       );
       overLimit = result.overLimit;
       const titles = new Map(visibleIds.map((id) => [id, items.get(id)?.title ?? id] as const));
-      hubs = result.hubs.map((h) => ({
+      hubInputs = result.hubs.map((h) => ({
         criterion: h.criterion,
         value: h.value,
         itemIds: h.itemIds,
         label: formatHubLabel(h, terms, titles),
       }));
     }
-    return buildOverviewModel({ nodes, manual, hubs, overLimit });
+    return buildOverviewModel({ nodes, manual, hubs: hubInputs, overLimit });
   }, [
     open,
     layout,
     nodesMode,
-    clusters,
-    clustersKey,
+    hubs,
     visibleIds,
     items,
     placements,
@@ -160,5 +170,21 @@ export function useOverviewData(platform: Platform): { model: OverviewModel; arr
     platform,
   ]);
 
-  return { model, arranging };
+  const status: OverviewData['status'] = !clustersActive
+    ? 'ready'
+    : failed
+      ? 'failed'
+      : ready
+        ? 'ready'
+        : 'arranging';
+  const fitKey = layout === 'clusters' ? `clusters:${epoch}:${simId}:${ready}` : `mine:${epoch}`;
+  return {
+    model,
+    live: clustersActive ? snap.live : null,
+    fitKey,
+    status,
+    retry,
+    dragNode,
+    releaseNode,
+  };
 }

@@ -3174,3 +3174,18 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   `Menu` component has no submenus and adding one is outside this patch. `alignMath.ts` has no `tidy`: the bar and menu reuse
   `createTidyUpCommand` (in the List's sort order), so there is one tidy rule. "Same width/height" uses the first selected
   card as the reference; palettes are skipped, font specimens scale, pictures crop.
+
+## Patch 3 · Phase D
+
+- **D1:** the forces live in `lib/graphSimulation.ts` (pure, tested), not in `constellations.ts`; the worker seeds the graph
+  from `computeConstellationLayout` and then runs the live simulation. `workers/layout.worker.ts` and
+  `workers/runConstellationLayout.ts` are gone (nothing else used them). The camera fits once per `fitKey` (opening, switching
+  layout, a new simulation); never after a drag or a Spacing change. If nothing arrives within 5 s, or the worker fails, the
+  Overview shows "The map couldn't be arranged." with a Try again button; the "Arranging…" label is gone.
+- **D2:** a dot or star is picked up where the pointer presses; empty space pans. While held, the node is drawn under the
+  pointer on the main thread and also sent to the worker (`fx`/`fy`). Hovering a dot or a star dims everything not linked to it
+  to 30 %. Dragging never writes to the real map (P9). The canvas exposes `data-sample` / `data-held` for the e2e test.
+- **D3:** Spacing multiplies link length and repulsion; the collision radii and dot size do not change. The slider applies
+  live; the simulation re-heats to alpha 0.3 for about 2–3 s. With Reduce motion the worker runs to the end and posts once.
+- **Versions:** all four phases are in the stacked PRs, so the version in `package.json`, `tauri.conf.json` and `Cargo.toml`
+  is set to 0.19.0 in this one. Phase A's AI removal (A6) is still open and is the owner's call (see Phase A).
