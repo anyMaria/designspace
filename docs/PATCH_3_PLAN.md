@@ -373,7 +373,7 @@ rect. While a size matches a neighbour, show a small "=" marker on the matching 
 **Tests:** e2e: resize a card's right edge to within 4 px of a neighbour's width → equal widths.
 **Owner checks:** resizing a picture next to another stops at the same height, and an "=" shows it.
 
-### C4 · Align and distribute `[ ]`
+### C4 · Align and distribute `[x]`
 **Files:** new `src/canvas/alignMath.ts` (+ test), new `src/canvas/AlignBar.tsx`, `src/commands/itemCommands.ts`
 (+ test), `src/canvas/contextMenuItems.ts` (+ test), `src/app/useGlobalShortcuts.ts`,
 `src/features/shortcuts/ShortcutListOverlay.tsx`, `en.ts`.

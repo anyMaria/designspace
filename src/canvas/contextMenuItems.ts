@@ -1,6 +1,7 @@
 import type { Item } from '@/state/types';
 import { isMediaItem } from '@/lib/itemKinds';
 import { noteColorNames, type NoteColor } from '@/design/tokens';
+import type { AlignAction } from './alignActions';
 
 export type ContextMenuItemId =
   | 'copy-image'
@@ -12,6 +13,7 @@ export type ContextMenuItemId =
   | 'bring-to-front'
   | 'send-to-back'
   | 'tidy-up'
+  | `align-${Exclude<AlignAction, 'tidy-up'>}`
   | 'connect-to'
   | 'back-to-inbox'
   | 'make-palette'
@@ -30,6 +32,20 @@ export type ContextMenuItemId =
   | 'description-edit'
   | `note-color-${NoteColor}`
   | 'move-to-trash';
+
+/** The right-click "Align" entries, in order (tidy up has its own entry). */
+const ALIGN_MENU_ACTIONS: Exclude<AlignAction, 'tidy-up'>[] = [
+  'left',
+  'hcenter',
+  'right',
+  'top',
+  'vcenter',
+  'bottom',
+  'distribute-x',
+  'distribute-y',
+  'same-width',
+  'same-height',
+];
 
 const isMedia = (i: Item): boolean => isMediaItem(i);
 const isFamily = (i: Item): boolean => i.kind === 'font' && !i.fontCollection;
@@ -56,6 +72,8 @@ export function contextMenuItemIds(
     ids.push(items.every((i) => i.favorite) ? 'remove-favorite' : 'add-favorite');
   if (items.length > 0 && items.every((i) => !!i.filePath)) ids.push('show-in-explorer');
   ids.push('bring-to-front', 'send-to-back');
+  if (items.length >= 2)
+    ids.push(...ALIGN_MENU_ACTIONS.map((a): ContextMenuItemId => `align-${a}`));
   if (items.length >= 2) ids.push('tidy-up');
   if (items.length === 1) ids.push('connect-to');
   if (items.length > 0 && items.every(isMedia)) ids.push('back-to-inbox');

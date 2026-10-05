@@ -89,3 +89,34 @@ test('resizing a card snaps its width to a neighbour', async ({ page }) => {
   const after = await selectedRect(page);
   expect(Math.abs(after.rect.w - left.w)).toBeLessThan(0.6);
 });
+
+test('the align bar lines cards up, and Ctrl+Z undoes it', async ({ page }) => {
+  const { a, b, origin } = await twoCards(page);
+  expect(a.y).not.toBe(b.y);
+  // Select both with a marquee around them.
+  await page.mouse.click(origin.x + 100, origin.y + 200);
+  await page.mouse.move(origin.x + 480, origin.y + 250);
+  await page.mouse.down();
+  await page.mouse.move(origin.x + 1300, origin.y + 700, { steps: 6 });
+  await page.mouse.up();
+
+  const bar = page.getByTestId('align-bar');
+  await expect(bar).toBeVisible();
+  await bar.getByRole('button', { name: 'Align top' }).click();
+  await page.waitForTimeout(300);
+
+  await page.mouse.click(origin.x + 100, origin.y + 200); // deselect
+  await page.mouse.click(origin.x + (a.x < b.x ? a.x : b.x) + 40, origin.y + 400);
+  const first = await selectedRect(page);
+  await page.mouse.click(origin.x + 100, origin.y + 200);
+  await page.mouse.click(origin.x + (a.x < b.x ? b.x : a.x) + 40, origin.y + 400);
+  const second = await selectedRect(page);
+  expect(Math.abs(first.rect.y - second.rect.y)).toBeLessThan(0.6);
+
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(300);
+  await page.mouse.click(origin.x + 100, origin.y + 200);
+  await page.mouse.click(origin.x + (a.x < b.x ? a.x : b.x) + 40, origin.y + 400);
+  const undone = await selectedRect(page);
+  expect(Math.abs(undone.rect.y - second.rect.y)).toBeGreaterThan(1);
+});

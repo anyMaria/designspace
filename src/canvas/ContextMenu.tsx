@@ -40,6 +40,7 @@ import {
   createMakeFontCollectionCommand,
   createRemoveFromFontCollectionCommand,
 } from '@/commands/fontCollectionCommands';
+import { ALIGN_LABEL, runAlignAction, type AlignAction } from './alignActions';
 import { contextMenuItemIds, type ContextMenuItemId } from './contextMenuItems';
 import type { Item } from '@/state/types';
 import { useEscape } from '@/app/useEscape';
@@ -335,6 +336,23 @@ export function ContextMenu({
       { id: `note-color-${c}`, label: en.notes.colorLabel(c), onSelect: () => setNoteColor(c) },
     ]),
   ) as Record<`note-color-${NoteColor}`, Entry>;
+  const alignEntries = Object.fromEntries(
+    (Object.keys(ALIGN_LABEL) as AlignAction[])
+      .filter((a) => a !== 'tidy-up')
+      .map((action) => [
+        `align-${action}`,
+        {
+          id: `align-${action}`,
+          label: `${en.align.menu}: ${ALIGN_LABEL[action]}`,
+          disabled: (action === 'distribute-x' || action === 'distribute-y') && ids.length < 3,
+          onSelect: () => {
+            onClose();
+            runAlignAction(platform, ids, action);
+          },
+        },
+      ]),
+  ) as Record<`align-${Exclude<AlignAction, 'tidy-up'>}`, Entry>;
+
   const entries: Record<ContextMenuItemId, Entry> = {
     ...colorEntries,
     'add-favorite': {
@@ -397,6 +415,7 @@ export function ContextMenu({
       label: en.contextMenu.sendToBack,
       onSelect: () => stack(false),
     },
+    ...alignEntries,
     'tidy-up': { id: 'tidy-up', label: en.contextMenu.tidyUp, onSelect: tidyUp },
     'connect-to': { id: 'connect-to', label: en.connections.connectTo, onSelect: connectTo },
     'back-to-inbox': {

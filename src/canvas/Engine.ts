@@ -152,6 +152,8 @@ interface EngineEvents {
   cropCommit: (update: { id: string; cropX: number; cropY: number }) => void;
   /** "Adjust crop" ended, by any route. */
   cropEnd: () => void;
+  /** A card drag or resize started (true) or ended (false): floating tools hide meanwhile. */
+  dragState: (dragging: boolean) => void;
 }
 
 const LINE_WIDTH_PX = connectionLineStyle.width;
@@ -328,6 +330,7 @@ export class Engine {
     connectionLineDblClick: new Set(),
     cropCommit: new Set(),
     cropEnd: new Set(),
+    dragState: new Set(),
   };
 
   on<K extends keyof EngineEvents>(event: K, handler: EngineEvents[K]): () => void {
@@ -1233,6 +1236,7 @@ export class Engine {
         moved = true;
         if (mode === 'move' || mode === 'resize') {
           this.dragging = true; // no connection dimming while dragging
+          this.emit('dragState', true);
           this.refreshAlpha();
         }
       }
@@ -1342,6 +1346,7 @@ export class Engine {
     const onPointerUp = (e: PointerEvent) => {
       if (this.dragging) {
         this.dragging = false;
+        this.emit('dragState', false);
         this.refreshAlpha();
       }
       if (mode === 'marquee' && moved) {

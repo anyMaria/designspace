@@ -25,6 +25,16 @@ import { isTypingTarget } from '@/lib/isTypingTarget';
 import { showTrashToast } from '@/features/trash/trashToast';
 import { escapeStack } from '@/app/escapeStack';
 import { isBlockingOverlayOpen } from '@/app/overlayGate';
+import { runAlignAction, type AlignAction } from './alignActions';
+
+const ALIGN_KEYS: Record<string, [AlignAction | null, AlignAction | null]> = {
+  KeyA: ['left', null],
+  KeyH: ['hcenter', 'distribute-x'],
+  KeyD: ['right', null],
+  KeyW: ['top', null],
+  KeyV: ['vcenter', 'distribute-y'],
+  KeyS: ['bottom', null],
+};
 
 /** Selection/stacking/trash/nudge/Rediscover/Favorite/Inbox-triage shortcuts that need the
  * engine and the library store — §2.2, §2.15. Kept separate from `useGlobalShortcuts` (which
@@ -69,6 +79,17 @@ export function useCanvasShortcuts(engine: Engine | null, platform: Platform): v
       if (isTypingTarget(e.target) || isBlockingOverlayOpen()) return;
       const selection = [...useLibraryStore.getState().selection];
       const reduceMotion = prefersReducedMotion();
+
+      // Align and distribute (Figma's keys): Alt+A/H/D left/centre/right, Alt+W/V/S top/middle/
+      // bottom, Alt+Shift+H / V distribute. `e.code`, since Alt changes the typed character.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && selection.length >= 2) {
+        const action = ALIGN_KEYS[e.code]?.[e.shiftKey ? 1 : 0];
+        if (action) {
+          e.preventDefault();
+          runAlignAction(platform, selection, action);
+          return;
+        }
+      }
 
       // Shift+Space: the next picture, Ctrl+Space: the previous one (selects it and flies to it).
       // Focus view has its own copy of this, so the map stands down while it is open.

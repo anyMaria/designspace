@@ -3170,3 +3170,7 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
 - **C3 was done together with C2** (same pointer-move code); it has its own e2e test.
 - Guides are drawn in screen space in the overlay layer, so they are one pixel wide at any zoom. Ctrl (or Cmd) frees a single
   drag, and can be pressed or released mid-drag.
+- **C4:** the right-click menu lists the align actions as flat entries ("Align: Align left", …) rather than a submenu: the
+  `Menu` component has no submenus and adding one is outside this patch. `alignMath.ts` has no `tidy`: the bar and menu reuse
+  `createTidyUpCommand` (in the List's sort order), so there is one tidy rule. "Same width/height" uses the first selected
+  card as the reference; palettes are skipped, font specimens scale, pictures crop.

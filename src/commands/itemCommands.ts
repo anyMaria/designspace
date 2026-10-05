@@ -51,14 +51,18 @@ function withCollectionMembers(updates: PositionUpdate[]): PositionUpdate[] {
   return out;
 }
 
-export function createMoveItemsCommand(platform: Platform, requested: PositionUpdate[]): Command {
+export function createMoveItemsCommand(
+  platform: Platform,
+  requested: PositionUpdate[],
+  label?: string,
+): Command {
   const updates = withCollectionMembers(requested);
   const previous: PositionUpdate[] = updates.map((u) => {
     const p = useLibraryStore.getState().placements.get(u.id);
     return { id: u.id, x: p?.x ?? u.x, y: p?.y ?? u.y };
   });
   return {
-    label: updates.length > 1 ? `Move ${updates.length} items` : 'Move',
+    label: label ?? (updates.length > 1 ? `Move ${updates.length} items` : 'Move'),
     do: () => applyPositions(platform, updates),
     undo: () => applyPositions(platform, previous),
   };
@@ -122,6 +126,58 @@ export function createResizeItemCommand(platform: Platform, update: ResizeUpdate
     label: 'Resize',
     do: () => applyResize(platform, update),
     undo: () => applyResize(platform, previous),
+  };
+}
+
+/** Writes several rects (and, where an update carries them, crop focuses) in one transaction. */
+async function applyResizes(platform: Platform, updates: ResizeUpdate[]): Promise<void> {
+  const statements = [];
+  for (const u of updates) {
+    const placement = useLibraryStore.getState().placements.get(u.id);
+    if (!placement) continue;
+    const withCrop = u.cropX !== undefined || u.cropY !== undefined;
+    const cropX = u.cropX === undefined ? placement.cropX : u.cropX;
+    const cropY = u.cropY === undefined ? placement.cropY : u.cropY;
+    useLibraryStore
+      .getState()
+      .upsertPlacement({ ...placement, x: u.x, y: u.y, w: u.w, h: u.h, cropX, cropY });
+    statements.push(
+      withCrop
+        ? {
+            sql: 'UPDATE placements SET x = ?, y = ?, w = ?, h = ?, crop_x = ?, crop_y = ? WHERE board_id = ? AND item_id = ?',
+            params: [u.x, u.y, u.w, u.h, cropX, cropY, placement.boardId, u.id],
+          }
+        : {
+            sql: 'UPDATE placements SET x = ?, y = ?, w = ?, h = ? WHERE board_id = ? AND item_id = ?',
+            params: [u.x, u.y, u.w, u.h, placement.boardId, u.id],
+          },
+    );
+  }
+  await platform.db.batch(statements);
+}
+
+/** Resizes several placements as one undo step ("Same width" / "Same height", Patch 3 · C4). */
+export function createResizeItemsCommand(
+  platform: Platform,
+  updates: ResizeUpdate[],
+  label = 'Resize',
+): Command {
+  const previous: ResizeUpdate[] = updates.map((u) => {
+    const p = useLibraryStore.getState().placements.get(u.id);
+    if (!p) return u;
+    return {
+      id: u.id,
+      x: p.x,
+      y: p.y,
+      w: p.w,
+      h: p.h,
+      ...(u.cropX !== undefined || u.cropY !== undefined ? { cropX: p.cropX, cropY: p.cropY } : {}),
+    };
+  });
+  return {
+    label,
+    do: () => applyResizes(platform, updates),
+    undo: () => applyResizes(platform, previous),
   };
 }
 

@@ -165,4 +165,12 @@ describe('description entries', () => {
     expect(contextMenuItemIds([link], { ...ctx, canFetchLinks: true })).toContain('link-try-again');
     expect(contextMenuItemIds([link, item({ id: 'b' })], ctx)).not.toContain('link-change-picture');
   });
+
+  it('Align entries appear for two or more items', () => {
+    expect(contextMenuItemIds([item({})], ctx)).not.toContain('align-left');
+    const two = contextMenuItemIds([item({}), item({ id: 'b' })], ctx);
+    expect(two).toContain('align-left');
+    expect(two).toContain('align-distribute-x');
+    expect(two).toContain('align-same-width');
+  });
 });
