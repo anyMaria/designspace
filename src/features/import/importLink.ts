@@ -14,6 +14,7 @@ import {
   type PlacementTarget,
 } from './importItems';
 import { looksLikeImageUrl } from '@/lib/urlDetect';
+import { candidatesOf, importFirstImage } from './linkCover';
 
 /** Link import (§2.3, §2.4): paste/drop a URL, or the Add menu's "Link…" field. Mirrors
  * `importItems.ts`'s placement/undo/"also lands on the Library map" machinery (reused via the
@@ -140,32 +141,40 @@ async function markLinkReady(platform: Platform, id: string): Promise<void> {
   }
 }
 
-/** Fetches title/description/cover for a link that's still `pending` — called right after import,
- * and again at startup for any link that never got this far last time (§4.7 "resumable"). A
- * failed fetch (offline, blocked site, no `og:image`) still resolves to `status: 'ok'` with the
- * plain domain card (§2.3: "the card stays a clean domain card") rather than `unsupported`/
- * `error` — nothing about the link itself is actually broken. */
+/** Which link fetcher wrote a link's `link_meta` (Patch 3 · B3). Links with a lower number were
+ * read by the old fetcher, which found fewer pictures; the app offers to look again once. */
+export const LINK_FETCHER_V = 2;
+
+/** Fetches title/description/cover for a link — called right after import, again at startup for
+ * any link that never got this far (§4.7 "resumable"), and by "Try again". A failed fetch (offline,
+ * blocked site) or a page with no usable picture still ends as `status: 'ok'` with the domain card,
+ * now marked `noPicture` so the card says so (Patch 3 · B3). A picture the link already has is never
+ * thrown away by a retry. */
 export async function enrichLink(platform: Platform, id: string, url: string): Promise<void> {
   const now = () => new Date().toISOString();
   try {
-    const meta = await platform.net.linkMeta(url);
-    const title = meta.title || meta.siteName || safeHostname(meta.finalUrl);
+    const fetched = await platform.net.linkMeta(url);
+    const title = fetched.title || fetched.siteName || safeHostname(fetched.finalUrl);
+
+    const existingCover = useLibraryStore.getState().items.get(id)?.coverPath ?? null;
+    const cover = await importFirstImage(candidatesOf(fetched), (u) => platform.media.importUrl(u));
+    const meta = { ...fetched, fetcherV: LINK_FETCHER_V, noPicture: !cover && !existingCover };
+
     await platform.db.execute(
       'UPDATE items SET title = ?, url = ?, link_meta = ?, updated_at = ? WHERE id = ?',
-      [title, meta.finalUrl, JSON.stringify(meta), now(), id],
+      [title, fetched.finalUrl, JSON.stringify(meta), now(), id],
     );
     const current = useLibraryStore.getState().items.get(id);
     if (current) {
       useLibraryStore
         .getState()
-        .upsertItem({ ...current, title, url: meta.finalUrl, linkMeta: meta, updatedAt: now() });
+        .upsertItem({ ...current, title, url: fetched.finalUrl, linkMeta: meta, updatedAt: now() });
     }
 
-    if (!meta.imageUrl) {
+    if (!cover) {
       await markLinkReady(platform, id);
       return;
     }
-    const cover = await platform.media.importUrl(meta.imageUrl);
     await platform.db.execute(
       'UPDATE items SET cover_path = ?, mime = ?, updated_at = ? WHERE id = ?',
       [cover.relPath, cover.mime, now(), id],
@@ -181,8 +190,34 @@ export async function enrichLink(platform: Platform, id: string, url: string): P
     getIngestQueue(platform).enqueue([{ itemId: id, relPath: cover.relPath, mime: cover.mime }]);
   } catch (err) {
     logger.warn(`Link metadata fetch failed for ${id}`, err);
-    await markLinkReady(platform, id);
+    await markFetchFailed(platform, id);
   }
+}
+
+/** The page could not be read (or was not tried): keep what the link has, remember that it has no
+ * picture (unless it already has one) and let the card say so. */
+async function markFetchFailed(platform: Platform, id: string): Promise<void> {
+  const current = useLibraryStore.getState().items.get(id);
+  if (current && !current.coverPath) {
+    const meta = {
+      finalUrl: current.url ?? '',
+      title: null,
+      description: null,
+      siteName: null,
+      imageUrl: null,
+      faviconUrl: null,
+      ...(current.linkMeta ?? {}),
+      // Not stamped with the fetcher version: the page was never read, so a later "Look for
+      // pictures" should try this link again.
+      noPicture: true,
+    };
+    await platform.db.execute('UPDATE items SET link_meta = ? WHERE id = ?', [
+      JSON.stringify(meta),
+      id,
+    ]);
+    useLibraryStore.getState().upsertItem({ ...current, linkMeta: meta });
+  }
+  await markLinkReady(platform, id);
 }
 
 function fileNameFromUrl(url: URL): string {
@@ -268,7 +303,7 @@ export async function importLink(
   await finishBatch(platform, [id]);
 
   if (offline || !platform.net.enabled()) {
-    await markLinkReady(platform, id);
+    await markFetchFailed(platform, id);
     return;
   }
   void enrichLink(platform, id, url.toString());

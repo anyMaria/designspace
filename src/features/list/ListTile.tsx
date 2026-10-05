@@ -1,6 +1,6 @@
 import { en } from '@/i18n/en';
 import { useLibraryStore } from '@/state/libraryStore';
-import { Star } from 'lucide-react';
+import { ImageOff, Star } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
 import { noteColors, noteStyles, type NoteColor } from '@/design/tokens';
@@ -140,6 +140,22 @@ function TileBody({ platform, item }: { platform: Platform; item: Item }) {
         >
           {item.title}
         </span>
+        {item.linkMeta?.noPicture && item.status === 'ok' && (
+          <span
+            data-testid="link-no-picture"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              color: 'var(--text-3)',
+              fontSize: 10,
+              marginTop: 'auto',
+            }}
+          >
+            <ImageOff size={11} strokeWidth={1.75} aria-hidden />
+            {en.link.noPicture}
+          </span>
+        )}
       </div>
     );
   }

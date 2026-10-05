@@ -273,7 +273,7 @@ Details header shows icon + label ("Video", "Palette"…). Size S tiles keep the
 persistence), and the text is there; Ctrl+Z undoes it.
 **Owner checks:** select a picture, click "Add a description…" in Details and type. Nothing zooms.
 
-### B3 · A picture for every link `[ ]`
+### B3 · A picture for every link `[x]`
 **Files:** `src-tauri/src/net.rs` (+ tests), new `src/features/import/linkCover.ts` (+ test),
 `src/features/import/importLink.ts`, new `src/commands/linkCoverCommands.ts` (+ test), `DetailsPanel.tsx`,
 `src/canvas/contextMenuItems.ts` (+ test), `src/canvas/decor/*` (the link card), `ListTile.tsx`, `App.tsx`, `en.ts`.

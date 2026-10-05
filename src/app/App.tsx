@@ -14,6 +14,7 @@ import { resumePendingVideoIngest } from '@/workers/videoIngestQueue';
 import { resumePendingPdfIngest } from '@/workers/pdfIngestQueue';
 import { resumePendingFontIngest } from '@/workers/fontIngestQueue';
 import { resumePendingLinkIngest } from '@/features/import/importLink';
+import { offerLinkPictureLookup } from '@/features/import/linkPicture';
 import { resumePendingAiAnalysis } from '@/workers/aiQueue';
 import { loadEmbeddings } from '@/state/embeddingsStore';
 import { loadSettings } from '@/state/loadSettings';
@@ -148,6 +149,7 @@ export function App() {
         void resumeAllIngest(platform);
         void resumePendingAiAnalysis(platform);
         void purgeExpiredTrash(platform);
+        void offerLinkPictureLookup(platform);
         void maybeBackupAtStartup(platform);
         if (platform.kind === 'tauri' && useUiStore.getState().startFullscreen)
           void setFullscreen(platform, true);

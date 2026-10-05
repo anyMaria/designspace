@@ -34,7 +34,13 @@ export interface LinkMeta {
   description: string | null;
   siteName: string | null;
   imageUrl: string | null;
+  /** Every picture the page offers, best first (Patch 3 · B3). Links fetched before v0.16 lack it. */
+  imageCandidates?: string[];
   faviconUrl: string | null;
+  /** Set by the app when the link was read: which fetcher made this (2 = Patch 3's) … */
+  fetcherV?: number;
+  /** … and that no picture could be found or downloaded for it. */
+  noPicture?: boolean;
 }
 
 export interface BackupInfo {

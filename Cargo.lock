@@ -919,7 +919,7 @@ dependencies = [
 
 [[package]]
 name = "designspace"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -952,7 +952,7 @@ dependencies = [
 
 [[package]]
 name = "designspace-core"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "percent-encoding",
  "sha2 0.11.0",

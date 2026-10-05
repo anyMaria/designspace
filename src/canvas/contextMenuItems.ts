@@ -24,6 +24,8 @@ export type ContextMenuItemId =
   | 'add-to-type-collection'
   | 'remove-from-type-collection'
   | 'edit-note'
+  | 'link-change-picture'
+  | 'link-try-again'
   | 'description-add'
   | 'description-edit'
   | `note-color-${NoteColor}`
@@ -37,7 +39,7 @@ const isCollection = (i: Item): boolean => i.kind === 'font' && !!i.fontCollecti
 /** `cropped`: the single clicked picture has an owner's crop (Patch 2 · C3). */
 export function contextMenuItemIds(
   items: Item[],
-  ctx: { onBoard: boolean; cropped?: boolean; inCollection?: boolean },
+  ctx: { onBoard: boolean; cropped?: boolean; inCollection?: boolean; canFetchLinks?: boolean },
 ): ContextMenuItemId[] {
   const ids: ContextMenuItemId[] = [];
   // Notes are written, not collected: a short menu of their own.
@@ -60,6 +62,11 @@ export function contextMenuItemIds(
   // One photo with sampled colours: open it in the Color studio (Patch 2 · E7).
   if (items.length === 1 && items[0]?.kind === 'image' && (items[0].palette?.length ?? 0) > 0)
     ids.push('make-palette');
+  // One link: give it a picture of your own, or look for one again (Patch 3 · B3).
+  if (items.length === 1 && items[0]?.kind === 'link') {
+    ids.push('link-change-picture');
+    if (ctx.canFetchLinks) ids.push('link-try-again');
+  }
   // One media item: add or edit its long description (Patch 1 · E4).
   const only = items.length === 1 ? items[0] : null;
   if (only && isMediaItem(only))

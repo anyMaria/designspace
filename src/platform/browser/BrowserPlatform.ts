@@ -172,6 +172,7 @@ export class BrowserPlatform implements Platform {
         description: null,
         siteName: domain,
         imageUrl: null,
+        imageCandidates: [],
         faviconUrl: null,
       });
     },

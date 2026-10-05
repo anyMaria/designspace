@@ -43,6 +43,7 @@ import {
 import { contextMenuItemIds, type ContextMenuItemId } from './contextMenuItems';
 import type { Item } from '@/state/types';
 import { useEscape } from '@/app/useEscape';
+import { canFetchLinks, chooseLinkPicture, tryLinkAgain } from '@/features/import/linkPicture';
 
 /** Right-click menu for a canvas item — §2.4. "Create board from selection" (M4-2) and, while
  * viewing a board, "Remove from board" (M4-3 — deletes only this board's placement, unlike Move
@@ -358,6 +359,22 @@ export function ContextMenu({
       label: en.description.edit,
       onSelect: openDescription,
     },
+    'link-change-picture': {
+      id: 'link-change-picture',
+      label: en.link.changePicture,
+      onSelect: () => {
+        onClose();
+        void chooseLinkPicture(platform, state.itemId);
+      },
+    },
+    'link-try-again': {
+      id: 'link-try-again',
+      label: en.link.tryAgain,
+      onSelect: () => {
+        onClose();
+        void tryLinkAgain(platform, state.itemId);
+      },
+    },
     'edit-note': { id: 'edit-note', label: en.notes.edit, onSelect: editNote },
     'copy-image': {
       id: 'copy-image',
@@ -457,6 +474,7 @@ export function ContextMenu({
               onBoard,
               cropped,
               inCollection: !!memberOf,
+              canFetchLinks: canFetchLinks(platform),
             }).map((id) => entries[id])}
           />
         </Popover>

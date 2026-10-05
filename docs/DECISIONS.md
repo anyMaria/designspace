@@ -3139,3 +3139,25 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   https://www.microsoft.com/wdsi/filesubmission as a false positive.
 - **Workflow warning:** "Node.js 20 is deprecated" in the Actions logs: both workflows now set
   `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`.
+
+## Patch 3 · Phase A (in progress)
+
+- **A1:** `classifyPaste` never returns `'nothing'` in practice (empty text means `maybe-image`); the member stays in the
+  type for the plan's sake. The pasted-link toast shows after the import's own "Added" toast.
+- **A2:** Esc in a text field is handled in two steps: the capture listener leaves the field alone (a combobox or a
+  rename box must see Esc first), and a second, bubble-phase listener blurs the field only when nothing called
+  `preventDefault`. `BoardsGallery`'s rename field now calls `preventDefault` for that reason.
+- **A3:** `kindIcon.tsx` only holds the `KindIcon` component; the icon map and helpers are in `kindMeta.ts` (the
+  react-refresh lint rule wants component files to export components only).
+- **A4:** Ctrl+V in the Color studio goes through `colorStudioStore.pendingPaste`, so the image tab takes the picture even
+  when it was not the visible tab.
+- **A6 not done:** the sandbox's safety check blocked deleting the AI files (`git rm`). Left for the owner to run or allow.
+
+## Patch 3 · Phase B (in progress)
+
+- **B2:** the inline description follows the stored text when it changes while the field is not focused, so Ctrl+Z / Ctrl+Y
+  show up in the field. "Open beside the card" no longer zooms; if the card is off screen the panel stays hidden.
+- **B3:** `link_meta` gains `imageCandidates`, `fetcherV` (2 = Patch 3's fetcher) and `noPicture`. A fetch that fails
+  (or an offline add) sets `noPicture` but not `fetcherV`, so "Look for pictures" at start-up tries it again. The start-up
+  prompt only runs when the network is allowed and Offline mode is off (P7). Vimeo's picture comes from its public oEmbed
+  endpoint (one extra request, only for Vimeo links). YouTube links keep their title even if the page can't be read.

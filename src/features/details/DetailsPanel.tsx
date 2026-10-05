@@ -7,6 +7,7 @@ import { useTermStore } from '@/state/termStore';
 import { useFocusStore } from '@/state/focusStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
+import { LinkPictureSection } from './LinkPictureSection';
 import { InlineDescription } from './InlineDescription';
 import { KindIcon } from '@/lib/kindIcon';
 import { kindLabelOf } from '@/lib/kindMeta';
@@ -170,6 +171,8 @@ export function DetailsPanel({
         <KindIcon item={item} size={16} />
         {kindLabelOf(item)}
       </div>
+
+      {item.kind === 'link' && <LinkPictureSection platform={platform} item={item} />}
 
       {item.kind === 'image' && item.status === 'ok' && (
         <button
