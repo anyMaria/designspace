@@ -32,8 +32,9 @@ describe('ListTile kind badge', () => {
   for (const [partial, label] of cases) {
     it(`shows the ${label} icon`, () => {
       const { unmount } = tile(partial);
-      expect(screen.getAllByRole('img', { name: label }).length).toBeGreaterThan(0);
-      expect(screen.getByTestId('kind-badge')).toHaveAttribute('title', label);
+      const badge = screen.getByTestId('kind-badge');
+      expect(badge).toHaveAttribute('title', label);
+      expect(badge.querySelector('svg')).not.toBeNull();
       unmount();
     });
   }

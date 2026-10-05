@@ -35,7 +35,7 @@ export function ListTile({ platform, item }: { platform: Platform; item: Item })
           justifyContent: 'center',
         }}
       >
-        <KindIcon item={item} size={12} label />
+        <KindIcon item={item} size={12} />
       </span>
       {item.favorite && (
         <span
