@@ -316,7 +316,7 @@ Details → "Choose a picture…" and pick one. Reopen the app with old links: a
 **Goal:** moving and resizing snap to neighbours like Figma (edges, centres, equal gaps, equal sizes), with pink guide
 lines, and a small bar aligns or spaces a selection evenly. Size: L. Version **0.18.0**.
 
-### C1 · Snapping maths (pure) `[ ]`
+### C1 · Snapping maths (pure) `[x]`
 **Files:** new `src/canvas/snapping.ts` (+ test).
 
 **Do**
