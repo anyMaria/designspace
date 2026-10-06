@@ -689,6 +689,11 @@ export const en = {
     sameHeight: 'Same height',
     tidyUp: 'Tidy up',
     bar: 'Arrange the selection',
+    open: 'Align and distribute',
+    groupAlign: 'Align',
+    groupSpacing: 'Equal spacing',
+    groupSize: 'Same size',
+    needThree: 'Select 3 or more to space evenly',
   },
   paste: {
     linkAdded: (domain: string) => `Link added · ${domain}`,

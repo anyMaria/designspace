@@ -102,6 +102,7 @@ test('the align bar lines cards up, and Ctrl+Z undoes it', async ({ page }) => {
 
   const bar = page.getByTestId('align-bar');
   await expect(bar).toBeVisible();
+  await bar.getByRole('button', { name: 'Align and distribute' }).click();
   await bar.getByRole('button', { name: 'Align top' }).click();
   await page.waitForTimeout(300);
 
