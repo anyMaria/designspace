@@ -3,6 +3,7 @@ import {
   createBulkSetItemFieldCommand,
   createMoveItemsCommand,
   createResizeItemCommand,
+  createResizeItemsCommand,
   createRestoreItemCommand,
   createSetCropCommand,
   createSetItemFieldCommand,
@@ -127,6 +128,25 @@ describe('createResizeItemCommand', () => {
       w: 320,
       h: 240,
     });
+  });
+});
+
+describe('createResizeItemsCommand', () => {
+  it('resizes several in one transaction and undo restores every rect and crop', async () => {
+    useLibraryStore.getState().upsertPlacement(makePlacement({ itemId: 'a', w: 100, h: 100 }));
+    useLibraryStore
+      .getState()
+      .upsertPlacement(makePlacement({ itemId: 'b', x: 200, w: 50, h: 50, cropX: null }));
+    const platform = makePlatform();
+    const command = createResizeItemsCommand(platform, [
+      { id: 'a', x: 0, y: 0, w: 120, h: 100 },
+      { id: 'b', x: 200, y: 0, w: 120, h: 50, cropX: 0.5, cropY: 0.5 },
+    ]);
+    await command.do();
+    expect(useLibraryStore.getState().placements.get('b')).toMatchObject({ w: 120, cropX: 0.5 });
+    await command.undo();
+    expect(useLibraryStore.getState().placements.get('a')).toMatchObject({ w: 100 });
+    expect(useLibraryStore.getState().placements.get('b')).toMatchObject({ w: 50, cropX: null });
   });
 });
 

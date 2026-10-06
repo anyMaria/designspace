@@ -181,7 +181,10 @@ export function BoardsGallery({ platform }: { platform: Platform }) {
                       onChange={(e) => setDraftName(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') void commitRename();
-                        if (e.key === 'Escape') setRenamingId(null);
+                        if (e.key === 'Escape') {
+                          e.preventDefault();
+                          setRenamingId(null);
+                        }
                       }}
                     />
                     <IconButton

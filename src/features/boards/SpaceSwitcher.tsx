@@ -11,11 +11,10 @@ import { createCreateBoardCommand } from '@/commands/boardCommands';
 import { useToastStore } from '@/state/toastStore';
 import { switchSpace } from './switchSpace';
 import { loadBoardSummaries, type BoardSummary } from './boardSummaries';
-import { Menu } from '@/design/components';
+import { Menu, Thumb } from '@/design/components';
 import { en } from '@/i18n/en';
 import type { MenuEntry } from '@/design/components/Menu';
 import { useEscape } from '@/app/useEscape';
-import { thumbUrl } from '@/lib/thumbs';
 import { formatRelative } from '@/lib/relativeDate';
 
 const RECENT_BOARDS_LIMIT = 5;
@@ -42,11 +41,12 @@ function BoardCover({ platform, ids }: { platform: Platform; ids: string[] }) {
       {[0, 1, 2, 3].map((i) => {
         const item = ids[i] ? items.get(ids[i]) : undefined;
         return item ? (
-          <img
+          <Thumb
             key={i}
-            src={thumbUrl(platform, item, 128)}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            platform={platform}
+            item={item}
+            size={128}
+            enabled={item.status === 'ok'}
           />
         ) : (
           <span key={i} style={{ background: 'var(--surface-2)' }} />

@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 /**
  * One rule for Esc (Patch 2, C1): Esc closes the topmost open thing; when nothing is open it
  * falls through to the "base" handlers (cancel a canvas mode, clear the selection, leave full
@@ -11,13 +13,17 @@ export interface EscapeLayerOptions {
   allowWhileTyping?: boolean;
 }
 
+/** `true`: handled. `'blur'`: focus is in a text field and nothing else wants Esc, so the field
+ * should be left (Patch 3 · P2). `false`: not handled. */
+export type EscapeResult = boolean | 'blur';
+
 export interface EscapeStack {
   /** An open layer (menu, dialog, overlay, search bar…). Last pushed runs first. Returns `remove`. */
   push: (handler: EscapeHandler, options?: EscapeLayerOptions) => () => void;
   /** A fallback that runs only when no layer handled Esc. Lower `priority` runs first. */
   addBase: (priority: number, handler: EscapeHandler) => () => void;
   /** Runs the handlers; true when one of them handled Esc. `typing`: focus is in a text field. */
-  handle: (typing?: boolean) => boolean;
+  handle: (typing?: boolean) => EscapeResult;
   /** Number of open layers (for tests and debugging). */
   size: () => number;
 }
@@ -46,11 +52,13 @@ export function createEscapeStack(): EscapeStack {
       };
     },
     handle(typing = false) {
-      // While typing, only the top layer may take Esc, and only if it allows it; otherwise the
-      // field keeps Esc (and the base handlers never run).
+      // While typing, only the top layer may take Esc, and only if it allows it. Otherwise the
+      // field gets the first chance, and if it ignores Esc the field is left ('blur'); the base
+      // handlers wait for the next Esc.
       if (typing) {
         const top = layers[layers.length - 1];
-        return top !== undefined && top.allowWhileTyping && top.handler();
+        if (top !== undefined && top.allowWhileTyping && top.handler()) return true;
+        return 'blur';
       }
       // Copy first: a handler usually closes its layer, which removes it during the loop.
       for (const entry of [...layers].reverse()) if (entry.handler()) return true;
@@ -76,11 +84,30 @@ export function installEscapeListener(
 ): () => void {
   const onKeyDown = (e: KeyboardEvent): void => {
     if (e.key !== 'Escape' || e.isComposing) return;
-    if (stack.handle(isTyping(e.target))) {
+    const typing = isTyping(e.target);
+    const result = stack.handle(typing);
+    logger.debug('esc', typing ? 'typing' : 'idle', String(result));
+    if (result === true) {
       e.preventDefault();
       e.stopPropagation();
     }
   };
+  // A field that takes Esc itself (a combobox list, a rename box) calls `preventDefault` or stops
+  // the event before it gets here; otherwise the focused field is left, so the next Esc goes on
+  // down the ladder (Patch 3 · A2).
+  const onKeyDownBubble = (e: KeyboardEvent): void => {
+    if (e.key !== 'Escape' || e.isComposing || e.defaultPrevented) return;
+    if (!isTyping(e.target)) return;
+    const el = e.target;
+    if (el instanceof HTMLElement) {
+      el.blur();
+      e.preventDefault();
+    }
+  };
   target.addEventListener('keydown', onKeyDown as EventListener, { capture: true });
-  return () => target.removeEventListener('keydown', onKeyDown as EventListener, { capture: true });
+  target.addEventListener('keydown', onKeyDownBubble as EventListener);
+  return () => {
+    target.removeEventListener('keydown', onKeyDown as EventListener, { capture: true });
+    target.removeEventListener('keydown', onKeyDownBubble as EventListener);
+  };
 }

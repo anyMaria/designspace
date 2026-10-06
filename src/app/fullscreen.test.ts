@@ -6,6 +6,7 @@ import type { Platform } from '@/platform';
 function makePlatform(initial: boolean) {
   let on = initial;
   const win = {
+    focus: vi.fn(() => Promise.resolve()),
     isFullscreen: vi.fn(() => Promise.resolve(on)),
     setFullscreen: vi.fn((v: boolean) => {
       on = v;
@@ -43,6 +44,21 @@ describe('fullscreen', () => {
     expect(useUiStore.getState().fullscreen).toBe(true);
     listener(false);
     expect(useUiStore.getState().fullscreen).toBe(false);
+  });
+
+  it('asks the window again after a moment and trusts what it says', async () => {
+    vi.useFakeTimers();
+    try {
+      const { platform, win } = makePlatform(false);
+      await setFullscreen(platform, true);
+      expect(win.focus).toHaveBeenCalled();
+      // The OS refused after all.
+      win.isFullscreen.mockResolvedValue(false);
+      await vi.advanceTimersByTimeAsync(400);
+      expect(useUiStore.getState().fullscreen).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not throw when the window refuses', async () => {

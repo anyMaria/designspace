@@ -3,6 +3,7 @@ import { Engine } from './Engine';
 import { DotGrid } from './DotGrid';
 import { generateBenchRects } from '@/platform/seed/bench';
 import type { Tool, WheelMode } from './input';
+import { useSettingsStore } from '@/state/settingsStore';
 
 export interface CanvasViewProps {
   tool: Tool;
@@ -46,6 +47,7 @@ export function CanvasView({ tool, wheelMode, benchCount, onEngineReady }: Canva
           : eng.mount(container, {
               getTool: () => toolRef.current,
               getWheelMode: () => wheelModeRef.current,
+              getSnapping: () => useSettingsStore.getState().snapping,
             }),
       )
       .then(() => {

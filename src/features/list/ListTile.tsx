@@ -1,12 +1,14 @@
 import { en } from '@/i18n/en';
 import { useLibraryStore } from '@/state/libraryStore';
-import { Star } from 'lucide-react';
+import { ImageOff, Star } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
 import { noteColors, noteStyles, type NoteColor } from '@/design/tokens';
 import { swatchColorsOf } from '@/lib/palette';
 import { sourceDomain } from '@/lib/search';
-import { thumbUrl } from '@/lib/thumbs';
+import { Thumb } from '@/design/components';
+import { KindIcon } from '@/lib/kindIcon';
+import { kindLabelOf } from '@/lib/kindMeta';
 
 const css = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
@@ -16,6 +18,25 @@ export function ListTile({ platform, item }: { platform: Platform; item: Item })
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <TileBody platform={platform} item={item} />
+      <span
+        data-testid="kind-badge"
+        title={kindLabelOf(item)}
+        style={{
+          position: 'absolute',
+          bottom: 4,
+          left: 4,
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          background: 'rgba(30, 16, 36, 0.72)',
+          color: 'var(--text-1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <KindIcon item={item} size={12} />
+      </span>
       {item.favorite && (
         <span
           aria-label="favorite"
@@ -119,6 +140,22 @@ function TileBody({ platform, item }: { platform: Platform; item: Item }) {
         >
           {item.title}
         </span>
+        {item.linkMeta?.noPicture && item.status === 'ok' && (
+          <span
+            data-testid="link-no-picture"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              color: 'var(--text-3)',
+              fontSize: 10,
+              marginTop: 'auto',
+            }}
+          >
+            <ImageOff size={11} strokeWidth={1.75} aria-hidden />
+            {en.link.noPicture}
+          </span>
+        )}
       </div>
     );
   }
@@ -162,14 +199,12 @@ function TileBody({ platform, item }: { platform: Platform; item: Item }) {
   const hasThumb = item.status === 'ok';
   const isFont = item.kind === 'font';
   return (
-    <div style={{ ...fill, background: 'var(--surface-2)' }}>
-      {hasThumb && (
-        <img
-          src={thumbUrl(platform, item, 128)}
-          alt=""
-          style={{ ...fill, objectFit: isFont ? 'contain' : 'cover' }}
-        />
-      )}
-    </div>
+    <Thumb
+      platform={platform}
+      item={item}
+      size={128}
+      fit={isFont ? 'contain' : 'cover'}
+      enabled={hasThumb}
+    />
   );
 }

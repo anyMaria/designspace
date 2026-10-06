@@ -9,10 +9,6 @@ interface SearchState {
   isOpen: boolean;
   filter: Filter;
   dimHideMode: DimHideMode;
-  /** §2.10/§4.10's "Include visual matches" toggle — folds `searchByMeaning`'s CLIP results into
-   * the same match set text/facet search already produces, off by default (a semantic match
-   * costs an embed-text round trip, and the owner opts in per search). */
-  includeVisualMatches: boolean;
 
   open: () => void;
   /** Esc (§2.8): clears the text first if there is any, otherwise closes the bar. Filters stay
@@ -28,7 +24,6 @@ interface SearchState {
   setDateRange: (range: Filter['added'] | undefined) => void;
   clearFilter: () => void;
   setDimHideMode: (mode: DimHideMode) => void;
-  toggleIncludeVisualMatches: () => void;
 }
 
 function toggleInArray<T>(arr: T[] | undefined, value: T): T[] | undefined {
@@ -47,7 +42,6 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   isOpen: false,
   filter: {},
   dimHideMode: 'dim',
-  includeVisualMatches: false,
 
   open: () => set({ isOpen: true }),
   closeOrClearText: () => {
@@ -93,7 +87,6 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   setDateRange: (range) => set((s) => ({ filter: { ...s.filter, added: range } })),
   clearFilter: () => set({ filter: {} }),
   setDimHideMode: (mode) => set({ dimHideMode: mode }),
-  toggleIncludeVisualMatches: () => set((s) => ({ includeVisualMatches: !s.includeVisualMatches })),
 }));
 
 export function isFilterActive(filter: Filter): boolean {

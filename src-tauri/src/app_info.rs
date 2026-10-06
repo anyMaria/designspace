@@ -36,14 +36,6 @@ pub fn open_logs(app: AppHandle) -> AppResult<()> {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelFileInfo {
-    pub name: String,
-    pub present: bool,
-    pub bytes: u64,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ProblemReportInfo {
     pub app_version: String,
     pub os: String,
@@ -53,12 +45,9 @@ pub struct ProblemReportInfo {
     pub stored_library_id: Option<String>,
     pub cache_folder_count: u32,
     pub cache_file_count: u32,
-    pub models: Vec<ModelFileInfo>,
     pub log_tail: String,
 }
 
-const MODEL_DIR: &str = "models/Xenova/clip-vit-base-patch32/onnx";
-const MODEL_FILES: [&str; 2] = ["vision_model_quantized.onnx", "text_model_quantized.onnx"];
 const LOG_TAIL_LINES: usize = 200;
 
 /// The last `max_lines` lines of `text`, joined back with newlines. Pure and unit-tested.
@@ -124,21 +113,6 @@ pub fn problem_report_info(
     };
 
     let cache_root = app.path().app_local_data_dir()?.join("cache");
-    let resource_dir = app.path().resource_dir()?;
-    let models = MODEL_FILES
-        .iter()
-        .map(|name| {
-            let bytes = fs::metadata(resource_dir.join(MODEL_DIR).join(name))
-                .map(|m| m.len())
-                .ok();
-            ModelFileInfo {
-                name: (*name).to_string(),
-                present: bytes.is_some(),
-                bytes: bytes.unwrap_or(0),
-            }
-        })
-        .collect();
-
     Ok(ProblemReportInfo {
         app_version: app.package_info().version.to_string(),
         os: std::env::consts::OS.to_string(),
@@ -148,7 +122,6 @@ pub fn problem_report_info(
         cache_file_count: count_dir_entries(&cache_root.join(&library_id), false),
         library_id,
         stored_library_id,
-        models,
         log_tail: newest_log_tail(&app.path().app_log_dir()?),
     })
 }

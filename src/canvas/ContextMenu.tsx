@@ -40,9 +40,11 @@ import {
   createMakeFontCollectionCommand,
   createRemoveFromFontCollectionCommand,
 } from '@/commands/fontCollectionCommands';
+import { ALIGN_LABEL, runAlignAction, type AlignAction } from './alignActions';
 import { contextMenuItemIds, type ContextMenuItemId } from './contextMenuItems';
 import type { Item } from '@/state/types';
 import { useEscape } from '@/app/useEscape';
+import { canFetchLinks, chooseLinkPicture, tryLinkAgain } from '@/features/import/linkPicture';
 
 /** Right-click menu for a canvas item — §2.4. "Create board from selection" (M4-2) and, while
  * viewing a board, "Remove from board" (M4-3 — deletes only this board's placement, unlike Move
@@ -334,6 +336,23 @@ export function ContextMenu({
       { id: `note-color-${c}`, label: en.notes.colorLabel(c), onSelect: () => setNoteColor(c) },
     ]),
   ) as Record<`note-color-${NoteColor}`, Entry>;
+  const alignEntries = Object.fromEntries(
+    (Object.keys(ALIGN_LABEL) as AlignAction[])
+      .filter((a) => a !== 'tidy-up')
+      .map((action) => [
+        `align-${action}`,
+        {
+          id: `align-${action}`,
+          label: `${en.align.menu}: ${ALIGN_LABEL[action]}`,
+          disabled: (action === 'distribute-x' || action === 'distribute-y') && ids.length < 3,
+          onSelect: () => {
+            onClose();
+            runAlignAction(platform, ids, action);
+          },
+        },
+      ]),
+  ) as Record<`align-${Exclude<AlignAction, 'tidy-up'>}`, Entry>;
+
   const entries: Record<ContextMenuItemId, Entry> = {
     ...colorEntries,
     'add-favorite': {
@@ -358,6 +377,22 @@ export function ContextMenu({
       label: en.description.edit,
       onSelect: openDescription,
     },
+    'link-change-picture': {
+      id: 'link-change-picture',
+      label: en.link.changePicture,
+      onSelect: () => {
+        onClose();
+        void chooseLinkPicture(platform, state.itemId);
+      },
+    },
+    'link-try-again': {
+      id: 'link-try-again',
+      label: en.link.tryAgain,
+      onSelect: () => {
+        onClose();
+        void tryLinkAgain(platform, state.itemId);
+      },
+    },
     'edit-note': { id: 'edit-note', label: en.notes.edit, onSelect: editNote },
     'copy-image': {
       id: 'copy-image',
@@ -380,6 +415,7 @@ export function ContextMenu({
       label: en.contextMenu.sendToBack,
       onSelect: () => stack(false),
     },
+    ...alignEntries,
     'tidy-up': { id: 'tidy-up', label: en.contextMenu.tidyUp, onSelect: tidyUp },
     'connect-to': { id: 'connect-to', label: en.connections.connectTo, onSelect: connectTo },
     'back-to-inbox': {
@@ -457,6 +493,7 @@ export function ContextMenu({
               onBoard,
               cropped,
               inCollection: !!memberOf,
+              canFetchLinks: canFetchLinks(platform),
             }).map((id) => entries[id])}
           />
         </Popover>

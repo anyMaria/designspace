@@ -17,6 +17,7 @@ import { useUiStore } from '@/state/uiStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
 import { toggleFullscreen } from './fullscreen';
+import { FullscreenExitPill } from './FullscreenExitPill';
 import { useSoftLimitNotice } from './useSoftLimitNotice';
 import { useUndoRedoShortcuts } from '@/commands/useUndoRedoShortcuts';
 import { CanvasView } from '@/canvas/CanvasView';
@@ -32,6 +33,7 @@ import { useContextMenu } from '@/canvas/useContextMenu';
 import { ContextMenu } from '@/canvas/ContextMenu';
 import { ZoomMenu } from '@/canvas/ZoomMenu';
 import { Minimap } from '@/canvas/Minimap';
+import { AlignBar } from '@/canvas/AlignBar';
 import { useFocusViewBinding } from '@/canvas/useFocusViewBinding';
 import { PdfPagePicker } from '@/features/pdfPages/PdfPagePicker';
 import { FocusView } from '@/features/focus/FocusView';
@@ -149,8 +151,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
   useFocusViewBinding(engine);
   useNoteCanvasBinding(engine, platform);
-  useSearchBinding(engine, platform);
-  useConnectionsBinding(engine, platform);
+  useSearchBinding(engine);
+  useConnectionsBinding(engine);
   useManualConnectionsBinding(engine, platform);
   const favoritesOnly = useSearchStore((s) => !!s.filter.favorite);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
@@ -429,7 +431,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           ) : selectedItem?.kind === 'swatch' ? (
             <PaletteEditor platform={platform} item={selectedItem} />
           ) : selectedItem ? (
-            <DetailsPanel platform={platform} item={selectedItem} engine={engine} />
+            <DetailsPanel platform={platform} item={selectedItem} />
           ) : (
             <div
               style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -468,6 +470,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
 
       {dragOver && <DropOverlay />}
       <ImportProgressCard />
+      <AlignBar engine={engine} platform={platform} />
+      <FullscreenExitPill platform={platform} />
       <ToastHost />
       {contextMenu && (
         <ContextMenu

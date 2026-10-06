@@ -17,10 +17,9 @@ import type {
   LinkMeta,
   Platform,
 } from '@/platform/types';
-import { base64ToBytes, bytesToBase64 } from '@/lib/base64';
 
 /** Talks to the Rust backend over `invoke` and the `media://` protocol. See §4.4–4.5.
- * M0 wires up the library/db/media-url surface; import, cache, embeddings, backups, net and
+ * M0 wires up the library/db/media-url surface; import, cache, backups, net and
  * clipboard-image commands land with the milestones that use them (noted per method). */
 export class TauriPlatform implements Platform {
   readonly kind = 'tauri';
@@ -95,41 +94,6 @@ export class TauriPlatform implements Platform {
     enabled: (): boolean => true,
   };
 
-  embeddings = {
-    put: async (model: string, entries: [string, Float32Array][]): Promise<void> => {
-      if (entries.length === 0) return;
-      const dims = entries[0][1].length;
-      const itemIds = entries.map(([id]) => id);
-      const packed = new Uint8Array(entries.length * dims * 4);
-      entries.forEach(([, vector], i) => {
-        packed.set(
-          new Uint8Array(vector.buffer, vector.byteOffset, vector.byteLength),
-          i * dims * 4,
-        );
-      });
-      await invoke<void>('embeddings_put', {
-        model,
-        itemIds,
-        dims,
-        vectorsB64: bytesToBase64(packed),
-      });
-    },
-    load: async (model: string): Promise<Map<string, Float32Array>> => {
-      const result = await invoke<{ itemIds: string[]; dims: number; vectorsB64: string }>(
-        'embeddings_load',
-        { model },
-      );
-      const bytes = base64ToBytes(result.vectorsB64);
-      const map = new Map<string, Float32Array>();
-      result.itemIds.forEach((id, i) => {
-        const start = i * result.dims * 4;
-        const vector = new Float32Array(bytes.buffer.slice(start, start + result.dims * 4));
-        map.set(id, vector);
-      });
-      return map;
-    },
-  };
-
   backups = {
     now: (extraDestination?: string | null): Promise<BackupInfo> =>
       invoke<BackupInfo>('backup_now', { extraDestination: extraDestination ?? null }),
@@ -176,11 +140,15 @@ export class TauriPlatform implements Platform {
     isFullscreen: (): Promise<boolean> => getCurrentWindow().isFullscreen(),
     setFullscreen: (on: boolean): Promise<void> => getCurrentWindow().setFullscreen(on),
     onFullscreenChange: (cb: (on: boolean) => void): (() => void) => {
-      const unlisten = getCurrentWindow().onResized(() => {
-        void getCurrentWindow().isFullscreen().then(cb);
-      });
-      return () => void unlisten.then((f) => f());
+      const check = () => void getCurrentWindow().isFullscreen().then(cb);
+      const unlistenResize = getCurrentWindow().onResized(check);
+      const unlistenFocus = getCurrentWindow().onFocusChanged(check);
+      return () => {
+        void unlistenResize.then((f) => f());
+        void unlistenFocus.then((f) => f());
+      };
     },
+    focus: (): Promise<void> => getCurrentWindow().setFocus(),
   };
 
   clipboard = {

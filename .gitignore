@@ -7,11 +7,9 @@ dist-ssr/
 target/
 src-tauri/target/
 src-tauri/gen/
-src-tauri/resources/models/
-public/ort/
 *.local
 
-# AI models & library data (never commit)
+# Library data (never commit)
 *.db
 *.db-wal
 *.db-shm

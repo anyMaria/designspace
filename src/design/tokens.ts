@@ -13,6 +13,10 @@ export const colors = {
   surface3: 0x3d2847,
   hairline: 0xffffff,
   hairlineAlpha: 0.08,
+  scrollbarThumb: 0xffffff,
+  scrollbarThumbAlpha: 0.16,
+  scrollbarThumbHover: 0xffffff,
+  scrollbarThumbHoverAlpha: 0.3,
 
   text1: 0xf4eef6,
   text2: 0xc9bcd0,
@@ -34,7 +38,6 @@ export const criterionColors = {
   type: colors.accent,
   movement: colors.cream,
   color: colors.lavender,
-  similar: colors.sky,
   manual: 0xffffff,
 } as const;
 
@@ -61,7 +64,6 @@ export const criterionLineStyle = {
   type: 'solid',
   movement: 'solid',
   color: 'dotted',
-  similar: 'dashed',
   manual: 'solid',
 } as const;
 
@@ -220,3 +222,13 @@ export const paletteGeometry = {
 /** The type collection card (Patch 2 · F5), in world units: width, header height, one row per
  * family, space under the last row. */
 export const fontCollectionGeometry = { width: 360, header: 48, row: 56, padBottom: 8 } as const;
+
+/** Snapping while moving and resizing (Patch 3 · C2): how close counts as "on", and the guides. */
+export const snap = {
+  thresholdPx: 6,
+  guide: 0xff5fa8,
+  guideWidthPx: 1,
+  /** Cards considered at most, nearest first (the visible ones only). */
+  maxTargets: 300,
+  gapLabelFontSize: 11,
+} as const;

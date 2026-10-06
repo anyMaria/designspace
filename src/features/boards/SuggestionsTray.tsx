@@ -1,4 +1,3 @@
-import { thumbUrl } from '@/lib/thumbs';
 import { useMemo } from 'react';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
@@ -6,15 +5,12 @@ import { useBoardStore } from '@/state/boardStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useTermStore } from '@/state/termStore';
 import { useSuggestionsUiStore } from '@/state/suggestionsUiStore';
-import { useSettingsStore } from '@/state/settingsStore';
-import { useEmbeddingsStore } from '@/state/embeddingsStore';
 import { useHistoryStore } from '@/commands/history';
 import { createDismissSuggestionCommand } from '@/commands/boardCommands';
 import { buildSearchIndex, search as runSearch, type Filter } from '@/lib/search';
 import { isFilterActive } from '@/state/searchStore';
-import { boardSimilarSuggestions } from '@/lib/ai/boardSimilarSuggestions';
 import { LIST_ITEM_DRAG_MIME } from '@/features/list/useListDragToBoard';
-import { Panel } from '@/design/components';
+import { Panel, Thumb } from '@/design/components';
 import { en } from '@/i18n/en';
 
 // "aren't on the board yet" (§2.11) caps how many the tray shows at once — a board with a broad
@@ -29,10 +25,7 @@ const SUGGESTIONS_LIMIT = 12;
  * this board (`libraryStore.placements`, scoped to the current space, which is this board while
  * it's open) and whatever the owner already dismissed (`board.settings.dismissedSuggestions`).
  * Drag a tile onto the canvas to add it — reuses `useListDragToBoard`'s drop handler via the same
- * `LIST_ITEM_DRAG_MIME`, mounted once in `Shell.tsx`. When the source-filter matches don't fill
- * the tray (or there's no source filter at all — an empty/manually-built board), the remaining
- * slots are filled with `boardSimilarSuggestions` (§4.10): the centroid of the board's own placed
- * items, compared against the rest of the library. */
+ * `LIST_ITEM_DRAG_MIME`, mounted once in `Shell.tsx`. */
 export function SuggestionsTray({ platform }: { platform: Platform }) {
   const currentBoardId = useBoardStore((s) => s.currentBoardId);
   const boards = useBoardStore((s) => s.boards);
@@ -42,8 +35,6 @@ export function SuggestionsTray({ platform }: { platform: Platform }) {
   const itemTerms = useTermStore((s) => s.itemTerms);
   const terms = useTermStore((s) => s.terms);
   const collapsed = useSuggestionsUiStore((s) => s.collapsed);
-  const aiEnabled = useSettingsStore((s) => s.aiEnabled);
-  const embeddings = useEmbeddingsStore((s) => s.vectors);
 
   const isBoard = board?.kind === 'board';
   const sourceFilter = (board?.sourceFilter as Filter | undefined) ?? null;
@@ -68,25 +59,8 @@ export function SuggestionsTray({ platform }: { platform: Platform }) {
       }
     }
 
-    if (aiEnabled && out.length < SUGGESTIONS_LIMIT) {
-      const exclude = new Set([...placements.keys(), ...dismissed, ...seen]);
-      const remaining = SUGGESTIONS_LIMIT - out.length;
-      const similar = boardSimilarSuggestions(placements.keys(), embeddings, exclude, remaining);
-      out.push(...similar);
-    }
-
     return out;
-  }, [
-    isBoard,
-    sourceFilter,
-    items,
-    itemTerms,
-    terms,
-    placements,
-    dismissed,
-    aiEnabled,
-    embeddings,
-  ]);
+  }, [isBoard, sourceFilter, items, itemTerms, terms, placements, dismissed]);
 
   if (!currentBoardId || suggestions.length === 0) return null;
 
@@ -167,17 +141,7 @@ function SuggestionTile({
           cursor: 'grab',
         }}
       >
-        {item.status === 'ok' && (
-          <img
-            src={thumbUrl(
-              platform,
-              { id, thumbV: useLibraryStore.getState().items.get(id)?.thumbV },
-              128,
-            )}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        )}
+        <Thumb platform={platform} item={item} size={128} enabled={item.status === 'ok'} />
       </div>
       <button
         type="button"

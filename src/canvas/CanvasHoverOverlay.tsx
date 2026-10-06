@@ -9,6 +9,7 @@ import { useConnectionsUiStore } from '@/state/connectionsUiStore';
 import { useConnectionIndex } from '@/features/connections/useConnectionIndex';
 import { scoreCandidates } from '@/lib/connections';
 import { en } from '@/i18n/en';
+import { KindIcon } from '@/lib/kindIcon';
 
 const CRITERION_KEY = {
   type: 'criterionType',
@@ -17,7 +18,6 @@ const CRITERION_KEY = {
   tag: 'criterionTag',
   color: 'criterionColor',
   manual: 'criterionManual',
-  similar: 'criterionSimilar',
 } as const;
 
 const GAP_PX = 8;
@@ -74,7 +74,7 @@ export function CanvasHoverOverlay({ engine }: { engine: Engine | null }) {
   const noneText = none
     ? en.connections.noneForItem(
         activeCriteria
-          .filter((c) => c !== 'manual' && c !== 'similar')
+          .filter((c) => c !== 'manual')
           .map((c) => (c === 'tag' ? 'Tag' : en.connections[CRITERION_KEY[c]]))
           .join(' or ') || en.connections.criterionManual,
       )
@@ -113,7 +113,14 @@ export function CanvasHoverOverlay({ engine }: { engine: Engine | null }) {
           textOverflow: 'ellipsis',
         }}
       >
-        {name}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {item && (
+            <span style={{ display: 'inline-flex', color: 'var(--text-2)', flex: 'none' }}>
+              <KindIcon item={item} size={14} />
+            </span>
+          )}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+        </span>
       </div>
       {noneText && (
         <div

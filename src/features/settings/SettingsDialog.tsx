@@ -14,11 +14,10 @@ import { LibrarySection } from './LibrarySection';
 import { CanvasSection } from './CanvasSection';
 import { VocabularySection } from './VocabularySection';
 import { ContentNetworkSection } from './ContentNetworkSection';
-import { AiSection } from './AiSection';
 
-type Section = 'library' | 'canvas' | 'contentNetwork' | 'vocabularies' | 'ai' | 'about';
+type Section = 'library' | 'canvas' | 'contentNetwork' | 'vocabularies' | 'about';
 
-const SECTIONS: Section[] = ['library', 'canvas', 'contentNetwork', 'vocabularies', 'ai', 'about'];
+const SECTIONS: Section[] = ['library', 'canvas', 'contentNetwork', 'vocabularies', 'about'];
 
 export interface SettingsDialogProps {
   platform: Platform;
@@ -26,7 +25,7 @@ export interface SettingsDialogProps {
   onClose: () => void;
 }
 
-/** Settings shell (§2.14): Library, Canvas, Content & network, Vocabularies, AI and About. */
+/** Settings shell (§2.14): Library, Canvas, Content & network, Vocabularies and About. */
 export function SettingsDialog({ platform, library, onClose }: SettingsDialogProps) {
   const [section, setSection] = useState<Section>('canvas');
 
@@ -69,10 +68,8 @@ export function SettingsDialog({ platform, library, onClose }: SettingsDialogPro
             <CanvasSection platform={platform} />
           ) : section === 'vocabularies' ? (
             <VocabularySection platform={platform} />
-          ) : section === 'contentNetwork' ? (
-            <ContentNetworkSection platform={platform} />
           ) : (
-            <AiSection platform={platform} />
+            <ContentNetworkSection platform={platform} />
           )}
         </div>
       </div>

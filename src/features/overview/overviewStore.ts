@@ -11,10 +11,12 @@ interface OverviewState {
   open: boolean;
   layout: OverviewLayout;
   nodes: OverviewNodes;
-  /** Multiplies the Clusters layout's distances (Patch 2 · B2). */
+  /** Scales the Clusters layout's link lengths and repulsion, live (Patch 3 · D3). */
   spacing: number;
   /** A clicked star: its members stay bright, everything else fades. */
   focusHubKey: string | null;
+  /** Bumped whenever the camera should fit again: on opening and when the layout switches. */
+  epoch: number;
   show: () => void;
   hide: () => void;
   toggle: () => void;
@@ -30,15 +32,13 @@ export const useOverviewStore = create<OverviewState>((set, get) => ({
   nodes: 'thumbnails',
   spacing: 1,
   focusHubKey: null,
-  show: () => set({ open: true }),
+  epoch: 0,
+  show: () => set((s) => ({ open: true, epoch: s.epoch + 1 })),
   hide: () => set({ open: false, focusHubKey: null }),
   toggle: () => (get().open ? get().hide() : get().show()),
-  setLayout: (layout) => set({ layout, focusHubKey: null }),
+  setLayout: (layout) => set((s) => ({ layout, focusHubKey: null, epoch: s.epoch + 1 })),
   setNodes: (nodes) => set({ nodes }),
   setSpacing: (spacing) =>
-    set({
-      spacing: Math.min(OVERVIEW_SPACING_MAX, Math.max(OVERVIEW_SPACING_MIN, spacing)),
-      focusHubKey: null,
-    }),
+    set({ spacing: Math.min(OVERVIEW_SPACING_MAX, Math.max(OVERVIEW_SPACING_MIN, spacing)) }),
   setFocusHubKey: (focusHubKey) => set({ focusHubKey }),
 }));

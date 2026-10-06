@@ -84,23 +84,24 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
 
   const isBoard = !!currentBoardId && boards.get(currentBoardId)?.kind === 'board';
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // The scroll area itself is measured (its `clientWidth` leaves the scrollbar out), so the tiles
+  // never overflow sideways on Windows, where the scrollbar takes room (Patch 3 · A3).
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(288);
 
   // A group highlight must never outlive the list (its mouse-leave won't fire on unmount).
   useEffect(() => () => engine?.setHoverHighlight(null), [engine]);
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
-    observer.observe(el);
+    if (!scrollEl) return;
+    setWidth(scrollEl.clientWidth);
+    const observer = new ResizeObserver(() => setWidth(scrollEl.clientWidth));
+    observer.observe(scrollEl);
     return () => observer.disconnect();
-  }, []);
+  }, [scrollEl]);
 
   // "The List panel shows only the matches" (§2.8) while a search filter is active.
-  const { matches } = useSearchResults(platform);
+  const { matches } = useSearchResults();
   const liveItems = useMemo(() => {
     const all = [...items.values()].filter((i) => !i.deletedAt);
     const scoped =
@@ -116,8 +117,10 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
     [liveItems, groupBy, itemTerms, terms],
   );
 
-  const px = TILE_SIZE_PX[tileSize];
-  const columns = Math.max(1, Math.floor((width + GAP) / (px + GAP)));
+  const targetPx = TILE_SIZE_PX[tileSize];
+  const columns = Math.max(1, Math.floor((width + GAP) / (targetPx + GAP)));
+  // Tiles stretch to fill the row, so nothing is left over on the right.
+  const px = Math.max(1, Math.floor((width - GAP * (columns - 1)) / columns));
 
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
@@ -148,7 +151,7 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
 
   const virtualizer = useVirtualizer({
     count: rows.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => scrollEl,
     estimateSize: (i) => (rows[i]?.type === 'header' ? HEADER_ROW_HEIGHT : px + GAP),
     overscan: 8,
   });
@@ -194,7 +197,6 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
 
   return (
     <div
-      ref={containerRef}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -295,9 +297,9 @@ export function ListPanel({ platform, engine }: { platform: Platform; engine: En
         </div>
       ) : (
         <div
-          ref={scrollRef}
+          ref={setScrollEl}
           onScroll={() => engine?.setHoverHighlight(null)}
-          style={{ flex: 1, overflowY: 'auto', position: 'relative' }}
+          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
         >
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((virtualRow) => {

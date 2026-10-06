@@ -8,6 +8,10 @@ import { useSettingsStore } from '@/state/settingsStore';
 import { useHistoryStore } from '@/commands/history';
 import { createCreateNoteCommand } from '@/commands/noteCommands';
 import { parseHttpUrl } from '@/lib/urlDetect';
+import { useToastStore } from '@/state/toastStore';
+import { en } from '@/i18n/en';
+import { classifyPaste } from './pasteKind';
+import { isBlockingOverlayOpen } from '@/app/overlayGate';
 
 /** Something worth showing the "Drop to add" overlay for — real files, or a URL dragged from a
  * browser tab/address bar (`text/uri-list`; some browsers also/instead put it on `text/plain`,
@@ -33,6 +37,7 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
     let dragDepth = 0;
 
     function onDragEnter(e: DragEvent) {
+      if (isBlockingOverlayOpen()) return;
       if (!isDroppableDrag(e.dataTransfer)) return;
       dragDepth++;
       setDragOver(true);
@@ -48,6 +53,12 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
     function onDrop(e: DragEvent) {
       dragDepth = 0;
       setDragOver(false);
+      // A full-window overlay (the Color studio) handles its own drops; keep the browser from
+      // opening the file, and add nothing to the library behind it (Patch 3 · A4).
+      if (isBlockingOverlayOpen()) {
+        if (isDroppableDrag(e.dataTransfer)) e.preventDefault();
+        return;
+      }
       const point = engine?.screenToWorld(e.clientX, e.clientY) ??
         engine?.viewportCenter() ?? { x: 0, y: 0 };
 
@@ -72,6 +83,7 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
     }
 
     async function onPaste(e: ClipboardEvent) {
+      if (isBlockingOverlayOpen()) return;
       const target = e.target;
       if (
         target instanceof HTMLElement &&
@@ -79,32 +91,40 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
       ) {
         return;
       }
-      const point = engine?.viewportCenter() ?? { x: 0, y: 0 };
-
+      // Everything on the clipboard event must be read *before* the first `await`: once the
+      // handler yields, the browser empties `clipboardData` (Patch 3 · A1).
       const fileItems = Array.from(e.clipboardData?.files ?? []);
-      if (fileItems.length > 0) {
+      let text = e.clipboardData?.getData('text/plain') ?? '';
+      const html = e.clipboardData?.getData('text/html') ?? '';
+      let kind = classifyPaste({ fileCount: fileItems.length, text, html });
+      if (kind === 'nothing') return;
+      e.preventDefault();
+      const point = engine?.pointerWorld() ?? engine?.viewportCenter() ?? { x: 0, y: 0 };
+
+      if (kind === 'files') {
         void importFilesWithPdfChoice(platform, fileItems, point, (rect) => engine?.flyTo(rect));
         return;
       }
 
-      const bytes = await platform.clipboard.readImage();
-      if (bytes) {
-        const file = new File([bytes.slice()], `pasted-${Date.now()}.png`, { type: 'image/png' });
-        void importFilesWithPdfChoice(platform, [file], point, (rect) => engine?.flyTo(rect));
-        return;
+      if (kind === 'maybe-image') {
+        const bytes = await platform.clipboard.readImage();
+        if (bytes) {
+          const file = new File([bytes.slice()], `pasted-${Date.now()}.png`, { type: 'image/png' });
+          void importFilesWithPdfChoice(platform, [file], point, (rect) => engine?.flyTo(rect));
+          return;
+        }
+        // On the desktop app the text may only be reachable through the native clipboard.
+        text = (await platform.clipboard.readText()) ?? '';
+        kind = classifyPaste({ fileCount: 0, text, html: '' });
+        if (kind === 'maybe-image') return;
       }
 
-      // §2.3 "URLs (→ Link, or an image if the URL points to one)" / §2.11 "Pasted text becomes a
-      // note" — only once neither a file nor an image is on the clipboard, so pasting a copied
-      // *image* (bytes above) never also drops a text note of its alt text or whatever else
-      // browsers sometimes put on the text/plain slot alongside it. A URL takes priority over the
-      // plain-text-becomes-a-note fallback; `importLink` itself handles the image-URL case.
-      const text = e.clipboardData?.getData('text/plain')?.trim();
-      if (!text) return;
-
-      const url = parseHttpUrl(text);
-      if (url) {
-        void importLink(platform, url.toString(), point, useSettingsStore.getState().offlineMode);
+      const trimmed = text.trim();
+      if (kind === 'link') {
+        const url = parseHttpUrl(trimmed);
+        if (!url) return;
+        await importLink(platform, url.toString(), point, useSettingsStore.getState().offlineMode);
+        useToastStore.getState().show(en.paste.linkAdded(url.hostname.replace(/^www\./, '')));
         return;
       }
 
@@ -118,7 +138,7 @@ export function useDropAndPaste(engine: Engine | null, platform: Platform): { dr
         isLibraryBoard,
         point.x,
         point.y,
-        text,
+        trimmed,
         'cream',
       );
       void useHistoryStore.getState().execute(command);

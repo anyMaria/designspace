@@ -34,7 +34,13 @@ export interface LinkMeta {
   description: string | null;
   siteName: string | null;
   imageUrl: string | null;
+  /** Every picture the page offers, best first (Patch 3 · B3). Links fetched before v0.16 lack it. */
+  imageCandidates?: string[];
   faviconUrl: string | null;
+  /** Set by the app when the link was read: which fetcher made this (2 = Patch 3's) … */
+  fetcherV?: number;
+  /** … and that no picture could be found or downloaded for it. */
+  noPicture?: boolean;
 }
 
 export interface BackupInfo {
@@ -58,7 +64,6 @@ export interface ProblemReportInfo {
   storedLibraryId: string | null;
   cacheFolderCount: number;
   cacheFileCount: number;
-  models: { name: string; present: boolean; bytes: number }[];
   logTail: string;
 }
 
@@ -120,11 +125,6 @@ export interface Platform {
     enabled(): boolean;
   };
 
-  embeddings: {
-    put(model: string, entries: [itemId: string, vector: Float32Array][]): Promise<void>;
-    load(model: string): Promise<Map<string, Float32Array>>;
-  };
-
   backups: {
     /** `extraDestination` (§5.4): an optional second folder (e.g. a OneDrive folder) that also
      * receives a copy of the backup, best-effort — a failure to copy there never fails the
@@ -177,6 +177,8 @@ export interface Platform {
     /** Called whenever full screen turns on or off (also when the OS or the browser leaves it).
      * Returns an unsubscribe function. */
     onFullscreenChange(cb: (on: boolean) => void): () => void;
+    /** Gives the window keyboard focus again (a style change can leave WebView2 without it). */
+    focus(): Promise<void>;
   };
 
   clipboard: {

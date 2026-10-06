@@ -14,8 +14,7 @@ import { resumePendingVideoIngest } from '@/workers/videoIngestQueue';
 import { resumePendingPdfIngest } from '@/workers/pdfIngestQueue';
 import { resumePendingFontIngest } from '@/workers/fontIngestQueue';
 import { resumePendingLinkIngest } from '@/features/import/importLink';
-import { resumePendingAiAnalysis } from '@/workers/aiQueue';
-import { loadEmbeddings } from '@/state/embeddingsStore';
+import { offerLinkPictureLookup } from '@/features/import/linkPicture';
 import { loadSettings } from '@/state/loadSettings';
 import { loadMachineSettings, startMachineSettingsPersistence } from '@/state/loadMachineSettings';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
@@ -77,12 +76,12 @@ export function App() {
   useEffect(() => installEscapeListener(window, isTypingTarget), []);
 
   // Full screen follows the window (the browser's own Esc leaves it too); with nothing else to
-  // close, Esc leaves it (the last base handler).
+  // close, Esc leaves it (priority 15: after cancelling a mode, before clearing the selection).
   const platformForEsc = boot.phase === 'ready' ? boot.platform : null;
   useEffect(() => {
     if (!platformForEsc) return;
     const unwatch = watchFullscreen(platformForEsc);
-    const removeBase = escapeStack.addBase(30, () => {
+    const removeBase = escapeStack.addBase(15, () => {
       if (!useUiStore.getState().fullscreen) return false;
       void setFullscreen(platformForEsc, false);
       return true;
@@ -116,11 +115,9 @@ export function App() {
             loadManualConnections(platform),
             loadBoards(platform),
             loadSettings(platform),
-            loadEmbeddings(platform),
           ]);
           useBoardStore.getState().setCurrentBoardId(libraryBoardId);
           void resumeAllIngest(platform);
-          void resumePendingAiAnalysis(platform);
           void purgeExpiredTrash(platform);
           if (!cancelled)
             setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: bench });
@@ -142,12 +139,11 @@ export function App() {
           loadManualConnections(platform),
           loadBoards(platform),
           loadSettings(platform),
-          loadEmbeddings(platform),
         ]);
         useBoardStore.getState().setCurrentBoardId(libraryBoardId);
         void resumeAllIngest(platform);
-        void resumePendingAiAnalysis(platform);
         void purgeExpiredTrash(platform);
+        void offerLinkPictureLookup(platform);
         void maybeBackupAtStartup(platform);
         if (platform.kind === 'tauri' && useUiStore.getState().startFullscreen)
           void setFullscreen(platform, true);

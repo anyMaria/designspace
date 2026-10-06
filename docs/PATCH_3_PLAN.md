@@ -100,7 +100,7 @@ The planner chose these defaults. The owner can change any of them before its ph
 **Goal:** Ctrl+V pastes links, Esc always gets you out of full screen, previews always appear, the studio's image tab
 works and looks right, no button text wraps, and the app ships without the AI. Size: M. Version **0.16.0**.
 
-### A1 · Ctrl+V pastes links, text and pictures `[ ]`
+### A1 · Ctrl+V pastes links, text and pictures `[x]`
 **Files:** new `src/features/import/pasteKind.ts` (+ test), `src/features/import/useDropAndPaste.ts`,
 `src/canvas/Engine.ts` (`pointerWorld()`), `en.ts`.
 
@@ -121,7 +121,7 @@ holding `text/plain` = a URL, and a Link tile appears in the List; the same with
 **Owner checks:** copy a link from Chrome's address bar, click the map, press Ctrl+V: a link card appears under the
 pointer.
 
-### A2 · Esc always gets you out of full screen `[ ]`
+### A2 · Esc always gets you out of full screen `[x]`
 **Files:** `src/app/App.tsx`, `src/app/escapeStack.ts` (+ test), `src/app/fullscreen.ts` (+ test),
 `src/canvas/useCanvasShortcuts.ts`, `src/platform/tauri/TauriPlatform.ts`, `src/platform/browser/BrowserPlatform.ts`,
 `src-tauri/capabilities/default.json`, new `src/app/FullscreenExitPill.tsx`, `src/app/Shell.tsx`, `en.ts`.
@@ -150,7 +150,7 @@ twice → no longer full screen and the card is still selected.
 **Owner checks:** enter full screen, click a picture, press Esc once: you're out. In full screen, move the mouse to the
 top edge: the "Exit full screen" pill appears.
 
-### A3 · Previews always appear `[ ]`
+### A3 · Previews always appear `[x]`
 **Files:** new `src/lib/thumbLoader.ts` (+ test), new `src/design/components/Thumb.tsx`, new
 `src/lib/kindIcon.tsx`, `ListTile.tsx`, `ListPanel.tsx`, `SpaceSwitcher.tsx`, `DetailsPanel.tsx`,
 `BulkDetailsPanel.tsx`, `TriageView.tsx`, `SuggestionsTray.tsx`, `ImageTab.tsx`, `problemReport.ts`,
@@ -181,7 +181,7 @@ request, LRU revokes). e2e `smoke-m2-list` still passes. New check in it: no hor
 **Owner checks:** close and reopen the app: every List tile shows its picture or, for a moment, an icon. Never a blank
 square. No sideways scrollbar in the List.
 
-### A4 · The Color studio's "From an image" works `[ ]`
+### A4 · The Color studio's "From an image" works `[x]`
 **Files:** `src/features/import/useDropAndPaste.ts`, `src/app/overlayGate.ts`,
 `src/features/colorStudio/ImageTab.tsx`, `src/features/colorStudio/studioKeys.ts`, `en.ts`.
 
@@ -205,7 +205,7 @@ droppers appear **and** the library item count is unchanged.
 **Owner checks:** open the Color studio → From an image. Drag a photo from Explorer onto it: colours appear, and the
 photo is *not* added to your map unless you tick the box. Ctrl+V a copied picture works too.
 
-### A5 · Button labels stay on one line `[ ]`
+### A5 · Button labels stay on one line `[x]`
 **Files:** `src/design/components/components.css`, `src/features/overview/OverviewOverlay.tsx`,
 `src/features/colorStudio/ColorStudio.tsx`.
 
@@ -216,7 +216,7 @@ Overview's top bar wraps as a whole instead of squeezing labels.
 not in a spec).
 **Owner checks:** "My layout" and "From an image" are on one line.
 
-### A6 · Remove the AI `[ ]`
+### A6 · Remove the AI `[x]`
 **Files (delete):** `src/lib/ai/*`, `src/features/ai/*`, `src/workers/ai.worker.ts`, `src/workers/aiQueue.ts` (+ tests),
 `src/state/embeddingsStore.ts`, `src/features/settings/AiSection.tsx`, `src/features/search/useMeaningMatches.ts`,
 `scripts/fetch-models.mjs`, `scripts/copy-ort-wasm.mjs` (if only the AI uses it).
@@ -246,7 +246,7 @@ platforms (`embeddings`), `loadSettings.ts`, `en.ts`, `package.json` (`models:fe
 **Goal:** you can tell kinds apart at a glance, write a description where you read it, and every link has a picture or
 says it needs one. Size: M. Version **0.17.0**.
 
-### B1 · A small icon for each kind `[ ]`
+### B1 · A small icon for each kind `[x]`
 **Files:** `ListTile.tsx`, `src/canvas/CanvasHoverOverlay.tsx`, `DetailsPanel.tsx`, `src/lib/kindIcon.tsx` (from A3),
 `tokens.ts`.
 
@@ -256,7 +256,7 @@ Details header shows icon + label ("Video", "Palette"…). Size S tiles keep the
 **Tests:** `ListTile` test: each kind renders its icon's `aria-label`.
 **Owner checks:** in the List, videos, PDFs, links, fonts, palettes and notes each have their own little icon.
 
-### B2 · Write the description right in Details `[ ]`
+### B2 · Write the description right in Details `[x]`
 **Files:** new `src/features/details/InlineDescription.tsx`, `DetailsPanel.tsx`, `DescriptionPanel.tsx`, `en.ts`.
 
 **Do**
@@ -273,7 +273,7 @@ Details header shows icon + label ("Video", "Palette"…). Size S tiles keep the
 persistence), and the text is there; Ctrl+Z undoes it.
 **Owner checks:** select a picture, click "Add a description…" in Details and type. Nothing zooms.
 
-### B3 · A picture for every link `[ ]`
+### B3 · A picture for every link `[x]`
 **Files:** `src-tauri/src/net.rs` (+ tests), new `src/features/import/linkCover.ts` (+ test),
 `src/features/import/importLink.ts`, new `src/commands/linkCoverCommands.ts` (+ test), `DetailsPanel.tsx`,
 `src/canvas/contextMenuItems.ts` (+ test), `src/canvas/decor/*` (the link card), `ListTile.tsx`, `App.tsx`, `en.ts`.
@@ -316,7 +316,7 @@ Details → "Choose a picture…" and pick one. Reopen the app with old links: a
 **Goal:** moving and resizing snap to neighbours like Figma (edges, centres, equal gaps, equal sizes), with pink guide
 lines, and a small bar aligns or spaces a selection evenly. Size: L. Version **0.18.0**.
 
-### C1 · Snapping maths (pure) `[ ]`
+### C1 · Snapping maths (pure) `[x]`
 **Files:** new `src/canvas/snapping.ts` (+ test).
 
 **Do**
@@ -346,7 +346,7 @@ export function snapResize(
 a pair, centred between two, column version, resize right edge to a neighbour's edge, resize matching a neighbour's
 width, resize with aspect kept snaps the dominant axis only, from-centre resize, 200 rects timing.
 
-### C2 · Snap while moving `[ ]`
+### C2 · Snap while moving `[x]`
 **Files:** new `src/canvas/snapGuides.ts` (drawing), `src/canvas/Engine.ts` (move branch of `onPointerMove`, ~1238),
 `src/canvas/spatialIndex.ts` (query of the visible rect), `src/state/settingsStore.ts` + `src/features/settings/CanvasSection.tsx`,
 `tokens.ts` (`snap = { thresholdPx: 6, guide: <accent pink>, guideWidthPx: 1 }`), `en.ts`.
@@ -365,7 +365,7 @@ after release the tops are equal. With Ctrl held → not equal.
 **Owner checks:** drag a picture near another: it clicks into line, and a pink line shows what it aligned to. Hold Ctrl
 to place it freely.
 
-### C3 · Snap while resizing `[ ]`
+### C3 · Snap while resizing `[x]`
 **Files:** `src/canvas/Engine.ts` (resize branch, ~1265), `snapGuides.ts`.
 
 **Do:** after `resizeRect(…)` compute `snapResize(startRect, next, handle, others, thresholdPx / zoom, …)` and use its
@@ -373,7 +373,7 @@ rect. While a size matches a neighbour, show a small "=" marker on the matching 
 **Tests:** e2e: resize a card's right edge to within 4 px of a neighbour's width → equal widths.
 **Owner checks:** resizing a picture next to another stops at the same height, and an "=" shows it.
 
-### C4 · Align and distribute `[ ]`
+### C4 · Align and distribute `[x]`
 **Files:** new `src/canvas/alignMath.ts` (+ test), new `src/canvas/AlignBar.tsx`, `src/commands/itemCommands.ts`
 (+ test), `src/canvas/contextMenuItems.ts` (+ test), `src/app/useGlobalShortcuts.ts`,
 `src/features/shortcuts/ShortcutListOverlay.tsx`, `en.ts`.
@@ -402,7 +402,7 @@ undo test. e2e: select three cards, Align top → same y; Ctrl+Z → back.
 **Goal:** the Overview behaves like Obsidian's graph: dots and stars can be dragged, the rest follows on springs, and
 Spacing visibly loosens or tightens the clusters. Size: M. Version **0.19.0**.
 
-### D1 · A live simulation in a worker `[ ]`
+### D1 · A live simulation in a worker `[x]`
 **Files:** new `src/workers/graphSim.worker.ts`, new `src/features/overview/graphSim.ts` (main-thread client, + test with
 a fake worker), `src/lib/constellations.ts` (export the force set-up), `useOverviewData.ts`, `OverviewCanvas.tsx`,
 `OverviewOverlay.tsx`, delete `runConstellationLayout.ts` if nothing else uses it, `en.ts`.
@@ -424,7 +424,7 @@ a fake worker), `src/lib/constellations.ts` (export the force set-up), `useOverv
 **Tests:** `graphSim.test.ts`: sends `init`, applies posted frames, sends `drag`/`release`, shows the error after a
 timeout. e2e `patch1-overview` updated (no "Arranging…" wait; poll for `settled`).
 
-### D2 · Drag dots and stars `[ ]`
+### D2 · Drag dots and stars `[x]`
 **Files:** `OverviewCanvas.tsx`.
 
 **Do:** pressing on a dot or a star and dragging moves it (`drag` messages, world coordinates). The neighbours follow
@@ -433,7 +433,7 @@ the rest to 30 %, as Obsidian does). Click and double-click keep their meaning (
 never changes the real map (P9).
 **Owner checks:** in the Overview (Clusters), drag a star: its pictures follow like on elastic bands, then settle.
 
-### D3 · Spacing that works `[ ]`
+### D3 · Spacing that works `[x]`
 **Files:** `graphSim.worker.ts`, `OverviewOverlay.tsx`, `overviewStore.ts`.
 
 **Do:** Spacing changes the **forces**, not a global scale: link distance × spacing, charge × spacing, while dot size
