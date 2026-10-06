@@ -4,7 +4,6 @@ import { logger } from '@/lib/logger';
 import { extractPdfDerivatives } from '@/lib/pdfRender';
 import { CURRENT_DERIVED_V } from './ingestQueue';
 import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
-import { queueAiAnalysis } from './aiQueue';
 
 export interface PdfQueueItem {
   itemId: string;
@@ -31,7 +30,6 @@ async function deriveAndPersist(
 
   await platform.cache.put(`t128/${itemId}`, new Uint8Array(derived.t128));
   await platform.cache.put(`t512/${itemId}`, new Uint8Array(derived.t512));
-  queueAiAnalysis(platform, itemId);
   await platform.db.execute(
     `UPDATE items SET width = ?, height = ?, page_count = ?, cover_page = ?, palette = ?,
      color_families = ?, status = 'ok', thumb_v = thumb_v + 1, derived_v = ?, updated_at = ? WHERE id = ?`,

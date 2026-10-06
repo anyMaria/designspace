@@ -15,8 +15,6 @@ import { resumePendingPdfIngest } from '@/workers/pdfIngestQueue';
 import { resumePendingFontIngest } from '@/workers/fontIngestQueue';
 import { resumePendingLinkIngest } from '@/features/import/importLink';
 import { offerLinkPictureLookup } from '@/features/import/linkPicture';
-import { resumePendingAiAnalysis } from '@/workers/aiQueue';
-import { loadEmbeddings } from '@/state/embeddingsStore';
 import { loadSettings } from '@/state/loadSettings';
 import { loadMachineSettings, startMachineSettingsPersistence } from '@/state/loadMachineSettings';
 import { purgeExpiredTrash } from '@/features/trash/trashActions';
@@ -117,11 +115,9 @@ export function App() {
             loadManualConnections(platform),
             loadBoards(platform),
             loadSettings(platform),
-            loadEmbeddings(platform),
           ]);
           useBoardStore.getState().setCurrentBoardId(libraryBoardId);
           void resumeAllIngest(platform);
-          void resumePendingAiAnalysis(platform);
           void purgeExpiredTrash(platform);
           if (!cancelled)
             setBoot({ phase: 'ready', platform, library, libraryBoardId, benchCount: bench });
@@ -143,11 +139,9 @@ export function App() {
           loadManualConnections(platform),
           loadBoards(platform),
           loadSettings(platform),
-          loadEmbeddings(platform),
         ]);
         useBoardStore.getState().setCurrentBoardId(libraryBoardId);
         void resumeAllIngest(platform);
-        void resumePendingAiAnalysis(platform);
         void purgeExpiredTrash(platform);
         void offerLinkPictureLookup(platform);
         void maybeBackupAtStartup(platform);

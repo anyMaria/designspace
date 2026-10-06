@@ -11,17 +11,15 @@ import {
   createRemoveItemTermCommand,
   createSetItemTypeCommand,
 } from '@/commands/itemTermCommands';
-import { TermCombobox, Chip, IconButton, Toggle, Button, Thumb } from '@/design/components';
+import { TermCombobox, IconButton, Toggle, Button, Thumb } from '@/design/components';
 import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from '@/features/details/useTermOptions';
 import { en } from '@/i18n/en';
-import { useSuggestions } from '@/features/ai/useSuggestions';
 import { useEscape } from '@/app/useEscape';
 
 const NUMBER_KEY_COUNT = 9;
 
 /** Full-screen Triage overlay (§2.7): works through the Inbox chip's snapshot one item at a
- * time with a keyboard-first flow. AI suggestion ghost chips (§4.10) and the `A` key ("accept
- * all") share `useSuggestions` with the Details panel. The preview
+ * time with a keyboard-first flow. The preview
  * shows the same cached thumbnail every other card-shaped surface (List tiles, canvas cards)
  * uses, rather than each kind's own rich Focus-view treatment (muted autoplay, page nav, the type
  * tester) — those exist elsewhere; Triage's job is fast classification, not a second Focus view. */
@@ -62,13 +60,6 @@ export function TriageView({ platform }: { platform: Platform }) {
   const vibeContainerRef = useRef<HTMLDivElement>(null);
   const movementContainerRef = useRef<HTMLDivElement>(null);
   const tagContainerRef = useRef<HTMLDivElement>(null);
-
-  const {
-    suggestions,
-    accept: acceptSuggestion,
-    dismiss: dismissSuggestion,
-    acceptAll: acceptAllSuggestions,
-  } = useSuggestions(platform, currentId);
 
   function setType(termId: string): void {
     if (!currentId) return;
@@ -144,14 +135,11 @@ export function TriageView({ platform }: { platform: Platform }) {
         tagContainerRef.current?.querySelector('input')?.focus();
       } else if (e.key.toLowerCase() === 's') {
         toggleFavorite();
-      } else if (e.key.toLowerCase() === 'a') {
-        e.preventDefault();
-        acceptAllSuggestions();
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setType/toggleFavorite/acceptAllSuggestions close over currentId/item, rebuilt every render anyway
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setType/toggleFavorite close over currentId/item, rebuilt every render anyway
   }, [isOpen, typeTerms, currentId, item]);
 
   if (!isOpen) return null;
@@ -315,37 +303,6 @@ export function TriageView({ platform }: { platform: Platform }) {
                 />
               </div>
             </Field>
-
-            {suggestions.length > 0 && (
-              <Field label={en.aiSuggestions.title}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                  {suggestions.map(({ facet, termId }) => {
-                    const term = terms.get(termId);
-                    if (!term) return null;
-                    return (
-                      <span
-                        key={termId}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}
-                      >
-                        <Chip variant="suggestion" onClick={() => acceptSuggestion(facet, termId)}>
-                          {term.name}
-                        </Chip>
-                        <IconButton
-                          icon={<X size={12} strokeWidth={2} />}
-                          label={en.aiSuggestions.dismiss}
-                          onClick={() => dismissSuggestion(termId)}
-                        />
-                      </span>
-                    );
-                  })}
-                  {suggestions.length > 1 && (
-                    <Button variant="ghost" onClick={acceptAllSuggestions}>
-                      {en.aiSuggestions.acceptAll} (A)
-                    </Button>
-                  )}
-                </div>
-              </Field>
-            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>{en.details.favorite}</span>

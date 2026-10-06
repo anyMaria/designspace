@@ -1,6 +1,4 @@
 import type { DbRow, Platform } from '@/platform/types';
-import { useAiStatusStore } from '@/state/aiStatusStore';
-import { formatBytes } from '@/lib/formatBytes';
 import { runMediaCheck } from './runMediaCheck';
 import { failedThumbCount } from '@/lib/thumbLoader';
 import { en } from '@/i18n/en';
@@ -12,7 +10,6 @@ export async function buildProblemReport(platform: Platform): Promise<string> {
   const counts = await platform.db.select<DbRow>(
     'SELECT kind, status, COUNT(*) AS n FROM items GROUP BY kind, status ORDER BY kind, status',
   );
-  const ai = useAiStatusStore.getState();
   let media: string[];
   try {
     media = await runMediaCheck(platform);
@@ -30,8 +27,6 @@ export async function buildProblemReport(platform: Platform): Promise<string> {
     'Items (kind, status: count)',
     ...counts.map((r) => `  ${String(r.kind)}, ${String(r.status)}: ${String(r.n)}`),
     '',
-    `AI: ${ai.status}${ai.provider ? ` (${ai.provider})` : ''}${ai.error ? ` - ${ai.error}` : ''}`,
-    ...info.models.map((m) => `  ${m.name}: ${m.present ? formatBytes(m.bytes) : 'missing'}`),
     '',
     en.settings.diagnostics.failedPreviews(failedThumbCount()),
     '',

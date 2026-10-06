@@ -23,7 +23,7 @@ import {
 } from './overviewModel';
 import { GraphController, type LivePositions } from './graphSim';
 
-// Criteria drawn as hubs: "similar" has no discrete value and "manual" is drawn as direct lines.
+// Criteria drawn as hubs: "manual" is drawn as direct lines.
 const HUB_CRITERIA: Criterion[] = ['type', 'vibe', 'movement', 'tag', 'color'];
 
 export interface OverviewData {

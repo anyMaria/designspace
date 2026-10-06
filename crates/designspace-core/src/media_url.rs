@@ -10,7 +10,6 @@ use thiserror::Error;
 pub enum MediaRoot {
     Original,
     Cache,
-    Models,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -41,7 +40,6 @@ pub fn parse_media_path(raw_path: &str) -> Result<MediaRequest, MediaUrlError> {
     let root = match root {
         "original" => MediaRoot::Original,
         "cache" => MediaRoot::Cache,
-        "models" => MediaRoot::Models,
         _ => return Err(MediaUrlError::UnknownRoot),
     };
     Ok(MediaRequest {
@@ -77,9 +75,9 @@ mod tests {
 
     #[test]
     fn still_accepts_unencoded_paths() {
-        let r = parse_media_path("/models/Xenova/clip/config.json").unwrap();
-        assert_eq!(r.root, MediaRoot::Models);
-        assert_eq!(r.rel, "Xenova/clip/config.json");
+        let r = parse_media_path("/original/media/2026/10/x.jpg").unwrap();
+        assert_eq!(r.root, MediaRoot::Original);
+        assert_eq!(r.rel, "media/2026/10/x.jpg");
     }
 
     #[test]

@@ -17,8 +17,6 @@ interface UiState {
   startFullscreen: boolean;
   /** Machine setting: the name pill under a hovered card (Patch 1 · B3). */
   showNamesOnHover: boolean;
-  /** Machine setting: snap while moving and resizing; Ctrl frees a drag (Patch 3 · C2). */
-  snapping: boolean;
   /** Live state, not persisted. */
   fullscreen: boolean;
   dotGridDensity: DotGridDensity;
@@ -32,7 +30,6 @@ interface UiState {
   toggleMinimap: () => void;
   setStartFullscreen: (v: boolean) => void;
   setShowNamesOnHover: (v: boolean) => void;
-  setSnapping: (v: boolean) => void;
   setFullscreen: (v: boolean) => void;
   setDotGridDensity: (v: DotGridDensity) => void;
   setReduceMotion: (v: ReduceMotionSetting) => void;
@@ -49,7 +46,6 @@ export const useUiStore = create<UiState>((set) => ({
   minimapOpen: true,
   startFullscreen: true,
   showNamesOnHover: true,
-  snapping: true,
   fullscreen: false,
   dotGridDensity: 'normal',
   reduceMotion: 'system',
@@ -62,7 +58,6 @@ export const useUiStore = create<UiState>((set) => ({
   toggleMinimap: () => set((s) => ({ minimapOpen: !s.minimapOpen })),
   setStartFullscreen: (startFullscreen) => set({ startFullscreen }),
   setShowNamesOnHover: (showNamesOnHover) => set({ showNamesOnHover }),
-  setSnapping: (snapping) => set({ snapping }),
   setFullscreen: (fullscreen) => set({ fullscreen }),
   setDotGridDensity: (dotGridDensity) => set({ dotGridDensity }),
   setReduceMotion: (reduceMotion) => set({ reduceMotion }),

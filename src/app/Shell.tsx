@@ -151,8 +151,8 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
   const { menu: contextMenu, close: closeContextMenu } = useContextMenu(engine);
   useFocusViewBinding(engine);
   useNoteCanvasBinding(engine, platform);
-  useSearchBinding(engine, platform);
-  useConnectionsBinding(engine, platform);
+  useSearchBinding(engine);
+  useConnectionsBinding(engine);
   useManualConnectionsBinding(engine, platform);
   const favoritesOnly = useSearchStore((s) => !!s.filter.favorite);
   const searchFilterActive = useSearchStore((s) => isFilterActive(s.filter));
@@ -431,7 +431,7 @@ export function Shell({ platform, library, libraryBoardId, benchCount }: ShellPr
           ) : selectedItem?.kind === 'swatch' ? (
             <PaletteEditor platform={platform} item={selectedItem} />
           ) : selectedItem ? (
-            <DetailsPanel platform={platform} item={selectedItem} engine={engine} />
+            <DetailsPanel platform={platform} item={selectedItem} />
           ) : (
             <div
               style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}

@@ -11,7 +11,6 @@ const CRITERION_LABEL: Record<Criterion, string> = {
   tag: en.connections.criterionTag,
   color: en.connections.criterionColor,
   manual: en.connections.connectedManually,
-  similar: en.connections.criterionSimilar,
 };
 
 /** §2.10 "Hovering a line shows what the two items share" — a small label that follows the

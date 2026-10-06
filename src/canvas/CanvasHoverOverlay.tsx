@@ -18,7 +18,6 @@ const CRITERION_KEY = {
   tag: 'criterionTag',
   color: 'criterionColor',
   manual: 'criterionManual',
-  similar: 'criterionSimilar',
 } as const;
 
 const GAP_PX = 8;
@@ -75,7 +74,7 @@ export function CanvasHoverOverlay({ engine }: { engine: Engine | null }) {
   const noneText = none
     ? en.connections.noneForItem(
         activeCriteria
-          .filter((c) => c !== 'manual' && c !== 'similar')
+          .filter((c) => c !== 'manual')
           .map((c) => (c === 'tag' ? 'Tag' : en.connections[CRITERION_KEY[c]]))
           .join(' or ') || en.connections.criterionManual,
       )

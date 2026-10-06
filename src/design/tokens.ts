@@ -38,7 +38,6 @@ export const criterionColors = {
   type: colors.accent,
   movement: colors.cream,
   color: colors.lavender,
-  similar: colors.sky,
   manual: 0xffffff,
 } as const;
 
@@ -65,7 +64,6 @@ export const criterionLineStyle = {
   type: 'solid',
   movement: 'solid',
   color: 'dotted',
-  similar: 'dashed',
   manual: 'solid',
 } as const;
 

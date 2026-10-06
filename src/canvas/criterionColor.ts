@@ -9,5 +9,4 @@ export const CRITERION_COLOR: Record<Criterion, number> = {
   tag: criterionColors.tags,
   color: criterionColors.color,
   manual: criterionColors.manual,
-  similar: criterionColors.similar,
 };

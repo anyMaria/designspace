@@ -3189,3 +3189,16 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   live; the simulation re-heats to alpha 0.3 for about 2–3 s. With Reduce motion the worker runs to the end and posts once.
 - **Versions:** all four phases are in the stacked PRs, so the version in `package.json`, `tauri.conf.json` and `Cargo.toml`
   is set to 0.19.0 in this one. Phase A's AI removal (A6) is still open and is the owner's call (see Phase A).
+
+## Patch 3 · A6 (the AI is removed)
+
+- **Removed:** the CLIP model and everything around it: `src/lib/ai`, `src/features/ai` (suggestions), the AI worker and queue,
+  the embeddings and AI-status stores, Settings → AI, Find similar, the "Similar look" connection criterion, "Include visual
+  matches" in the search bar, the board tray's "similar" fill, the vocabulary "AI hint" field and its command, the Rust
+  `embeddings_put` / `embeddings_load` commands, the `media://models` root, the bundled model resource, the CI model cache and
+  fetch steps, `scripts/fetch-models.mjs`, `scripts/copy-ort-wasm.mjs`, `@huggingface/transformers`, and `lib/base64.ts`.
+- **Kept (P6):** the `embeddings` table and its rows, and the `terms.ai_hint` column. No migration. Old saved filters that carry
+  `visualMatches`, or boards that carry AI settings, are simply ignored.
+- **Putting the AI back** means reverting the A6 commit.
+- **Snapping setting:** moved to the library settings (`meta.settings`, key `snapping`, default on) as the owner asked; it
+  replaces the old `aiEnabled` key. Settings → Canvas writes it at once.

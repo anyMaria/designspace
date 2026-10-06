@@ -71,17 +71,6 @@ export const en = {
     collapse: 'Collapse suggestions',
     expand: 'Expand suggestions',
   },
-  /** §4.10's AI classification suggestions (Details panel + Triage) — distinct from `suggestions`
-   * above, which is the board suggestions tray (§2.10/M4). */
-  aiSuggestions: {
-    title: 'Suggested',
-    accept: (name: string) => `Accept "${name}"`,
-    /** Distinct from `suggestions.dismiss` above — same wording would collide as an accessible
-     * name wherever both a board suggestion and an AI classification suggestion render at once
-     * (caught by `tests/e2e/smoke-m4-suggestions-tray.spec.ts` picking up both). */
-    dismiss: 'Dismiss AI suggestion',
-    acceptAll: 'Accept all',
-  },
   notes: {
     colorLabel: (name: string) => `${name.charAt(0).toUpperCase()}${name.slice(1)} note color`,
     edit: 'Edit note',
@@ -271,7 +260,6 @@ export const en = {
       canvas: 'Canvas',
       contentNetwork: 'Content & network',
       vocabularies: 'Vocabularies',
-      ai: 'AI',
       about: 'About',
     },
     about: {
@@ -354,30 +342,6 @@ export const en = {
       offlineModeDescription:
         'Turns off link previews and image downloads. Designspace never reaches the internet ' +
         'on its own otherwise — only when you add a link or an image URL.',
-    },
-    ai: {
-      enable: 'AI',
-      enableDescription:
-        'Suggestions, Find similar, Similar look connections, and search by meaning — all from ' +
-        'a model that runs entirely on this computer. Turning it off stops background analysis ' +
-        'and hides every AI feature; it never deletes embeddings you already have.',
-      modelBundled: 'A local model is loaded.',
-      modelNotBundled:
-        'No local model is bundled in this build — AI features are inactive. ' +
-        '(This is expected in the browser dev build; the real model ships in the Windows installer.)',
-      analyzed: 'Analyzed',
-      remaining: 'Remaining',
-      failed: 'Failed',
-      pause: 'Pause analysis',
-      resume: 'Resume analysis',
-      paused: 'Paused',
-      statusLoading: 'Loading the local model…',
-      statusReady: 'Ready',
-      statusAnalyzing: (done: number, total: number) => `Analyzing ${done} of ${total}`,
-      statusError: (reason: string) => `Not working: ${reason}`,
-      retry: 'Try again',
-      workerStopped: 'The AI helper stopped unexpectedly.',
-      modelMissing: 'The AI model files are missing from this installation.',
     },
   },
   onboarding: {
@@ -483,7 +447,6 @@ export const en = {
     mixed: 'Mixed',
     artistMixedPlaceholder: 'Mixed',
     moveToTrash: 'Move to Trash',
-    findSimilar: 'Find similar',
   },
   combobox: {
     mostUsed: 'Most used',
@@ -501,7 +464,6 @@ export const en = {
       tag: 'Tags',
     },
     empty: 'No values yet.',
-    aiHintPlaceholder: 'AI hint (optional)',
     moveUp: 'Move up',
     moveDown: 'Move down',
     moveTo: 'Move to…',
@@ -592,7 +554,6 @@ export const en = {
     criterionTag: 'Tags',
     criterionColor: 'Color',
     criterionManual: 'My connections',
-    criterionSimilar: 'Similar look',
     sharedPrefix: 'Shared',
     connectedManually: 'Connected manually',
     dock: 'Connections',
@@ -667,9 +628,6 @@ export const en = {
     dateYear: 'This year',
     favorite: 'Favorite',
     inbox: 'Inbox',
-    /** §4.10's "Include visual matches" — CLIP search-by-meaning results folded into the regular
-     * text/facet match set. */
-    includeVisualMatches: 'Include visual matches',
   },
   triage: {
     progress: (index: number, total: number) => `${index} of ${total}`,

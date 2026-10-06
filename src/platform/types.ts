@@ -64,7 +64,6 @@ export interface ProblemReportInfo {
   storedLibraryId: string | null;
   cacheFolderCount: number;
   cacheFileCount: number;
-  models: { name: string; present: boolean; bytes: number }[];
   logTail: string;
 }
 
@@ -124,11 +123,6 @@ export interface Platform {
   net: {
     linkMeta(url: string): Promise<LinkMeta>;
     enabled(): boolean;
-  };
-
-  embeddings: {
-    put(model: string, entries: [itemId: string, vector: Float32Array][]): Promise<void>;
-    load(model: string): Promise<Map<string, Float32Array>>;
   };
 
   backups: {

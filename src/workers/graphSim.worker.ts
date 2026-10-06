@@ -7,7 +7,7 @@ import type { GraphSimRequest, GraphSimResponse } from './graphSim.protocol';
 
 declare const self: DedicatedWorkerGlobalScope;
 
-// Criteria drawn as stars: "similar" has no discrete value and "manual" is drawn as direct lines.
+// Criteria drawn as stars: "manual" is drawn as direct lines.
 const HUB_CRITERIA: Criterion[] = ['type', 'vibe', 'movement', 'tag', 'color'];
 const FRAME_MS = 16;
 

@@ -216,7 +216,7 @@ Overview's top bar wraps as a whole instead of squeezing labels.
 not in a spec).
 **Owner checks:** "My layout" and "From an image" are on one line.
 
-### A6 · Remove the AI `[ ]`
+### A6 · Remove the AI `[x]`
 **Files (delete):** `src/lib/ai/*`, `src/features/ai/*`, `src/workers/ai.worker.ts`, `src/workers/aiQueue.ts` (+ tests),
 `src/state/embeddingsStore.ts`, `src/features/settings/AiSection.tsx`, `src/features/search/useMeaningMatches.ts`,
 `scripts/fetch-models.mjs`, `scripts/copy-ort-wasm.mjs` (if only the AI uses it).

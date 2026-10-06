@@ -10,17 +10,8 @@ import { useEscape } from '@/app/useEscape';
 
 const LIMIT_HIT_DISPLAY_MS = 2500;
 
-/** The 7 real criteria (§2.10), including `similar` ("Similar look", cosine on CLIP embeddings —
- * §4.10, M6). */
-const POPOVER_CRITERIA: Criterion[] = [
-  'type',
-  'vibe',
-  'movement',
-  'tag',
-  'color',
-  'manual',
-  'similar',
-];
+/** The 6 criteria (§2.10). */
+const POPOVER_CRITERIA: Criterion[] = ['type', 'vibe', 'movement', 'tag', 'color', 'manual'];
 
 const CRITERION_LABEL: Record<Criterion, string> = {
   type: en.connections.criterionType,
@@ -29,7 +20,6 @@ const CRITERION_LABEL: Record<Criterion, string> = {
   tag: en.connections.criterionTag,
   color: en.connections.criterionColor,
   manual: en.connections.criterionManual,
-  similar: en.connections.criterionSimilar,
 };
 
 /** `criterionColors` keys its facet colors as `tags`, not `tag` (it mirrors the DB's plural
@@ -42,7 +32,6 @@ const CRITERION_HEX: Record<Criterion, number> = {
   tag: criterionColors.tags,
   color: criterionColors.color,
   manual: criterionColors.manual,
-  similar: criterionColors.similar,
 };
 
 function hexToCss(hex: number): string {
@@ -161,7 +150,7 @@ export function ConnectionsPopover() {
                     <span>
                       {en.connections.empty(
                         activeCriteria
-                          .filter((c) => c !== 'manual' && c !== 'similar')
+                          .filter((c) => c !== 'manual')
                           .map((c) => (c === 'tag' ? 'Tag' : CRITERION_LABEL[c]))
                           .join(' or ') || CRITERION_LABEL.manual,
                       )}

@@ -6,7 +6,7 @@ import { DEFAULT_PREVIEW_TEXT } from '@/lib/fontPreview';
  * milestone can add a key without a migration. */
 interface LibrarySettingsJson {
   offlineMode?: boolean;
-  aiEnabled?: boolean;
+  snapping?: boolean;
   backupExtraDestination?: string | null;
   fontPreviewText?: string;
   likedColors?: string[];
@@ -28,7 +28,7 @@ export async function loadSettings(platform: Platform): Promise<void> {
   const parsed = await readSettingsJson(platform);
   useSettingsStore.setState({
     offlineMode: parsed.offlineMode ?? false,
-    aiEnabled: parsed.aiEnabled ?? true,
+    snapping: parsed.snapping ?? true,
     backupExtraDestination: parsed.backupExtraDestination ?? null,
     fontPreviewText: parsed.fontPreviewText?.trim() || DEFAULT_PREVIEW_TEXT,
     likedColors: cleanLikedColors(parsed.likedColors ?? []),
@@ -89,17 +89,16 @@ export async function setOfflineMode(platform: Platform, value: boolean): Promis
   useSettingsStore.setState({ offlineMode: value });
 }
 
-/** §4.10's Settings → AI toggle (M6-5). Turning AI off doesn't delete existing embeddings or
- * suggestions already shown — it just stops the background analysis queue and hides AI features,
- * matching Offline mode's "no separate Save step" convention. */
-export async function setAiEnabled(platform: Platform, value: boolean): Promise<void> {
+/** Settings → Canvas → "Snap while moving and resizing" (Patch 3 · C2): a library setting, saved at
+ * once, like Offline mode. */
+export async function setSnapping(platform: Platform, value: boolean): Promise<void> {
   const parsed = await readSettingsJson(platform);
-  parsed.aiEnabled = value;
+  parsed.snapping = value;
   await platform.db.execute(
     "INSERT INTO meta (key, value) VALUES ('settings', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
     [JSON.stringify(parsed)],
   );
-  useSettingsStore.setState({ aiEnabled: value });
+  useSettingsStore.setState({ snapping: value });
 }
 
 /** §5.4's "optional extra destination" for backups (e.g. a OneDrive folder) — `null` clears it.

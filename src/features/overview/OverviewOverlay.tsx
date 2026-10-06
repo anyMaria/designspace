@@ -20,7 +20,6 @@ const CRITERION_LABEL: Record<Criterion, string> = {
   tag: en.connections.criterionTag,
   color: en.connections.criterionColor,
   manual: en.connections.criterionManual,
-  similar: en.connections.criterionSimilar,
 };
 
 const css = (n: number) => `#${n.toString(16).padStart(6, '0')}`;

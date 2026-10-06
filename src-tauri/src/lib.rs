@@ -2,7 +2,6 @@ mod app_info;
 mod backups;
 mod db;
 mod dialogs;
-mod embeddings;
 mod error;
 mod export;
 mod library;
@@ -67,8 +66,6 @@ pub fn run() {
             machine_settings::machine_settings_write,
             net::net_link_meta,
             net::net_download_image,
-            embeddings::embeddings_put,
-            embeddings::embeddings_load,
         ]);
 
     let builder = media_protocol::register(builder);

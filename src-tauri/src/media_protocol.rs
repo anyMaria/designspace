@@ -1,5 +1,5 @@
-//! The `media://` protocol (§4.4): serves library originals, cached derivatives and bundled AI
-//! models to the webview, with Range support (video seeking, PDF streaming), CORS/CORP headers
+//! The `media://` protocol (§4.4): serves library originals, cached derivatives
+//! to the webview, with Range support (video seeking, PDF streaming), CORS/CORP headers
 //! so WebGL textures and `fetch()` work under our COEP policy, and strict path safety.
 
 use crate::state::AppState;
@@ -116,10 +116,6 @@ fn base_dir_for<R: Runtime>(app: &AppHandle<R>, root_kind: MediaRoot) -> Option<
                 .join("cache")
                 .join(library_id);
             fs::create_dir_all(&dir).ok()?;
-            Some(dir)
-        }
-        MediaRoot::Models => {
-            let dir = app.path().resource_dir().ok()?.join("models");
             Some(dir)
         }
     }

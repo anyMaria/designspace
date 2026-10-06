@@ -46,9 +46,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {
-      "resources/models": "models"
-    },
     "windows": {
       "nsis": {
         "installMode": "currentUser"

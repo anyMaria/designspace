@@ -9,7 +9,6 @@ interface MachineSettingsJson {
   minimapOpen?: boolean;
   startFullscreen?: boolean;
   showNamesOnHover?: boolean;
-  snapping?: boolean;
   dotGridDensity?: DotGridDensity;
   reduceMotion?: ReduceMotionSetting;
 }
@@ -20,7 +19,6 @@ function isRelevantChange(state: MachineSettingsJson, prev: MachineSettingsJson)
     state.minimapOpen !== prev.minimapOpen ||
     state.startFullscreen !== prev.startFullscreen ||
     state.showNamesOnHover !== prev.showNamesOnHover ||
-    state.snapping !== prev.snapping ||
     state.dotGridDensity !== prev.dotGridDensity ||
     state.reduceMotion !== prev.reduceMotion
   );
@@ -43,7 +41,6 @@ export async function loadMachineSettings(platform: Platform): Promise<void> {
     ...(parsed.minimapOpen !== undefined && { minimapOpen: parsed.minimapOpen }),
     ...(parsed.startFullscreen !== undefined && { startFullscreen: parsed.startFullscreen }),
     ...(parsed.showNamesOnHover !== undefined && { showNamesOnHover: parsed.showNamesOnHover }),
-    ...(parsed.snapping !== undefined && { snapping: parsed.snapping }),
     ...(parsed.dotGridDensity !== undefined && { dotGridDensity: parsed.dotGridDensity }),
     ...(parsed.reduceMotion !== undefined && { reduceMotion: parsed.reduceMotion }),
   });
@@ -60,7 +57,6 @@ export function startMachineSettingsPersistence(platform: Platform): void {
       minimapOpen: state.minimapOpen,
       startFullscreen: state.startFullscreen,
       showNamesOnHover: state.showNamesOnHover,
-      snapping: state.snapping,
       dotGridDensity: state.dotGridDensity,
       reduceMotion: state.reduceMotion,
     } satisfies MachineSettingsJson);

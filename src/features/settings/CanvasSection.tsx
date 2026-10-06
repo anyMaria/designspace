@@ -4,6 +4,7 @@ import { useUiStore } from '@/state/uiStore';
 import { en } from '@/i18n/en';
 import type { Platform } from '@/platform/types';
 import { useSettingsStore } from '@/state/settingsStore';
+import { setSnapping } from '@/state/loadSettings';
 import { applyFontPreview } from '@/features/focus/applyFontPreview';
 
 /** Settings → Canvas (§2.14): mouse wheel mode, dot grid density, minimap on/off, reduce motion. */
@@ -19,8 +20,7 @@ export function CanvasSection({ platform }: { platform: Platform }) {
   const setStartFullscreen = useUiStore((s) => s.setStartFullscreen);
   const showNames = useUiStore((s) => s.showNamesOnHover);
   const setShowNames = useUiStore((s) => s.setShowNamesOnHover);
-  const snapping = useUiStore((s) => s.snapping);
-  const setSnapping = useUiStore((s) => s.setSnapping);
+  const snapping = useSettingsStore((s) => s.snapping);
   const reduceMotion = useUiStore((s) => s.reduceMotion);
   const setReduceMotion = useUiStore((s) => s.setReduceMotion);
 
@@ -83,7 +83,7 @@ export function CanvasSection({ platform }: { platform: Platform }) {
         </span>
         <Toggle
           checked={snapping}
-          onChange={() => setSnapping(!snapping)}
+          onChange={() => void setSnapping(platform, !snapping)}
           label={en.settings.canvas.snapping}
         />
       </div>

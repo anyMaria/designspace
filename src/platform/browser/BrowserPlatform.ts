@@ -179,18 +179,6 @@ export class BrowserPlatform implements Platform {
     enabled: (): boolean => false,
   };
 
-  embeddings = {
-    put: async (model: string, entries: [string, Float32Array][]): Promise<void> => {
-      const existing = (await idbGet<Record<string, number[]>>('kv', `embeddings:${model}`)) ?? {};
-      for (const [id, vec] of entries) existing[id] = Array.from(vec);
-      await idbSet('kv', `embeddings:${model}`, existing);
-    },
-    load: async (model: string): Promise<Map<string, Float32Array>> => {
-      const existing = (await idbGet<Record<string, number[]>>('kv', `embeddings:${model}`)) ?? {};
-      return new Map(Object.entries(existing).map(([id, v]) => [id, Float32Array.from(v)]));
-    },
-  };
-
   backups = {
     now: (_extraDestination?: string | null): Promise<BackupInfo> => notSupported('backups.now'),
     list: (): Promise<BackupInfo[]> => Promise.resolve([]),

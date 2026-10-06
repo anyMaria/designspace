@@ -1,8 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ExternalLink, Maximize2, Sparkles, X } from 'lucide-react';
+import { ExternalLink, Maximize2, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
-import type { Engine } from '@/canvas/Engine';
 import { useTermStore } from '@/state/termStore';
 import { useFocusStore } from '@/state/focusStore';
 import { useLibraryStore } from '@/state/libraryStore';
@@ -11,7 +10,6 @@ import { LinkPictureSection } from './LinkPictureSection';
 import { InlineDescription } from './InlineDescription';
 import { KindIcon } from '@/lib/kindIcon';
 import { kindLabelOf } from '@/lib/kindMeta';
-import { useEmbeddingsStore } from '@/state/embeddingsStore';
 import { useHistoryStore } from '@/commands/history';
 import { createSetItemFieldCommand } from '@/commands/itemCommands';
 import {
@@ -27,24 +25,14 @@ import { TermCombobox, Swatch, Toggle, Button, IconButton, Thumb } from '@/desig
 import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
 import { formatBytes } from '@/lib/formatBytes';
 import { formatDuration } from '@/lib/formatDuration';
-import { findSimilarItemIds } from '@/lib/ai/findSimilar';
 import { isMediaItem } from '@/lib/itemKinds';
 import { useDescriptionStore } from '@/state/descriptionStore';
 import { en } from '@/i18n/en';
-import { SuggestionsSection } from '@/features/ai/SuggestionsSection';
 
 const MOST_USED_TYPE_COUNT = 8;
 
 /** Details panel for a single selected item — §2.6. Bulk (several items) lands in M2-4. */
-export function DetailsPanel({
-  platform,
-  item,
-  engine,
-}: {
-  platform: Platform;
-  item: Item;
-  engine: Engine | null;
-}) {
+export function DetailsPanel({ platform, item }: { platform: Platform; item: Item }) {
   const terms = useTermStore((s) => s.terms);
   const itemTermIds = useTermStore((s) => s.itemTerms.get(item.id)) ?? new Set<string>();
 
@@ -88,8 +76,6 @@ export function DetailsPanel({
 
   const [showAllTypes, setShowAllTypes] = useState(false);
   const items = useLibraryStore((s) => s.items);
-  const embeddings = useEmbeddingsStore((s) => s.vectors);
-  const hasEmbedding = embeddings.has(item.id);
   const manualConnections = useManualConnectionsStore((s) => s.connections);
   const manualByItem = useManualConnectionsStore((s) => s.byItem);
   const connections = useMemo(
@@ -146,14 +132,6 @@ export function DetailsPanel({
       .execute(createSetItemFieldCommand(platform, item.id, 'favorite', !item.favorite));
   }
 
-  function findSimilar(): void {
-    const results = findSimilarItemIds(item.id, embeddings);
-    if (results.length === 0 || !engine) return;
-    const ids = results.map((r) => r.id);
-    engine.setSelection(ids);
-    engine.zoomToIds(ids);
-  }
-
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', overflowY: 'auto' }}
@@ -190,16 +168,6 @@ export function DetailsPanel({
         >
           <Thumb platform={platform} item={item} size={512} fit="contain" />
         </button>
-      )}
-
-      {hasEmbedding && (
-        <Button
-          variant="ghost"
-          icon={<Sparkles size={16} strokeWidth={1.75} />}
-          onClick={findSimilar}
-        >
-          {en.details.findSimilar}
-        </Button>
       )}
 
       <input
@@ -290,8 +258,6 @@ export function DetailsPanel({
           newWordLabel={FACET_NEW_WORD.tag}
         />
       </Field>
-
-      <SuggestionsSection platform={platform} item={item} />
 
       <Field label={en.connections.myConnections}>
         {connections.length === 0 ? (

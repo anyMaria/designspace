@@ -3,9 +3,8 @@ import { useTermStore } from '@/state/termStore';
 import type { Command } from './types';
 import { normalize } from '@/lib/normalize';
 import type { Facet } from '@/state/types';
-import { invalidateValueEmbeddings } from '@/lib/ai/valueEmbeddings';
 
-/** Settings → Vocabularies (§2.5): rename, merge, delete, reorder and AI-hint edits, each one
+/** Settings → Vocabularies (§2.5): rename, merge, delete, reorder edits, each one
  * undoable Command. */
 
 export function createRenameTermCommand(platform: Platform, id: string, name: string): Command {
@@ -16,7 +15,6 @@ export function createRenameTermCommand(platform: Platform, id: string, name: st
     const term = useTermStore.getState().terms.get(id);
     if (!term) return;
     useTermStore.getState().upsertTerm({ ...term, name: newName, nameNorm: newNameNorm });
-    invalidateValueEmbeddings(id); // §4.10: the name feeds prompt templates when there's no hint
     await platform.db.execute('UPDATE terms SET name = ?, name_norm = ? WHERE id = ?', [
       newName,
       newNameNorm,
@@ -31,28 +29,6 @@ export function createRenameTermCommand(platform: Platform, id: string, name: st
   };
 }
 
-export function createSetAiHintCommand(
-  platform: Platform,
-  id: string,
-  hint: string | null,
-): Command {
-  const previous = useTermStore.getState().terms.get(id);
-
-  async function apply(newHint: string | null): Promise<void> {
-    const term = useTermStore.getState().terms.get(id);
-    if (!term) return;
-    useTermStore.getState().upsertTerm({ ...term, aiHint: newHint });
-    invalidateValueEmbeddings(id);
-    await platform.db.execute('UPDATE terms SET ai_hint = ? WHERE id = ?', [newHint, id]);
-  }
-
-  return {
-    label: `Set AI hint for "${previous?.name ?? id}"`,
-    do: () => apply(hint),
-    undo: () => apply(previous?.aiHint ?? null),
-  };
-}
-
 /** Deletes a term and every item's link to it — confirmed in the UI first (§2.5 "asks first,
  * undoable"). Snapshots the term row and its item links so undo restores both exactly. */
 export function createDeleteTermCommand(platform: Platform, id: string): Command {
@@ -63,7 +39,6 @@ export function createDeleteTermCommand(platform: Platform, id: string): Command
 
   async function doIt(): Promise<void> {
     useTermStore.getState().removeTerms([id]);
-    invalidateValueEmbeddings(id);
     await platform.db.batch([
       { sql: 'DELETE FROM item_terms WHERE term_id = ?', params: [id] },
       { sql: 'DELETE FROM terms WHERE id = ?', params: [id] },
@@ -127,7 +102,6 @@ export function createMergeTermsCommand(
   async function doIt(): Promise<void> {
     if (!source || !target) return;
     useTermStore.getState().removeTerms([sourceId]);
-    invalidateValueEmbeddings(sourceId);
     for (const itemId of repointedItemIds) useTermStore.getState().addItemTerm(itemId, targetId);
 
     const now = new Date().toISOString();
@@ -235,7 +209,6 @@ export function createMoveTermCommand(
     const current = useTermStore.getState().terms.get(termId);
     if (!current) return;
     useTermStore.getState().upsertTerm({ ...current, facet, sort });
-    invalidateValueEmbeddings(termId);
     await platform.db.execute('UPDATE terms SET facet = ?, sort = ? WHERE id = ?', [
       facet,
       sort,

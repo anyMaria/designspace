@@ -45,8 +45,6 @@
     "allow-dialog-save-file",
     "allow-net-link-meta",
     "allow-net-download-image",
-    "allow-embeddings-put",
-    "allow-embeddings-load",
     "allow-export-library-zip",
     "allow-machine-settings-read",
     "allow-machine-settings-write"

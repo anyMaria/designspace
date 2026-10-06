@@ -40,7 +40,6 @@
   --criterion-type: var(--accent);
   --criterion-movement: var(--cream);
   --criterion-color: var(--lavender);
-  --criterion-similar: var(--sky);
   --criterion-manual: rgba(255, 255, 255, 0.9);
 
   /* Color-family swatches */
