@@ -19,6 +19,19 @@ export const en = {
     note: 'Note',
     swatch: 'Swatch',
   },
+  /** Names for the small kind icons and badges (Patch 3 · A3, B1). A swatch with one colour is
+   * "Color"; with several it is a "Palette". */
+  kinds: {
+    image: 'Image',
+    video: 'Video',
+    pdf: 'PDF',
+    link: 'Link',
+    font: 'Font',
+    fontCollection: 'Type collection',
+    note: 'Note',
+    color: 'Color',
+    palette: 'Palette',
+  },
   spaceSwitcher: {
     library: 'Library',
     boards: 'Boards',
@@ -58,17 +71,6 @@ export const en = {
     collapse: 'Collapse suggestions',
     expand: 'Expand suggestions',
   },
-  /** §4.10's AI classification suggestions (Details panel + Triage) — distinct from `suggestions`
-   * above, which is the board suggestions tray (§2.10/M4). */
-  aiSuggestions: {
-    title: 'Suggested',
-    accept: (name: string) => `Accept "${name}"`,
-    /** Distinct from `suggestions.dismiss` above — same wording would collide as an accessible
-     * name wherever both a board suggestion and an AI classification suggestion render at once
-     * (caught by `tests/e2e/smoke-m4-suggestions-tray.spec.ts` picking up both). */
-    dismiss: 'Dismiss AI suggestion',
-    acceptAll: 'Accept all',
-  },
   notes: {
     colorLabel: (name: string) => `${name.charAt(0).toUpperCase()}${name.slice(1)} note color`,
     edit: 'Edit note',
@@ -90,10 +92,11 @@ export const en = {
     spacing: 'Spacing',
     thumbnails: 'Thumbnails',
     dots: 'Dots',
-    hint: 'Double-click an item to go to it · Esc to close',
+    hint: 'Drag a dot or a star · Double-click an item to go to it · Esc to close',
     tooLong: 'Too many links to draw — showing My connections only',
     expand: 'Open the Overview (O)',
-    arranging: 'Arranging…',
+    layoutFailed: "The map couldn't be arranged.",
+    tryAgain: 'Try again',
     empty: 'Nothing here yet · Esc to close',
     close: 'Close the Overview',
     legend: 'Connections',
@@ -107,6 +110,7 @@ export const en = {
     field: 'Description',
     empty: 'Add a description…',
     close: 'Close',
+    openBeside: 'Open beside the card',
   },
   actions: {
     tab: 'Actions',
@@ -195,6 +199,16 @@ export const en = {
     add: 'Add',
     cancel: 'Cancel',
     invalidUrl: "That doesn't look like a valid URL.",
+    noPicture: 'No picture found',
+    choosePicture: 'Choose a picture…',
+    pastePicture: 'Paste a picture',
+    tryAgain: 'Try again',
+    changePicture: 'Change picture…',
+    picture: 'Picture',
+    dropPicture: 'Drop a picture here',
+    pictureFailed: "Couldn't use that picture.",
+    findPictures: (n: number) => `${n} ${n === 1 ? 'link has' : 'links have'} no picture.`,
+    lookForPictures: 'Look for pictures',
     openInBrowser: 'Open in browser',
   },
   swatches: {
@@ -246,7 +260,6 @@ export const en = {
       canvas: 'Canvas',
       contentNetwork: 'Content & network',
       vocabularies: 'Vocabularies',
-      ai: 'AI',
       about: 'About',
     },
     about: {
@@ -277,6 +290,7 @@ export const en = {
       mediaNoItems: 'No imported files to check yet.',
       mediaOk: (kind: string, size: string) => `${kind} · OK (${size})`,
       mediaFailed: (kind: string, status: string) => `${kind} · Failed (${status})`,
+      failedPreviews: (n: number) => `Previews that failed to load this session: ${n}`,
       mediaOriginal: 'Original',
       mediaThumbnail: 'Thumbnail',
     },
@@ -315,6 +329,8 @@ export const en = {
       dotNormal: 'Normal',
       dotWide: 'Wide',
       minimap: 'Minimap',
+      snapping: 'Snap while moving and resizing',
+      snappingHint: 'Hold Ctrl to move freely',
       showNames: 'Show names on hover',
       reduceMotion: 'Reduce motion',
       motionSystem: 'System',
@@ -326,30 +342,6 @@ export const en = {
       offlineModeDescription:
         'Turns off link previews and image downloads. Designspace never reaches the internet ' +
         'on its own otherwise — only when you add a link or an image URL.',
-    },
-    ai: {
-      enable: 'AI',
-      enableDescription:
-        'Suggestions, Find similar, Similar look connections, and search by meaning — all from ' +
-        'a model that runs entirely on this computer. Turning it off stops background analysis ' +
-        'and hides every AI feature; it never deletes embeddings you already have.',
-      modelBundled: 'A local model is loaded.',
-      modelNotBundled:
-        'No local model is bundled in this build — AI features are inactive. ' +
-        '(This is expected in the browser dev build; the real model ships in the Windows installer.)',
-      analyzed: 'Analyzed',
-      remaining: 'Remaining',
-      failed: 'Failed',
-      pause: 'Pause analysis',
-      resume: 'Resume analysis',
-      paused: 'Paused',
-      statusLoading: 'Loading the local model…',
-      statusReady: 'Ready',
-      statusAnalyzing: (done: number, total: number) => `Analyzing ${done} of ${total}`,
-      statusError: (reason: string) => `Not working: ${reason}`,
-      retry: 'Try again',
-      workerStopped: 'The AI helper stopped unexpectedly.',
-      modelMissing: 'The AI model files are missing from this installation.',
     },
   },
   onboarding: {
@@ -455,7 +447,6 @@ export const en = {
     mixed: 'Mixed',
     artistMixedPlaceholder: 'Mixed',
     moveToTrash: 'Move to Trash',
-    findSimilar: 'Find similar',
   },
   combobox: {
     mostUsed: 'Most used',
@@ -473,7 +464,6 @@ export const en = {
       tag: 'Tags',
     },
     empty: 'No values yet.',
-    aiHintPlaceholder: 'AI hint (optional)',
     moveUp: 'Move up',
     moveDown: 'Move down',
     moveTo: 'Move to…',
@@ -529,7 +519,7 @@ export const en = {
     focusView: 'Focus view',
     nextPicture: 'Next picture',
     previousPicture: 'Previous picture',
-    escapeLadder: 'Close, deselect, then leave full screen',
+    escapeLadder: "Close what's open, leave full screen, then deselect",
     zoomToFit: 'Zoom to fit',
     zoomToSelection: 'Zoom to selection',
     zoomTo100: 'Zoom to 100%',
@@ -545,6 +535,14 @@ export const en = {
     stackFront: 'Bring to front',
     stackBack: 'Send to back',
     nudge: 'Nudge (Shift = ×10)',
+    alignLeft: 'Align left',
+    alignCenter: 'Align center',
+    alignRight: 'Align right',
+    alignTop: 'Align top',
+    alignMiddle: 'Align middle',
+    alignBottom: 'Align bottom',
+    distributeX: 'Distribute horizontally',
+    distributeY: 'Distribute vertically',
     settings: 'Settings',
     shortcutList: 'Shortcut list',
     connections: 'Connections',
@@ -556,7 +554,6 @@ export const en = {
     criterionTag: 'Tags',
     criterionColor: 'Color',
     criterionManual: 'My connections',
-    criterionSimilar: 'Similar look',
     sharedPrefix: 'Shared',
     connectedManually: 'Connected manually',
     dock: 'Connections',
@@ -631,9 +628,6 @@ export const en = {
     dateYear: 'This year',
     favorite: 'Favorite',
     inbox: 'Inbox',
-    /** §4.10's "Include visual matches" — CLIP search-by-meaning results folded into the regular
-     * text/facet match set. */
-    includeVisualMatches: 'Include visual matches',
   },
   triage: {
     progress: (index: number, total: number) => `${index} of ${total}`,
@@ -681,9 +675,33 @@ export const en = {
     reset: 'Reset crop',
     hint: 'Drag to move the picture · Enter or click outside to finish',
   },
+  align: {
+    menu: 'Align',
+    left: 'Align left',
+    center: 'Align center',
+    right: 'Align right',
+    top: 'Align top',
+    middle: 'Align middle',
+    bottom: 'Align bottom',
+    distributeX: 'Distribute horizontally',
+    distributeY: 'Distribute vertically',
+    sameWidth: 'Same width',
+    sameHeight: 'Same height',
+    tidyUp: 'Tidy up',
+    bar: 'Arrange the selection',
+    open: 'Align and distribute',
+    groupAlign: 'Align',
+    groupSpacing: 'Equal spacing',
+    groupSize: 'Same size',
+    needThree: 'Select 3 or more to space evenly',
+  },
+  paste: {
+    linkAdded: (domain: string) => `Link added · ${domain}`,
+  },
   fullscreen: {
     enter: 'Full screen',
     exit: 'Exit full screen',
+    exitPill: 'Exit full screen · Esc',
     hint: 'Full screen · press Esc or F11 to leave',
     setting: 'Open in full screen',
   },
@@ -740,6 +758,9 @@ export const en = {
     },
     alsoAddImage: 'Also add this image to my library',
     dropImage: 'Drop an image here, paste one, or open one',
+    changeImage: 'Change image',
+    searchLibrary: 'Search my library',
+    noLibraryMatches: 'No pictures match.',
     imageFailed: "Couldn't read that picture.",
     nothingToPaste: 'There is no picture on the clipboard.',
     modeHarmonious: 'Goes with my colors',

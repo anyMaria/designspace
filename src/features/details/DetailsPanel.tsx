@@ -1,14 +1,15 @@
-import { thumbUrl } from '@/lib/thumbs';
 import { useMemo, useState, type ReactNode } from 'react';
-import { ExternalLink, Sparkles, X } from 'lucide-react';
+import { ExternalLink, Maximize2, X } from 'lucide-react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
-import type { Engine } from '@/canvas/Engine';
 import { useTermStore } from '@/state/termStore';
 import { useFocusStore } from '@/state/focusStore';
 import { useLibraryStore } from '@/state/libraryStore';
 import { useManualConnectionsStore } from '@/state/manualConnectionsStore';
-import { useEmbeddingsStore } from '@/state/embeddingsStore';
+import { LinkPictureSection } from './LinkPictureSection';
+import { InlineDescription } from './InlineDescription';
+import { KindIcon } from '@/lib/kindIcon';
+import { kindLabelOf } from '@/lib/kindMeta';
 import { useHistoryStore } from '@/commands/history';
 import { createSetItemFieldCommand } from '@/commands/itemCommands';
 import {
@@ -20,28 +21,18 @@ import { createRemoveConnectionCommand } from '@/commands/connectionCommands';
 import { FontCardSection } from './FontCardSection';
 import { isFontCollection } from '@/lib/fontFamily';
 import { openFromPhoto } from '@/features/colorStudio/openStudio';
-import { TermCombobox, Swatch, Toggle, Button, IconButton } from '@/design/components';
+import { TermCombobox, Swatch, Toggle, Button, IconButton, Thumb } from '@/design/components';
 import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
 import { formatBytes } from '@/lib/formatBytes';
 import { formatDuration } from '@/lib/formatDuration';
-import { findSimilarItemIds } from '@/lib/ai/findSimilar';
 import { isMediaItem } from '@/lib/itemKinds';
 import { useDescriptionStore } from '@/state/descriptionStore';
 import { en } from '@/i18n/en';
-import { SuggestionsSection } from '@/features/ai/SuggestionsSection';
 
 const MOST_USED_TYPE_COUNT = 8;
 
 /** Details panel for a single selected item — §2.6. Bulk (several items) lands in M2-4. */
-export function DetailsPanel({
-  platform,
-  item,
-  engine,
-}: {
-  platform: Platform;
-  item: Item;
-  engine: Engine | null;
-}) {
+export function DetailsPanel({ platform, item }: { platform: Platform; item: Item }) {
   const terms = useTermStore((s) => s.terms);
   const itemTermIds = useTermStore((s) => s.itemTerms.get(item.id)) ?? new Set<string>();
 
@@ -85,8 +76,6 @@ export function DetailsPanel({
 
   const [showAllTypes, setShowAllTypes] = useState(false);
   const items = useLibraryStore((s) => s.items);
-  const embeddings = useEmbeddingsStore((s) => s.vectors);
-  const hasEmbedding = embeddings.has(item.id);
   const manualConnections = useManualConnectionsStore((s) => s.connections);
   const manualByItem = useManualConnectionsStore((s) => s.byItem);
   const connections = useMemo(
@@ -143,18 +132,26 @@ export function DetailsPanel({
       .execute(createSetItemFieldCommand(platform, item.id, 'favorite', !item.favorite));
   }
 
-  function findSimilar(): void {
-    const results = findSimilarItemIds(item.id, embeddings);
-    if (results.length === 0 || !engine) return;
-    const ids = results.map((r) => r.id);
-    engine.setSelection(ids);
-    engine.zoomToIds(ids);
-  }
-
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', overflowY: 'auto' }}
     >
+      <div
+        data-testid="details-kind"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-2)',
+          color: 'var(--text-2)',
+          fontSize: 'var(--text-sm)',
+        }}
+      >
+        <KindIcon item={item} size={16} />
+        {kindLabelOf(item)}
+      </div>
+
+      {item.kind === 'link' && <LinkPictureSection platform={platform} item={item} />}
+
       {item.kind === 'image' && item.status === 'ok' && (
         <button
           type="button"
@@ -169,22 +166,8 @@ export function DetailsPanel({
             background: 'var(--surface-2)',
           }}
         >
-          <img
-            src={thumbUrl(platform, item, 512)}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          />
+          <Thumb platform={platform} item={item} size={512} fit="contain" />
         </button>
-      )}
-
-      {hasEmbedding && (
-        <Button
-          variant="ghost"
-          icon={<Sparkles size={16} strokeWidth={1.75} />}
-          onClick={findSimilar}
-        >
-          {en.details.findSimilar}
-        </Button>
       )}
 
       <input
@@ -200,31 +183,17 @@ export function DetailsPanel({
       )}
 
       {isMediaItem(item) && (
-        <Field label={en.description.field}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-            <p
-              style={{
-                margin: 0,
-                display: '-webkit-box',
-                WebkitLineClamp: 4,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                whiteSpace: 'pre-wrap',
-                color: item.descriptionText?.trim() ? 'var(--text-1)' : 'var(--text-3)',
-              }}
-            >
-              {item.descriptionText?.trim() || en.description.empty}
-            </p>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                engine?.zoomToIds([item.id]);
-                useDescriptionStore.getState().open(item.id);
-              }}
-            >
-              {en.description.open}
-            </Button>
-          </div>
+        <Field
+          label={en.description.field}
+          action={
+            <IconButton
+              icon={<Maximize2 size={14} strokeWidth={1.75} />}
+              label={en.description.openBeside}
+              onClick={() => useDescriptionStore.getState().open(item.id)}
+            />
+          }
+        >
+          <InlineDescription key={item.id} platform={platform} itemId={item.id} />
         </Field>
       )}
 
@@ -289,8 +258,6 @@ export function DetailsPanel({
           newWordLabel={FACET_NEW_WORD.tag}
         />
       </Field>
-
-      <SuggestionsSection platform={platform} item={item} />
 
       <Field label={en.connections.myConnections}>
         {connections.length === 0 ? (
@@ -433,10 +400,29 @@ export function DetailsPanel({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  action,
+  children,
+}: {
+  label: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-      <span style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>{label}</span>
+      <span
+        style={{
+          color: 'var(--text-2)',
+          fontSize: 'var(--text-sm)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        {label}
+        {action}
+      </span>
       {children}
     </div>
   );

@@ -3139,3 +3139,66 @@ All twelve tasks (A1–A12) landed, one commit each. Deviations and notes:
   https://www.microsoft.com/wdsi/filesubmission as a false positive.
 - **Workflow warning:** "Node.js 20 is deprecated" in the Actions logs: both workflows now set
   `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`.
+
+## Patch 3 · Phase A (in progress)
+
+- **A1:** `classifyPaste` never returns `'nothing'` in practice (empty text means `maybe-image`); the member stays in the
+  type for the plan's sake. The pasted-link toast shows after the import's own "Added" toast.
+- **A2:** Esc in a text field is handled in two steps: the capture listener leaves the field alone (a combobox or a
+  rename box must see Esc first), and a second, bubble-phase listener blurs the field only when nothing called
+  `preventDefault`. `BoardsGallery`'s rename field now calls `preventDefault` for that reason.
+- **A3:** `kindIcon.tsx` only holds the `KindIcon` component; the icon map and helpers are in `kindMeta.ts` (the
+  react-refresh lint rule wants component files to export components only).
+- **A4:** Ctrl+V in the Color studio goes through `colorStudioStore.pendingPaste`, so the image tab takes the picture even
+  when it was not the visible tab.
+- **A6 not done:** the sandbox's safety check blocked deleting the AI files (`git rm`). Left for the owner to run or allow.
+
+## Patch 3 · Phase B (in progress)
+
+- **B2:** the inline description follows the stored text when it changes while the field is not focused, so Ctrl+Z / Ctrl+Y
+  show up in the field. "Open beside the card" no longer zooms; if the card is off screen the panel stays hidden.
+- **B3:** `link_meta` gains `imageCandidates`, `fetcherV` (2 = Patch 3's fetcher) and `noPicture`. A fetch that fails
+  (or an offline add) sets `noPicture` but not `fetcherV`, so "Look for pictures" at start-up tries it again. The start-up
+  prompt only runs when the network is allowed and Offline mode is off (P7). Vimeo's picture comes from its public oEmbed
+  endpoint (one extra request, only for Vimeo links). YouTube links keep their title even if the page can't be read.
+
+## Patch 3 · Phase C (in progress)
+
+- **C2:** the snapping switch is a machine setting in `uiStore` / `settings.json` (next to "Show names on hover"), not a
+  library setting in `settingsStore`: it is a preference of this PC, like the other canvas switches. The engine only routes:
+  `snapSession.ts` collects the targets and `snapGuides.ts` draws; the maths is in `snapping.ts`.
+- **C3 was done together with C2** (same pointer-move code); it has its own e2e test.
+- Guides are drawn in screen space in the overlay layer, so they are one pixel wide at any zoom. Ctrl (or Cmd) frees a single
+  drag, and can be pressed or released mid-drag.
+- **C4:** the right-click menu lists the align actions as flat entries ("Align: Align left", …) rather than a submenu: the
+  `Menu` component has no submenus and adding one is outside this patch. `alignMath.ts` has no `tidy`: the bar and menu reuse
+  `createTidyUpCommand` (in the List's sort order), so there is one tidy rule. "Same width/height" uses the first selected
+  card as the reference; palettes are skipped, font specimens scale, pictures crop.
+
+## Patch 3 · Phase D
+
+- **D1:** the forces live in `lib/graphSimulation.ts` (pure, tested), not in `constellations.ts`; the worker seeds the graph
+  from `computeConstellationLayout` and then runs the live simulation. `workers/layout.worker.ts` and
+  `workers/runConstellationLayout.ts` are gone (nothing else used them). The camera fits once per `fitKey` (opening, switching
+  layout, a new simulation); never after a drag or a Spacing change. If nothing arrives within 5 s, or the worker fails, the
+  Overview shows "The map couldn't be arranged." with a Try again button; the "Arranging…" label is gone.
+- **D2:** a dot or star is picked up where the pointer presses; empty space pans. While held, the node is drawn under the
+  pointer on the main thread and also sent to the worker (`fx`/`fy`). Hovering a dot or a star dims everything not linked to it
+  to 30 %. Dragging never writes to the real map (P9). The canvas exposes `data-sample` / `data-held` for the e2e test.
+- **D3:** Spacing multiplies link length and repulsion; the collision radii and dot size do not change. The slider applies
+  live; the simulation re-heats to alpha 0.3 for about 2–3 s. With Reduce motion the worker runs to the end and posts once.
+- **Versions:** all four phases are in the stacked PRs, so the version in `package.json`, `tauri.conf.json` and `Cargo.toml`
+  is set to 0.19.0 in this one. Phase A's AI removal (A6) is still open and is the owner's call (see Phase A).
+
+## Patch 3 · A6 (the AI is removed)
+
+- **Removed:** the CLIP model and everything around it: `src/lib/ai`, `src/features/ai` (suggestions), the AI worker and queue,
+  the embeddings and AI-status stores, Settings → AI, Find similar, the "Similar look" connection criterion, "Include visual
+  matches" in the search bar, the board tray's "similar" fill, the vocabulary "AI hint" field and its command, the Rust
+  `embeddings_put` / `embeddings_load` commands, the `media://models` root, the bundled model resource, the CI model cache and
+  fetch steps, `scripts/fetch-models.mjs`, `scripts/copy-ort-wasm.mjs`, `@huggingface/transformers`, and `lib/base64.ts`.
+- **Kept (P6):** the `embeddings` table and its rows, and the `terms.ai_hint` column. No migration. Old saved filters that carry
+  `visualMatches`, or boards that carry AI settings, are simply ignored.
+- **Putting the AI back** means reverting the A6 commit.
+- **Snapping setting:** moved to the library settings (`meta.settings`, key `snapping`, default on) as the owner asked; it
+  replaces the old `aiEnabled` key. Settings → Canvas writes it at once.

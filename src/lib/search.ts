@@ -4,10 +4,7 @@ import type { ColorFamily } from './color';
 import { normalize } from './normalize';
 
 /** Search engine (§4.8): a MiniSearch free-text index plus prebuilt facet sets, combined by
- * `search()`. Board filtering and "by meaning" (CLIP) results are still deferred — see
- * docs/DECISIONS.md — since Boards-as-a-filter and the AI pipeline land in later milestones;
- * `Filter` still carries their shape so the UI (M2-7) and later milestones don't need to touch
- * this type again. Notes' body text is indexed as of M4-4 (`bodyText` below). */
+ * `search()`.  Notes' body text is indexed as of M4-4 (`bodyText` below). */
 
 export interface Filter {
   text?: string;
@@ -20,7 +17,6 @@ export interface Filter {
   favorite?: boolean;
   inbox?: boolean;
   added?: { from?: string; to?: string }; // ISO dates, inclusive
-  visualMatches?: boolean; // include AI "by meaning" results (M6) — ignored until then
 }
 
 export interface SearchDoc {

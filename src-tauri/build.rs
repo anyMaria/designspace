@@ -34,8 +34,6 @@ const APP_COMMANDS: &[&str] = &[
     "dialog_save_file",
     "net_link_meta",
     "net_download_image",
-    "embeddings_put",
-    "embeddings_load",
     "export_library_zip",
     "machine_settings_read",
     "machine_settings_write",

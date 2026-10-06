@@ -1,5 +1,5 @@
-//! The `media://` protocol (§4.4): serves library originals, cached derivatives and bundled AI
-//! models to the webview, with Range support (video seeking, PDF streaming), CORS/CORP headers
+//! The `media://` protocol (§4.4): serves library originals, cached derivatives
+//! to the webview, with Range support (video seeking, PDF streaming), CORS/CORP headers
 //! so WebGL textures and `fetch()` work under our COEP policy, and strict path safety.
 
 use crate::state::AppState;
@@ -118,10 +118,6 @@ fn base_dir_for<R: Runtime>(app: &AppHandle<R>, root_kind: MediaRoot) -> Option<
             fs::create_dir_all(&dir).ok()?;
             Some(dir)
         }
-        MediaRoot::Models => {
-            let dir = app.path().resource_dir().ok()?.join("models");
-            Some(dir)
-        }
     }
 }
 
@@ -165,8 +161,9 @@ fn try_handle<R: Runtime>(
         .header("Cross-Origin-Resource-Policy", "cross-origin");
 
     if root_kind == MediaRoot::Cache {
-        // Cache keys are content-addressed — safe to cache forever.
-        builder = builder.header(header::CACHE_CONTROL, "max-age=31536000, immutable");
+        // Cache keys are per item, not per content: a re-made thumbnail must never show stale.
+        // The `?v=` in the URL already busts the cache when a thumbnail changes.
+        builder = builder.header(header::CACHE_CONTROL, "no-cache");
     }
 
     let response = if let Some(range) = range_header {

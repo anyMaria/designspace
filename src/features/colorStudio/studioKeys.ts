@@ -37,6 +37,18 @@ export function installStudioKeys(platform: Platform): () => void {
       if (index < store.spots.length) store.select(index);
     }
   };
+  // Ctrl+V in the studio pastes a picture into the From an image tab (Patch 3 · A4). The window's
+  // own paste handler stands down while the studio is open.
+  const onPaste = (e: ClipboardEvent): void => {
+    if (isTypingTarget(e.target)) return;
+    const file = Array.from(e.clipboardData?.files ?? []).find((f) => f.type.startsWith('image/'));
+    e.preventDefault();
+    useColorStudioStore.getState().requestPaste(file ?? null);
+  };
   window.addEventListener('keydown', onKeyDown);
-  return () => window.removeEventListener('keydown', onKeyDown);
+  window.addEventListener('paste', onPaste);
+  return () => {
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('paste', onPaste);
+  };
 }

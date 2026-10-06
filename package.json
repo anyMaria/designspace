@@ -1,13 +1,11 @@
 {
   "name": "designspace",
   "private": true,
-  "version": "0.15.1",
+  "version": "0.19.0",
   "type": "module",
   "description": "A private, local-first desktop app for visual inspiration.",
   "scripts": {
-    "predev": "node scripts/copy-ort-wasm.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/copy-ort-wasm.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
@@ -15,15 +13,12 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "bench": "vite --open /?bench=10000",
-    "models:fetch": "node scripts/fetch-models.mjs",
-    "ort:copy": "node scripts/copy-ort-wasm.mjs",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@huggingface/transformers": "4.3.0",
     "@tauri-apps/api": "2.12.0",
     "@tauri-apps/plugin-clipboard-manager": "2.4.0",
     "@tauri-apps/plugin-dialog": "2.8.0",

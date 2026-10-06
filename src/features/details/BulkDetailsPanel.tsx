@@ -1,5 +1,4 @@
 import { showTrashToast } from '@/features/trash/trashToast';
-import { thumbUrl } from '@/lib/thumbs';
 import { useMemo, type ReactNode } from 'react';
 import type { Platform } from '@/platform/types';
 import type { Item } from '@/state/types';
@@ -11,7 +10,7 @@ import {
   createBulkRemoveTermCommand,
   createBulkSetTypeCommand,
 } from '@/commands/itemTermCommands';
-import { Chip, Button, TermCombobox } from '@/design/components';
+import { Chip, Button, TermCombobox, Thumb } from '@/design/components';
 import { FACET_DOT, FACET_NEW_WORD, useTermOptions } from './useTermOptions';
 import { isMediaItem } from '@/lib/itemKinds';
 import { en } from '@/i18n/en';
@@ -150,11 +149,7 @@ export function BulkDetailsPanel({
               }}
             >
               {isMediaItem(item) && item.status === 'ok' && (
-                <img
-                  src={thumbUrl(platform, item, 128)}
-                  alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
+                <Thumb platform={platform} item={item} size={128} />
               )}
             </div>
           ))}

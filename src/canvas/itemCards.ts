@@ -135,7 +135,13 @@ export function itemToCard(
       // cover is ready (also while it loads or if it failed; the "clean domain card" case, §2.3).
       noteText: thumbReady
         ? null
-        : [safeDomain(item.url), item.title || null].filter(Boolean).join('\n'),
+        : [
+            safeDomain(item.url),
+            item.title || null,
+            item.linkMeta?.noPicture && item.status === 'ok' ? en.link.noPicture : null,
+          ]
+            .filter(Boolean)
+            .join('\n'),
       durationMs: null,
       videoUrl: null,
       pageCount: null,

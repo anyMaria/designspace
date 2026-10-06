@@ -30,6 +30,15 @@ test('the List panel groups, sorts, virtualizes, and clicking a tile selects+fli
   await page.getByLabel('Group by').selectOption('none');
   await page.waitForTimeout(300);
 
+  // Patch 3 · A3: the tile grid never scrolls sideways.
+  const noSideways = await page.evaluate(() => {
+    const scroller = document
+      .querySelector('button.ds-list-tile')
+      ?.closest('div[style*="overflow-y"]');
+    return scroller ? scroller.scrollWidth <= scroller.clientWidth : true;
+  });
+  expect(noSideways).toBe(true);
+
   // Every tile shows something (Patch 2 · C7): an <img> that loaded, or no <img> at all — never
   // the broken-image icon.
   // (The demo makes its thumbnails in the background, so give them time to appear.)

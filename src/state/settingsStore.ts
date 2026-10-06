@@ -7,9 +7,8 @@ import { DEFAULT_PREVIEW_TEXT } from '@/lib/fontPreview';
  * for the DB read/write. */
 interface SettingsState {
   offlineMode: boolean;
-  /** §4.10: AI (background analysis, suggestions, Find similar, search by meaning). On by
-   * default — an owner who wants it off finds the switch in Settings → AI (M6-5). */
-  aiEnabled: boolean;
+  /** Snap while moving and resizing cards; Ctrl frees a single drag (Patch 3 · C2). */
+  snapping: boolean;
   /** §5.4: an optional second folder (e.g. a OneDrive folder) that also receives a copy of every
    * backup. `null` means none configured. */
   backupExtraDestination: string | null;
@@ -21,7 +20,7 @@ interface SettingsState {
 
 export const useSettingsStore = create<SettingsState>(() => ({
   offlineMode: false,
-  aiEnabled: true,
+  snapping: true,
   backupExtraDestination: null,
   fontPreviewText: DEFAULT_PREVIEW_TEXT,
   likedColors: [],

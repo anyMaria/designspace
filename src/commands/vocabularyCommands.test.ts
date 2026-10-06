@@ -5,7 +5,6 @@ import {
   createMoveTermCommand,
   createReorderTermsCommand,
   createRenameTermCommand,
-  createSetAiHintCommand,
 } from './vocabularyCommands';
 import { useTermStore } from '@/state/termStore';
 import type { Term } from '@/state/types';
@@ -55,20 +54,6 @@ describe('createRenameTermCommand', () => {
       name: 'Dreamy',
       nameNorm: 'dreamy',
     });
-  });
-});
-
-describe('createSetAiHintCommand', () => {
-  it('do()/undo() round-trip the AI hint', async () => {
-    useTermStore.getState().upsertTerm(makeTerm({ aiHint: null }));
-    const platform = makePlatform();
-    const command = createSetAiHintCommand(platform, 't1', 'a dreamy image');
-
-    await command.do();
-    expect(useTermStore.getState().terms.get('t1')?.aiHint).toBe('a dreamy image');
-
-    await command.undo();
-    expect(useTermStore.getState().terms.get('t1')?.aiHint).toBeNull();
   });
 });
 

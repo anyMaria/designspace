@@ -3,6 +3,7 @@
 
 .ds-button {
   display: inline-flex;
+  white-space: nowrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -116,6 +117,7 @@
 
 .ds-tabs {
   display: inline-flex;
+  max-width: 100%;
   padding: 3px;
   background: var(--surface-2);
   border-radius: var(--radius-pill);
@@ -123,6 +125,8 @@
 }
 .ds-tabs__tab {
   display: inline-flex;
+  flex: none;
+  white-space: nowrap;
   align-items: center;
   gap: 6px;
   border: none;
@@ -618,4 +622,67 @@
 .ds-combobox__hint {
   color: var(--accent);
   font-size: 12px;
+}
+
+/* Patch 3 · A3: themed scrollbars (Windows' grey ones clashed with the dark panels). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+@keyframes ds-thumb-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Patch 3 · A4: the Color studio's library picker is a roomy dialog. */
+.ds-dialog.ds-library-picker {
+  width: min(760px, 92vw);
+  max-width: none;
+  height: min(560px, 80vh);
+}
+
+/* Patch 3 · B2: the description field in Details. */
+.ds-inline-description {
+  position: relative;
+  background: var(--surface-2);
+  border-radius: var(--radius-input);
+  padding: var(--space-2) var(--space-3);
+  min-height: 3.2em;
+  /* Grows to 12 lines, then scrolls. */
+  max-height: calc(12 * 1.5em + 2 * var(--space-2));
+  overflow-y: auto;
+  cursor: text;
+}
+.ds-inline-description:focus-within {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+}
+.ds-inline-description__placeholder {
+  position: absolute;
+  pointer-events: none;
+  color: var(--text-3);
+}
+.ds-inline-description .ProseMirror {
+  min-height: 1.5em;
 }

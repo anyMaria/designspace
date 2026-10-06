@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { en } from '@/i18n/en';
 
 let hintShown = false;
+const RECHECK_MS = 300;
 
 /** Enters or leaves full screen (Patch 1 · B1) and keeps `uiStore.fullscreen` in step. The hint
  * toast shows once per session, on the first time we enter. */
@@ -12,6 +13,15 @@ export async function setFullscreen(platform: Platform, on: boolean): Promise<vo
   try {
     await platform.window.setFullscreen(on);
     useUiStore.getState().setFullscreen(on);
+    // A window style change can leave WebView2 without keyboard focus, so Esc would do nothing.
+    void platform.window.focus().catch(() => undefined);
+    // Don't trust the flag alone: ask the window again once it has settled.
+    setTimeout(() => {
+      void platform.window
+        .isFullscreen()
+        .then((actual) => useUiStore.getState().setFullscreen(actual))
+        .catch(() => undefined);
+    }, RECHECK_MS);
     if (on && !hintShown) {
       hintShown = true;
       useToastStore.getState().show(en.fullscreen.hint);

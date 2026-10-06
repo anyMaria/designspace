@@ -43,3 +43,66 @@ test('the Overview opens with O, draws the library, and closes with Esc', async 
   await page.getByRole('button', { name: 'Open the Overview (O)' }).click();
   await expect(overview).toBeVisible();
 });
+
+// Patch 3 · D1–D3: the Clusters layout is a live graph. Spacing moves the groups at once, a dot
+// can be dragged, and the real map is not touched.
+test('the Clusters graph is live: Spacing loosens it, dragging a dot holds it under the pointer', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/?seed=demo', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.keyboard.press('o');
+  const canvas = page.getByTestId('overview-canvas');
+  await expect(canvas).toBeVisible();
+  await expect(page.getByText("The map couldn't be arranged.")).toBeHidden();
+
+  type Sample = { id: string; x: number; y: number };
+  const sample = async (): Promise<Sample> => {
+    const raw = await canvas.getAttribute('data-sample');
+    if (!raw) throw new Error('nothing drawn yet');
+    return JSON.parse(raw) as Sample;
+  };
+  // Wait for the graph to come to rest (the sample stops moving).
+  const settled = async (): Promise<Sample> => {
+    let last = await sample();
+    for (let i = 0; i < 40; i++) {
+      await page.waitForTimeout(400);
+      const now = await sample();
+      if (Math.hypot(now.x - last.x, now.y - last.y) < 0.2) return now;
+      last = now;
+    }
+    return last;
+  };
+  await expect
+    .poll(async () => canvas.getAttribute('data-sample'), { timeout: 20_000 })
+    .not.toBeNull();
+  const before = await settled();
+
+  // Spacing changes the forces at once: the same dot ends up somewhere else.
+  const slider = page.getByRole('slider', { name: 'Spacing' });
+  await slider.focus();
+  for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
+  const after = await settled();
+  expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(2);
+
+  // Drag the dot: while held it sits under the pointer.
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas box');
+  const start = { x: box.x + after.x, y: box.y + after.y };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 60, start.y + 40, { steps: 6 });
+  await page.mouse.move(start.x + 120, start.y + 80, { steps: 6 });
+  await page.waitForTimeout(150);
+  const heldRaw = await canvas.getAttribute('data-held');
+  if (!heldRaw) throw new Error('nothing is being held');
+  const held = JSON.parse(heldRaw) as Sample;
+  expect(
+    Math.hypot(held.x - (start.x - box.x + 120), held.y - (start.y - box.y + 80)),
+  ).toBeLessThan(4);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  await expect(canvas).not.toHaveAttribute('data-held', /.+/);
+  await expect(page.getByTestId('overview')).toBeVisible();
+});

@@ -1,6 +1,7 @@
 import type { Item } from '@/state/types';
 import { isMediaItem } from '@/lib/itemKinds';
 import { noteColorNames, type NoteColor } from '@/design/tokens';
+import type { AlignAction } from './alignActions';
 
 export type ContextMenuItemId =
   | 'copy-image'
@@ -12,6 +13,7 @@ export type ContextMenuItemId =
   | 'bring-to-front'
   | 'send-to-back'
   | 'tidy-up'
+  | `align-${Exclude<AlignAction, 'tidy-up'>}`
   | 'connect-to'
   | 'back-to-inbox'
   | 'make-palette'
@@ -24,10 +26,26 @@ export type ContextMenuItemId =
   | 'add-to-type-collection'
   | 'remove-from-type-collection'
   | 'edit-note'
+  | 'link-change-picture'
+  | 'link-try-again'
   | 'description-add'
   | 'description-edit'
   | `note-color-${NoteColor}`
   | 'move-to-trash';
+
+/** The right-click "Align" entries, in order (tidy up has its own entry). */
+const ALIGN_MENU_ACTIONS: Exclude<AlignAction, 'tidy-up'>[] = [
+  'left',
+  'hcenter',
+  'right',
+  'top',
+  'vcenter',
+  'bottom',
+  'distribute-x',
+  'distribute-y',
+  'same-width',
+  'same-height',
+];
 
 const isMedia = (i: Item): boolean => isMediaItem(i);
 const isFamily = (i: Item): boolean => i.kind === 'font' && !i.fontCollection;
@@ -37,7 +55,7 @@ const isCollection = (i: Item): boolean => i.kind === 'font' && !!i.fontCollecti
 /** `cropped`: the single clicked picture has an owner's crop (Patch 2 · C3). */
 export function contextMenuItemIds(
   items: Item[],
-  ctx: { onBoard: boolean; cropped?: boolean; inCollection?: boolean },
+  ctx: { onBoard: boolean; cropped?: boolean; inCollection?: boolean; canFetchLinks?: boolean },
 ): ContextMenuItemId[] {
   const ids: ContextMenuItemId[] = [];
   // Notes are written, not collected: a short menu of their own.
@@ -54,12 +72,19 @@ export function contextMenuItemIds(
     ids.push(items.every((i) => i.favorite) ? 'remove-favorite' : 'add-favorite');
   if (items.length > 0 && items.every((i) => !!i.filePath)) ids.push('show-in-explorer');
   ids.push('bring-to-front', 'send-to-back');
+  if (items.length >= 2)
+    ids.push(...ALIGN_MENU_ACTIONS.map((a): ContextMenuItemId => `align-${a}`));
   if (items.length >= 2) ids.push('tidy-up');
   if (items.length === 1) ids.push('connect-to');
   if (items.length > 0 && items.every(isMedia)) ids.push('back-to-inbox');
   // One photo with sampled colours: open it in the Color studio (Patch 2 · E7).
   if (items.length === 1 && items[0]?.kind === 'image' && (items[0].palette?.length ?? 0) > 0)
     ids.push('make-palette');
+  // One link: give it a picture of your own, or look for one again (Patch 3 · B3).
+  if (items.length === 1 && items[0]?.kind === 'link') {
+    ids.push('link-change-picture');
+    if (ctx.canFetchLinks) ids.push('link-try-again');
+  }
   // One media item: add or edit its long description (Patch 1 · E4).
   const only = items.length === 1 ? items[0] : null;
   if (only && isMediaItem(only))

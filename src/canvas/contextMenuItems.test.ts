@@ -157,4 +157,20 @@ describe('description entries', () => {
       expect(ids).not.toContain('show-in-explorer');
     });
   });
+
+  it('a single link can change its picture, and try again only when fetching is allowed', () => {
+    const link = item({ kind: 'link', filePath: null });
+    expect(contextMenuItemIds([link], ctx)).toContain('link-change-picture');
+    expect(contextMenuItemIds([link], ctx)).not.toContain('link-try-again');
+    expect(contextMenuItemIds([link], { ...ctx, canFetchLinks: true })).toContain('link-try-again');
+    expect(contextMenuItemIds([link, item({ id: 'b' })], ctx)).not.toContain('link-change-picture');
+  });
+
+  it('Align entries appear for two or more items', () => {
+    expect(contextMenuItemIds([item({})], ctx)).not.toContain('align-left');
+    const two = contextMenuItemIds([item({}), item({ id: 'b' })], ctx);
+    expect(two).toContain('align-left');
+    expect(two).toContain('align-distribute-x');
+    expect(two).toContain('align-same-width');
+  });
 });

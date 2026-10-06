@@ -919,9 +919,8 @@ dependencies = [
 
 [[package]]
 name = "designspace"
-version = "0.15.0"
+version = "0.19.0"
 dependencies = [
- "base64 0.22.1",
  "chrono",
  "designspace-core",
  "futures-util",
@@ -952,7 +951,7 @@ dependencies = [
 
 [[package]]
 name = "designspace-core"
-version = "0.15.0"
+version = "0.19.0"
 dependencies = [
  "percent-encoding",
  "sha2 0.11.0",

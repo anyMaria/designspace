@@ -20,11 +20,10 @@ test('the vocabulary manager renders starter values and can rename/reorder/delet
   await expect(page.getByRole('textbox', { name: 'Name: Poster' })).toBeVisible();
   await page.screenshot({ path: 'test-results/vocab-type.png' });
 
-  // Switch to Movement, which has AI-hinted entries.
+  // Switch to Movement.
   await page.getByRole('tab', { name: 'Movement' }).click();
   await page.waitForTimeout(200);
   await expect(page.getByRole('textbox', { name: 'Name: Bauhaus' })).toBeVisible();
-  await expect(page.getByPlaceholder('AI hint (optional)').first()).toBeVisible();
   await page.screenshot({ path: 'test-results/vocab-movement.png' });
 
   // The five mood-like starters are Vibes now (Patch 2 · D3), and "Move to…" moves a word

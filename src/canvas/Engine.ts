@@ -53,18 +53,23 @@ import {
   fonts,
   noteGeometry,
   noteStyles,
+  snap,
   type NoteColor,
 } from '@/design/tokens';
 import type { BenchRect } from '@/platform/seed/bench';
 import { rectsIntersect, unionRects, type Rect } from '@/lib/geometry';
 import { CRITERION_ORDER, type Criterion, type Hub, type ScoredCandidate } from '@/lib/connections';
 import type { ItemKind } from '@/state/types';
+import { SnapGuideLayer, type SnapOverlay } from './snapGuides';
+import { SnapSession, collectSnapTargets } from './snapSession';
 import { exportRectForCards, type ExportBackground, type ExportScale } from '@/lib/exportGeometry';
 import { formatDuration } from '@/lib/formatDuration';
 
 export interface EngineOptions {
   getTool: () => Tool;
   getWheelMode: () => WheelMode;
+  /** Snap while moving and resizing (Patch 3 · C2); Ctrl frees a single drag. */
+  getSnapping?: () => boolean;
 }
 
 export interface ItemCard {
@@ -147,6 +152,8 @@ interface EngineEvents {
   cropCommit: (update: { id: string; cropX: number; cropY: number }) => void;
   /** "Adjust crop" ended, by any route. */
   cropEnd: () => void;
+  /** A card drag or resize started (true) or ended (false): floating tools hide meanwhile. */
+  dragState: (dragging: boolean) => void;
 }
 
 const LINE_WIDTH_PX = connectionLineStyle.width;
@@ -300,6 +307,7 @@ export class Engine {
   private videoPreviewId: string | null = null;
   private videoPreviewSrc: string | null = null;
   private marquee: Graphics | null = null;
+  private snapLayer: SnapGuideLayer | null = null;
   private selectionOutline: Graphics | null = null;
   private handles: Graphics[] = [];
 
@@ -322,6 +330,7 @@ export class Engine {
     connectionLineDblClick: new Set(),
     cropCommit: new Set(),
     cropEnd: new Set(),
+    dragState: new Set(),
   };
 
   on<K extends keyof EngineEvents>(event: K, handler: EngineEvents[K]): () => void {
@@ -359,6 +368,8 @@ export class Engine {
     app.stage.addChild(this.world);
     this.overlayLayer = new Container();
     app.stage.addChild(this.overlayLayer);
+    this.snapLayer = new SnapGuideLayer();
+    this.overlayLayer.addChild(this.snapLayer.container);
 
     this.rectContext = new GraphicsContext().rect(0, 0, 1, 1).fill(0xffffff);
     this.textureManager = new TextureManager<Texture>({
@@ -965,6 +976,14 @@ export class Engine {
     return this.camera.screenToWorld(clientX - rect.left, clientY - rect.top, vw, vh);
   }
 
+  /** The world point under the last pointer position, or null when the pointer is outside the
+   * canvas (Patch 3 · P3: a paste lands under the pointer when it is over the map). */
+  pointerWorld(): { x: number; y: number } | null {
+    if (!this.app || !this.lastPointer) return null;
+    const { width: vw, height: vh } = this.app.screen;
+    return this.camera.screenToWorld(this.lastPointer.x, this.lastPointer.y, vw, vh);
+  }
+
   /** The world point at the viewport center — the fallback drop point when the cursor is
    * outside the window (§2.3, paste). */
   viewportCenter(): { x: number; y: number } {
@@ -1033,6 +1052,8 @@ export class Engine {
     let resizeStartRect = { x: 0, y: 0, w: 0, h: 0 };
     let handleCursor = false;
     let moveOrigin = new Map<string, { x: number; y: number }>();
+    let snapSession: SnapSession | null = null;
+    let moveBounds = { x: 0, y: 0, w: 0, h: 0 };
     let connectFromId: string | null = null;
 
     const viewport = () => ({ w: this.app?.screen.width ?? 0, h: this.app?.screen.height ?? 0 });
@@ -1215,6 +1236,7 @@ export class Engine {
         moved = true;
         if (mode === 'move' || mode === 'resize') {
           this.dragging = true; // no connection dimming while dragging
+          this.emit('dragState', true);
           this.refreshAlpha();
         }
       }
@@ -1234,8 +1256,23 @@ export class Engine {
           });
         }
       } else if (mode === 'move') {
-        const worldDx = world.x - startWorld.x;
-        const worldDy = world.y - startWorld.y;
+        let worldDx = world.x - startWorld.x;
+        let worldDy = world.y - startWorld.y;
+        if (justStartedMoving && opts.getSnapping?.() !== false) {
+          const begun = this.beginSnap(moveOrigin.keys(), moveOrigin);
+          snapSession = begun?.session ?? null;
+          moveBounds = begun?.bounds ?? moveBounds;
+        }
+        if (snapSession) {
+          if (e.ctrlKey || e.metaKey) {
+            this.showSnap(null);
+          } else {
+            const snapped = snapSession.move(moveBounds, { x: worldDx, y: worldDy });
+            worldDx = snapped.dx;
+            worldDy = snapped.dy;
+            this.showSnap(snapped.overlay);
+          }
+        }
         for (const [id, origin] of moveOrigin) {
           const sprite = this.sprites.get(id);
           const card = this.cards.get(id);
@@ -1268,16 +1305,30 @@ export class Engine {
         if (card && sprite) {
           if (e.altKey) e.preventDefault();
           const policy = resizePolicyFor(card.kind);
-          const next = resizeRect(
+          const keepAspect =
+            isCornerHandle(resizeHandle) && (policy.alwaysKeepAspect || !e.shiftKey);
+          let next = resizeRect(
             resizeStartRect,
             resizeHandle,
             { x: world.x - startWorld.x, y: world.y - startWorld.y },
-            {
-              keepAspect: isCornerHandle(resizeHandle) && (policy.alwaysKeepAspect || !e.shiftKey),
-              fromCenter: e.altKey,
-              minSize: RESIZE_MIN_SIZE,
-            },
+            { keepAspect, fromCenter: e.altKey, minSize: RESIZE_MIN_SIZE },
           );
+          if (justStartedMoving && opts.getSnapping?.() !== false) {
+            snapSession = this.beginSnap([resizeTargetId], new Map())?.session ?? null;
+          }
+          if (snapSession) {
+            if (e.ctrlKey || e.metaKey) {
+              this.showSnap(null);
+            } else {
+              const snapped = snapSession.resize(resizeStartRect, next, resizeHandle, {
+                keepAspect,
+                fromCenter: e.altKey,
+              });
+              const big = snapped.rect.w >= RESIZE_MIN_SIZE && snapped.rect.h >= RESIZE_MIN_SIZE;
+              if (big) next = snapped.rect;
+              this.showSnap(big ? snapped.overlay : null);
+            }
+          }
           card.x = next.x;
           card.y = next.y;
           card.w = next.w;
@@ -1295,6 +1346,7 @@ export class Engine {
     const onPointerUp = (e: PointerEvent) => {
       if (this.dragging) {
         this.dragging = false;
+        this.emit('dragState', false);
         this.refreshAlpha();
       }
       if (mode === 'marquee' && moved) {
@@ -1339,6 +1391,8 @@ export class Engine {
         if (hit && hit.id !== connectFromId) this.emit('connectDrop', connectFromId, hit.id);
       }
       mode = 'idle';
+      snapSession = null;
+      this.showSnap(null);
       resizeHandle = null;
       resizeTargetId = null;
       connectFromId = null;
@@ -1441,6 +1495,41 @@ export class Engine {
   }
 
   // --------------------------------------------------------------------------------- Overlay
+
+  /** Collects what a drag can snap to (the visible cards that are not being moved) and returns
+   * the session, plus the bounds of the moved cards. Null when there is nothing to snap to. */
+  private beginSnap(
+    movingIds: Iterable<string>,
+    origins: Map<string, { x: number; y: number }>,
+  ): { session: SnapSession; bounds: { x: number; y: number; w: number; h: number } } | null {
+    if (!this.app) return null;
+    const moving = new Set(movingIds);
+    const rects = [...moving].flatMap((id) => {
+      const c = this.cards.get(id);
+      if (!c) return [];
+      const o = origins.get(id);
+      return [{ x: o?.x ?? c.x, y: o?.y ?? c.y, w: c.w, h: c.h }];
+    });
+    const bounds = unionRects(rects);
+    if (!bounds) return null;
+    const { width: vw, height: vh } = this.app.screen;
+    const view = this.camera.viewportWorldRect(vw, vh, 0);
+    const targets = collectSnapTargets(this.cards.values(), moving, view, bounds);
+    if (targets.length === 0) return null;
+    return { session: new SnapSession(targets, snap.thresholdPx / this.camera.zoom), bounds };
+  }
+
+  /** Draws (or, with null, clears) the snapping guides. */
+  private showSnap(overlay: SnapOverlay | null): void {
+    if (!this.snapLayer || !this.app) return;
+    if (!overlay) {
+      this.snapLayer.clear();
+      return;
+    }
+    const { width: vw, height: vh } = this.app.screen;
+    this.snapLayer.show(overlay, (wx, wy) => this.camera.worldToScreen(wx, wy, vw, vh));
+    this.scheduleFrame();
+  }
 
   private drawMarquee(rect: { x: number; y: number; w: number; h: number }): void {
     if (!this.marquee) {

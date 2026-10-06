@@ -7,7 +7,6 @@ import { FONT_DERIVED_V } from './ingestQueue';
 import { rowToFontFile } from '@/db/rowMapping';
 import { cardFile, fontCardOf, isFontCollection } from '@/lib/fontFamily';
 import { fitPlacementsToAspect } from '@/features/import/fitPlacements';
-import { queueAiAnalysis } from './aiQueue';
 
 export interface FontQueueItem {
   itemId: string;
@@ -77,7 +76,6 @@ export class FontIngestQueue {
       await this.platform.cache.put(`t128/${item.itemId}`, new Uint8Array(t128));
       await this.platform.cache.put(`t512/${item.itemId}`, new Uint8Array(t512));
       await this.platform.cache.put(`trow/${item.itemId}`, new Uint8Array(trow));
-      queueAiAnalysis(this.platform, item.itemId);
       await this.platform.db.execute(
         `UPDATE items SET font_meta = ?, status = 'ok', thumb_v = thumb_v + 1, derived_v = ?, updated_at = ? WHERE id = ?`,
         [JSON.stringify(meta), FONT_DERIVED_V, now, item.itemId],
